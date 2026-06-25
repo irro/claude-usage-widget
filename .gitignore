@@ -1,0 +1,11 @@
+# OS / editor cruft
+Thumbs.db
+desktop.ini
+.DS_Store
+*~
+
+# build archives — download from GitHub Releases instead of committing
+*.zip
+
+# local screenshot scratch (screenshot.png is intentionally committed)
+_shot*.png

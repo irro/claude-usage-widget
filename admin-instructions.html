@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Usage Widget &middot; Guide</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#30363d;
+    --text:#e6edf3; --dim:#8b949e; --cyan:#39c5cf; --green:#3fb950;
+    --amber:#e3b341; --red:#e5534b; --track:#30363d; --purple:#a855f7;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font:15px/1.6 "Segoe UI",system-ui,sans-serif;
+    padding:48px 20px 80px;
+  }
+  .wrap{max-width:780px;margin:0 auto}
+  h1{font-size:30px;margin:0 0 4px;letter-spacing:-.4px}
+  h1 .dot{color:var(--cyan)}
+  .sub{color:var(--dim);margin:0 0 30px}
+  h2{font-size:19px;margin:38px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h2 .n{display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;
+    background:var(--cyan);color:#08252a;border-radius:7px;font-size:14px;font-weight:700;margin-right:10px}
+  p{margin:10px 0}
+  code,kbd{background:var(--panel2);border:1px solid var(--line);border-radius:5px;
+    padding:1px 6px;font-family:"Cascadia Code",Consolas,monospace;font-size:13px}
+  a{color:var(--cyan)}
+  ul{margin:10px 0;padding-left:22px} li{margin:6px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin:16px 0}
+  .note{border-left:3px solid var(--amber);background:rgba(227,179,65,.07);
+    border-radius:0 8px 8px 0;padding:12px 16px;margin:16px 0;color:#f0e3c0}
+  .ok{border-left:3px solid var(--green);background:rgba(63,185,80,.07);
+    border-radius:0 8px 8px 0;padding:12px 16px;margin:16px 0}
+  .pill{display:inline-block;background:var(--panel2);border:1px solid var(--line);
+    border-radius:999px;padding:2px 10px;font-size:12px;color:var(--dim);margin:2px 4px 2px 0}
+  .grid{display:grid;grid-template-columns:170px 1fr;gap:8px 14px;margin:10px 0}
+  .grid .k{color:var(--cyan);font-weight:600}
+  .hero{display:flex;gap:28px;align-items:center;flex-wrap:wrap;justify-content:center;
+    background:linear-gradient(180deg,#11161f,#0d1117);border:1px solid var(--line);
+    border-radius:14px;padding:30px;margin:8px 0 6px}
+  .mock{width:280px;background:var(--panel);border:1px solid #000;border-radius:14px;
+    padding:8px 12px 10px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.5);user-select:none}
+  .mock .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .mock .model{color:var(--cyan);font-weight:700}
+  .mock .x{color:var(--dim)}
+  .mock .row{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .mock .tag{color:var(--dim);width:24px;font-size:12px}
+  .mock .bar{flex:0 0 120px;height:9px;background:var(--track);border-radius:0;overflow:hidden}
+  .mock .bar span{display:block;height:100%}
+  .mock .val{font-weight:700;font-size:12px}
+  .mock .mrow{display:flex;align-items:baseline;gap:8px;margin:5px 0}
+  .mock .mname{width:54px;font-weight:700}
+  .mock .mname.opus{color:var(--cyan)}
+  .mock .mname.son{color:var(--purple)}
+  .mock .mname.hai{color:var(--green)}
+  .mock .cost{font-weight:700}
+  .mock .out{color:var(--dim);font-size:12px;margin-left:auto}
+  .mock .div{height:1px;background:var(--track);margin:8px 0 6px}
+  .mock .trow{display:flex;justify-content:space-between;align-items:baseline;margin:3px 0}
+  .mock .tlab{color:var(--dim);font-size:12px}
+  .mock .tval{font-weight:700}
+  .mock .tval.cached{color:var(--cyan)}
+  .mock .tval.raw{color:var(--amber)}
+  .mock .foot{color:var(--dim);font-size:11px;margin-top:8px}
+  .legend{color:var(--dim);font-size:13px;max-width:300px}
+  .legend b{color:var(--text)}
+  .swatch{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+  .foot-note{margin-top:60px;color:var(--dim);font-size:13px;text-align:center;border-top:1px solid var(--line);padding-top:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Claude Usage Widget<span class="dot">.</span></h1>
+  <p class="sub">A small always-on-top panel that shows your <b>Claude Code usage for today</b> &mdash; summed across every session since midnight, so it never flips between sessions. Headline spend, two cost figures, a daily-tokens gauge, and a per-model breakdown &mdash; all at once. Windows only.</p>
+
+  <div class="hero">
+    <div class="mock">
+      <div class="top"><span class="model">Claude usage</span><span class="x">&#8635;&nbsp;&nbsp;&times;</span></div>
+      <div style="color:var(--dim);font-size:11px;margin:2px 0 1px">spent today &middot; cached</div>
+      <div style="color:var(--cyan);font-weight:700;font-size:27px;line-height:1.1;margin-bottom:4px">$480.44</div>
+      <div class="trow"><span class="tlab">if billed per token</span><span class="tval raw">$2,256.56</span></div>
+      <div class="div"></div>
+      <div class="row"><span class="tag">tokens</span><span class="bar"><span style="width:22%;background:var(--green)"></span></span><span class="val">443.6M / 2.00B</span></div>
+      <div class="mrow"><span class="mname opus">Opus</span><span class="cost">$480.44</span><span class="out">&#8595; 1.9M</span></div>
+      <div class="div"></div>
+      <div class="foot">&#8595; 1.9M output &middot; 739 turns &middot; 6 sessions<br>updated 1s ago</div>
+    </div>
+    <div class="legend">
+      <p style="margin-top:0"><b>What you're looking at.</b> Everything you've used <b>today</b>, across all sessions: the big <span style="color:var(--cyan)">spent-today</span> figure, the raw <span style="color:var(--amber)">per-token</span> price, a daily-tokens gauge, and a row for <b>every model used today</b> (cost + tokens it generated). It's a running daily total &mdash; it only grows and resets each morning, so it never jumps between sessions. Drag it anywhere &mdash; many people park it bottom-left.</p>
+      <p>Token-bar colour:
+         <span class="swatch" style="background:var(--green)"></span>under 70% &nbsp;
+         <span class="swatch" style="background:var(--amber)"></span>70&ndash;89% &nbsp;
+         <span class="swatch" style="background:var(--red)"></span>90%+</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>The honest bit.</b> Nothing can place a widget <i>inside</i> the Claude Code app's left sidebar &mdash; that part of the app isn't extendable by any plugin. This is the faithful workaround: a separate floating chip that stays on top of every window and that you drag to wherever you want it. Visually it can sit right alongside the app; technically it's its own little window.
+  </div>
+
+  <h2><span class="n">1</span>Requirements</h2>
+  <ul>
+    <li><b>Windows 10 or 11.</b> Uses built-in Windows PowerShell + .NET WinForms &mdash; nothing to install.</li>
+    <li><b>Claude Code</b>, used at least once. The widget reads the local session transcripts Claude Code writes under <code>%USERPROFILE%\.claude\projects\</code>. It never touches the network.</li>
+  </ul>
+
+  <h2><span class="n">2</span>Install &amp; run</h2>
+  <p>Unzip the folder anywhere you like, then <b>double-click <code>Start Widget.vbs</code></b>. The panel appears at the bottom-left of your main screen with no console window. Drag it wherever you want &mdash; it remembers the spot.</p>
+  <div class="ok"><b>It works immediately</b> if you've used Claude Code before &mdash; it reads your existing session history. If it says &ldquo;no Claude Code sessions found,&rdquo; just send one message in Claude Code and it populates.</div>
+
+  <h2><span class="n">3</span>Keeping it running day to day</h2>
+  <p>The widget keeps running until you close it or restart the PC. It survives sleep, so if you just leave your machine on, it'll still be there when you come back &mdash; nothing to do.</p>
+  <ul>
+    <li><b>Bring it back any time:</b> double-click <code>Start Widget.vbs</code> again &mdash; exactly the same as launching it the first time.</li>
+    <li><b>Never think about it again:</b> double-click <b><code>Add to Startup.cmd</code></b> once. From then on it launches automatically every time you sign in to Windows &mdash; so the morning after a shutdown or reboot, you log in and it's already there. <code>Remove from Startup.cmd</code> undoes it.</li>
+  </ul>
+  <div class="note"><b>Coming back the next day?</b> If you shut down or restarted, log in and &mdash; if you ran <code>Add to Startup.cmd</code> &mdash; it's already running. If not, double-click <code>Start Widget.vbs</code>. Auto-start only kicks in at sign-in, so if you close the widget in the middle of a session it won't reappear on its own until your next login; <code>Start Widget.vbs</code> brings it right back.</div>
+
+  <h2><span class="n">4</span>Move &amp; close it</h2>
+  <ul>
+    <li><b>Move:</b> click and drag anywhere on the panel.</li>
+    <li><b>Close:</b> click the <b>&times;</b> in the top-right, or right-click the panel &rarr; <b>Exit</b>.</li>
+    <li><b>Right-click menu:</b> <span class="pill">Refresh now</span> <span class="pill">Open instructions</span> <span class="pill">Exit</span></li>
+  </ul>
+
+  <h2><span class="n">5</span>What the numbers mean</h2>
+  <div class="card">
+    <div class="grid">
+      <div class="k">title</div><div>The label &ldquo;Claude usage,&rdquo; with a <b>&#8635;</b> refresh button and a <b>&times;</b> close button.</div>
+      <div class="k">spent today &middot; cached</div><div>The headline number: today's <b>cache-aware</b> cost, summed across every session since midnight. The realistic API estimate &mdash; <b>see the note below.</b></div>
+      <div class="k">if billed per token</div><div>The raw &ldquo;sticker&rdquo; price for today: <i>every</i> input, cache, and output token at full list rate, no cache discount. Always larger &mdash; usually several times the cached figure.</div>
+      <div class="k">tokens</div><div>Today's <i>cumulative</i> tokens (input + output + cache) as a bar against a daily budget you can set (default 2B). A &ldquo;how heavy is today&rdquo; gauge. <b>Note:</b> this is a tunable budget, not your real plan limit &mdash; see the note below.</div>
+      <div class="k">model rows</div><div>One row per model family you've <b>used today</b> (Opus, Sonnet, Haiku, Fable, &hellip;), summed across all sessions. Each shows that model's cache-aware cost and <span>&#8595;</span> the tokens it generated. The panel grows/shrinks to fit &mdash; no empty rows.</div>
+      <div class="k">output &middot; turns &middot; sessions</div><div>Today's total tokens generated, the assistant-turn count, and how many distinct sessions contributed today.</div>
+      <div class="k">updated &hellip; ago</div><div>How fresh the reading is &mdash; the time since the most recent turn in any of today's sessions.</div>
+    </div>
+  </div>
+  <div class="note">
+    <b>About the dollar figures.</b> Both are <i>estimates at API list prices</i>. If you're on a Claude <b>Max/Pro subscription you don't pay per token</b> &mdash; your plan covers it &mdash; so read them as &ldquo;what today would have cost on the pay-as-you-go API,&rdquo; a sense of weight, not a bill. <b>Spent today &middot; cached</b> is the realistic number (caching is part of real API billing); <b>if billed per token</b> shows the raw token volume's sticker price with the caching discount removed. Both include work done by any sub-agents your sessions spawned (Explore/Task/parallel helpers).
+  </div>
+
+  <div class="note">
+    <b>About the &ldquo;tokens&rdquo; bar.</b> It's <i>today's</i> cumulative tokens against a daily budget you choose (<code>$DailyBudgetTokens</code>, default 2B) &mdash; a sense of how heavy today has gotten. It is <b>not</b> your Claude plan's real rate-limit: that number only exists in the data Claude Code feeds its <i>status line</i>, which this standalone widget never receives. So treat the bar as a tunable gauge, and set the budget to whatever daily ceiling is meaningful to you.
+  </div>
+
+  <h2><span class="n">6</span>How it works (under the hood)</h2>
+  <p>Every turn, Claude Code appends your conversation &mdash; including exact token counts and a timestamp &mdash; to a transcript file under <code>%USERPROFILE%\.claude\projects\</code>. The widget looks at every transcript touched today (and any <code>subagents\*.jsonl</code> beside them), and for each one reads <b>only the bytes appended since it last looked</b>, keeping a per-file running total of the turns timestamped <i>today</i>. It sums those into one daily figure and buckets cost + output <b>by model family</b>. From that it paints the headline cost, the daily-tokens bar, one row per model used today, the raw cost, and the footer. Because it only re-reads new bytes, even a busy live session refreshes in a few milliseconds, and at local midnight the counters reset. <b>No status line, no background service, no network &mdash; just one small program reading files that already exist.</b></p>
+
+  <h2><span class="n">7</span>Tweaking it</h2>
+  <p>Everything lives in <code>usage-widget.ps1</code> &mdash; open it in any text editor:</p>
+  <ul>
+    <li><b>Daily-tokens budget:</b> <code>$DailyBudgetTokens</code> (default <code>2000000000</code> = 2B) is what the <b>tokens</b> bar is measured against. Lower it if you want the bar more sensitive.</li>
+    <li><b>Prices:</b> the <code>Get-Price</code> function holds per-model list rates &mdash; edit if Anthropic's prices change or you want different numbers. The cache-aware cost derives cache rates from the input rate; the per-token cost uses the input rate flat.</li>
+    <li><b>Row colours / order:</b> <code>$FamColor</code> and <code>$FamOrder</code>. Every family with usage today is shown automatically &mdash; you don't choose which.</li>
+  </ul>
+
+  <h2><span class="n">8</span>Troubleshooting</h2>
+  <ul>
+    <li><b>&ldquo;no Claude usage yet today&rdquo;:</b> you haven't used Claude Code yet today, or it's just past midnight. Send a message and it appears.</li>
+    <li><b>Numbers feel frozen:</b> they only change when a new turn is written. The &ldquo;updated &hellip; ago&rdquo; line tells you how fresh it is.</li>
+    <li><b>The cost looks big:</b> that's the API-list estimate for the whole day, not a charge &mdash; see section 5. The &ldquo;per token&rdquo; figure is deliberately the larger, no-caching number.</li>
+    <li><b>tokens bar nearly full:</b> you've had a heavy day; raise <code>$DailyBudgetTokens</code> if you want more headroom.</li>
+    <li><b>Only one model row:</b> you only used one model today. Rows appear as you (or sub-agents) use more &mdash; e.g. Haiku often shows up once a sub-agent runs.</li>
+    <li><b>Widget disappeared:</b> double-click <code>Start Widget.vbs</code> again. Only one copy runs at a time, so you can't accidentally stack duplicates.</li>
+    <li><b>Windows blocked the .vbs / .cmd:</b> right-click the file &rarr; <b>Properties</b> &rarr; tick <b>Unblock</b> (appears on files downloaded from the internet), then run it.</li>
+  </ul>
+
+  <p class="foot-note">No installs, no dependencies, no network &mdash; just one small PowerShell window you can close any time. MIT-licensed; do whatever you like with it.</p>
+
+</div>
+</body>
+</html>
