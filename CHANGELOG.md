@@ -2,6 +2,11 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.1.2 — 2026-06-25
+
+- **Version shown in the widget.** A small version tag (e.g. `v1.1.2`) now sits
+  next to the title, so you can see at a glance which build is running.
+
 ## v1.1.1 — 2026-06-25
 
 - **Continuous history auto-save.** Today's total is now written to the

@@ -32,6 +32,7 @@ $PosPath  = Join-Path $env:USERPROFILE '.claude\usage-widget-pos.txt'
 $HistPath = Join-Path $env:USERPROFILE '.claude\usage-widget-history.json'
 $CalOut   = Join-Path $env:USERPROFILE '.claude\usage-widget-calendar.html'
 $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
+$Version  = '1.1.2'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -158,7 +159,8 @@ function New-Lbl($x,$y,$w,$h,$color,$size,$bold){
 function Set-T($l,$t){ if($l.Text -ne $t){ $l.Text = $t } }
 
 # header
-$lblTitle = New-Lbl $padL 9 130 18 $cCyan 9.5 $true ; $lblTitle.Text = 'Claude usage'
+$lblTitle = New-Lbl $padL 9 86 18 $cCyan 9.5 $true ; $lblTitle.Text = 'Claude usage'
+$lblVer   = New-Lbl 95 12 70 14 $cDim 8 $false ; $lblVer.Text = 'v' + $Version
 
 # history (calendar) button - opens a beautiful per-day usage calendar
 $btnHist = New-Lbl ($W-70) 7 20 18 $cDim 10 $false
@@ -264,7 +266,7 @@ $dragHandler = {
 }
 function Wire-Drag($c){ $c.ContextMenuStrip = $menu; $c.Add_MouseDown($dragHandler) }
 # everything is a drag handle EXCEPT the refresh / close buttons (they click)
-$dragCtrls = @($form,$lblTitle,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$lblBarTag,$trackBar,$fillBar,$lblBarVal,$div2,$lblFoot1,$lblFoot2)
+$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$lblBarTag,$trackBar,$fillBar,$lblBarVal,$div2,$lblFoot1,$lblFoot2)
 $dragCtrls += $rowName + $rowCost + $rowOut
 foreach($c in $dragCtrls){ Wire-Drag $c }
 
