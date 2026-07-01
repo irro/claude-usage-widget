@@ -2,6 +2,14 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.1.3 — 2026-06-25
+
+- **"By project" breakdown in the calendar.** The history calendar now shows a
+  ranked bar list of how many tokens (or how much cost) each project used — each
+  turn is attributed to its working directory. Follows the Cost/Tokens toggle,
+  and is persisted to `usage-widget-projects.json` so it survives transcript
+  pruning.
+
 ## v1.1.2 — 2026-06-25
 
 - **Version shown in the widget.** A small version tag (e.g. `v1.1.2`) now sits

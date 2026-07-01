@@ -32,7 +32,8 @@ $PosPath  = Join-Path $env:USERPROFILE '.claude\usage-widget-pos.txt'
 $HistPath = Join-Path $env:USERPROFILE '.claude\usage-widget-history.json'
 $CalOut   = Join-Path $env:USERPROFILE '.claude\usage-widget-calendar.html'
 $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
-$Version  = '1.1.2'   # bump on each release; shown next to the title in the widget
+$ProjPath = Join-Path $env:USERPROFILE '.claude\usage-widget-projects.json'
+$Version  = '1.1.3'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -474,7 +475,7 @@ function Update-Widget {
 function Scan-AllHistory {
     $files = @(Get-ChildItem (Join-Path $ProjRoot '*\*.jsonl') -ErrorAction SilentlyContinue) +
              @(Get-ChildItem (Join-Path $ProjRoot '*\*\subagents\*.jsonl') -ErrorAction SilentlyContinue)
-    $seen=@{}; $byDay=@{}
+    $seen=@{}; $byDay=@{}; $byProj=@{}
     foreach($f in $files){
         $fs=$null; $sr=$null
         try { $fs=New-Object System.IO.FileStream($f.FullName,[System.IO.FileMode]::Open,[System.IO.FileAccess]::Read,[System.IO.FileShare]::ReadWrite); $sr=New-Object System.IO.StreamReader($fs) } catch { continue }
@@ -491,12 +492,18 @@ function Scan-AllHistory {
                 $e5=0.0; $e1=0.0; if($u.cache_creation){ $e5=[double]$u.cache_creation.ephemeral_5m_input_tokens; $e1=[double]$u.cache_creation.ephemeral_1h_input_tokens } else { $e5=$cc }
                 $pr=Get-Price $o.message.model; $bi=$pr.In/1e6; $bo=$pr.Out/1e6
                 $tc=$i*$bi+$ou*$bo+$cr*($bi*0.1)+$e5*($bi*1.25)+$e1*($bi*2.0); $tr=($i+$cr+$cc)*$bi+$ou*$bo
+                $tkn = $i+$ou+$cr+$cc
                 if(-not $byDay.ContainsKey($day)){ $byDay[$day]=@{cost=0.0;raw=0.0;tok=0.0;out=0.0;turns=0} }
-                $d=$byDay[$day]; $d.cost+=$tc; $d.raw+=$tr; $d.tok+=$i+$ou+$cr+$cc; $d.out+=$ou; $d.turns++
+                $d=$byDay[$day]; $d.cost+=$tc; $d.raw+=$tr; $d.tok+=$tkn; $d.out+=$ou; $d.turns++
+                # attribute to a project = the working directory (leaf of cwd)
+                $proj = if($o.cwd){ Split-Path ([string]$o.cwd) -Leaf } else { '(unknown)' }
+                if([string]::IsNullOrWhiteSpace($proj)){ $proj='(unknown)' }
+                if(-not $byProj.ContainsKey($proj)){ $byProj[$proj]=@{cost=0.0;raw=0.0;tok=0.0;out=0.0;turns=0} }
+                $pj=$byProj[$proj]; $pj.cost+=$tc; $pj.raw+=$tr; $pj.tok+=$tkn; $pj.out+=$ou; $pj.turns++
             }
         } catch { } finally { if($sr){ $sr.Close() }; if($fs){ $fs.Close() } }
     }
-    return $byDay
+    return @{ byDay=$byDay; byProj=$byProj }
 }
 # Persistent per-day store, so history survives Claude Code pruning old transcripts.
 function Load-History {
@@ -513,6 +520,23 @@ function Save-History($h){
     $clean=[ordered]@{}
     foreach($k in ($h.Keys | Sort-Object)){ $d=$h[$k]; $clean[$k]=[ordered]@{cost=[math]::Round($d.cost,2);raw=[math]::Round($d.raw,2);tok=[math]::Round($d.tok);out=[math]::Round($d.out);turns=$d.turns} }
     try { ($clean | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $HistPath -Encoding UTF8 } catch { }
+    return $clean
+}
+# Persistent per-PROJECT store (all-time totals), same pattern as the daily store.
+function Load-Projects {
+    $h=@{}
+    if(Test-Path $ProjPath){
+        try {
+            $o = Get-Content $ProjPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            foreach($p in $o.PSObject.Properties){ $v=$p.Value; $h[$p.Name]=@{cost=[double]$v.cost;raw=[double]$v.raw;tok=[double]$v.tok;out=[double]$v.out;turns=[int]$v.turns} }
+        } catch { }
+    }
+    return $h
+}
+function Save-Projects($h){
+    $clean=[ordered]@{}
+    foreach($k in ($h.Keys | Sort-Object { $h[$_].tok } -Descending)){ $d=$h[$k]; $clean[$k]=[ordered]@{cost=[math]::Round($d.cost,2);raw=[math]::Round($d.raw,2);tok=[math]::Round($d.tok);out=[math]::Round($d.out);turns=$d.turns} }
+    try { ($clean | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $ProjPath -Encoding UTF8 } catch { }
     return $clean
 }
 # Continuously fold TODAY's live total into the persistent store, so long-term
@@ -535,18 +559,27 @@ function Open-History {
     try {
         $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
         [System.Windows.Forms.Application]::DoEvents()
-        $scanned = Scan-AllHistory
+        $scan = Scan-AllHistory
+        # per-day store (keep the fuller record per day)
         $hist = Load-History
-        foreach($k in $scanned.Keys){
-            if(-not $hist.ContainsKey($k) -or $scanned[$k].turns -ge $hist[$k].turns){ $hist[$k]=$scanned[$k] }
+        foreach($k in $scan.byDay.Keys){
+            if(-not $hist.ContainsKey($k) -or $scan.byDay[$k].turns -ge $hist[$k].turns){ $hist[$k]=$scan.byDay[$k] }
         }
         $clean = Save-History $hist
+        # per-project store (keep the fuller record per project)
+        $projStore = Load-Projects
+        foreach($k in $scan.byProj.Keys){
+            if(-not $projStore.ContainsKey($k) -or $scan.byProj[$k].turns -ge $projStore[$k].turns){ $projStore[$k]=$scan.byProj[$k] }
+        }
+        $cleanProj = Save-Projects $projStore
         if(-not (Test-Path $CalTpl)){ $lblFoot2.Text='calendar-template.html missing'; return }
         $json = $clean | ConvertTo-Json -Depth 5 -Compress
         if($null -eq $json -or $json.Trim() -eq '' ){ $json='{}' }
+        $pjson = $cleanProj | ConvertTo-Json -Depth 5 -Compress
+        if($null -eq $pjson -or $pjson.Trim() -eq '' ){ $pjson='{}' }
         $tpl  = Get-Content $CalTpl -Raw -Encoding UTF8
         $gen  = (Get-Date).ToString('MMM d, yyyy h:mm tt')
-        $html = $tpl.Replace('__USAGE_DATA__',$json).Replace('__GENERATED__',$gen)
+        $html = $tpl.Replace('__USAGE_DATA__',$json).Replace('__PROJECTS_DATA__',$pjson).Replace('__GENERATED__',$gen)
         [System.IO.File]::WriteAllText($CalOut,$html,(New-Object System.Text.UTF8Encoding($false)))
         Start-Process $CalOut
     } catch { } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default }
