@@ -108,8 +108,9 @@
   </ul>
 
   <h2><span class="n">2</span>Install &amp; run</h2>
-  <p>Unzip the folder anywhere you like, then <b>double-click <code>Start Widget.vbs</code></b>. The panel appears at the bottom-left of your main screen with no console window. Drag it wherever you want &mdash; it remembers the spot.</p>
-  <div class="ok"><b>It works immediately</b> if you've used Claude Code before &mdash; it reads your existing session history. If it says &ldquo;no Claude Code sessions found,&rdquo; just send one message in Claude Code and it populates.</div>
+  <p><b>Easiest &mdash; one click.</b> Unzip the folder, then <b>double-click <code>Install.cmd</code></b>. It copies the widget into place, clears the &ldquo;downloaded from the internet&rdquo; flag so nothing gets blocked, adds a <b>Desktop shortcut</b> with a matching icon, and launches it. If Windows shows a &ldquo;Windows protected your PC&rdquo; box, click <b>More info &rarr; Run anyway</b> &mdash; it's a small, readable script.</p>
+  <p><b>Or run it in place.</b> Prefer not to install? Just <b>double-click <code>Start Widget.vbs</code></b>. The panel appears at the bottom-left with no console window. Drag it wherever you want &mdash; it remembers the spot.</p>
+  <div class="ok"><b>It works immediately</b> if you've used Claude Code before &mdash; it reads your existing session history. If it says &ldquo;no Claude usage yet today,&rdquo; just send one message in Claude Code and it populates.</div>
 
   <h2><span class="n">3</span>Keeping it running day to day</h2>
   <p>The widget keeps running until you close it or restart the PC. It survives sleep, so if you just leave your machine on, it'll still be there when you come back &mdash; nothing to do.</p>
@@ -119,11 +120,13 @@
   </ul>
   <div class="note"><b>Coming back the next day?</b> If you shut down or restarted, log in and &mdash; if you ran <code>Add to Startup.cmd</code> &mdash; it's already running. If not, double-click <code>Start Widget.vbs</code>. Auto-start only kicks in at sign-in, so if you close the widget in the middle of a session it won't reappear on its own until your next login; <code>Start Widget.vbs</code> brings it right back.</div>
 
-  <h2><span class="n">4</span>Move &amp; close it</h2>
+  <h2><span class="n">4</span>Move, history &amp; close</h2>
   <ul>
     <li><b>Move:</b> click and drag anywhere on the panel.</li>
+    <li><b>History calendar:</b> click the <b>calendar</b> button in the top-right (or right-click &rarr; <b>History (calendar)</b>). It opens a per-day usage calendar in your browser &mdash; a heat-mapped month grid, summary cards (all-time spend, busiest day, averages, total tokens), a <b>Cost/Tokens</b> toggle, and hover-for-details. Your history is saved locally, so it keeps growing even after Claude Code prunes old transcripts.</li>
+    <li><b>Refresh:</b> click the <b>&#8635;</b> button to re-scan right now.</li>
     <li><b>Close:</b> click the <b>&times;</b> in the top-right, or right-click the panel &rarr; <b>Exit</b>.</li>
-    <li><b>Right-click menu:</b> <span class="pill">Refresh now</span> <span class="pill">Open instructions</span> <span class="pill">Exit</span></li>
+    <li><b>Right-click menu:</b> <span class="pill">History (calendar)</span> <span class="pill">Refresh now</span> <span class="pill">Open instructions</span> <span class="pill">Exit</span></li>
   </ul>
 
   <h2><span class="n">5</span>What the numbers mean</h2>

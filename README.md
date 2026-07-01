@@ -1,7 +1,5 @@
 # Claude Usage Widget
 
-![Claude Usage Widget — today's total usage dashboard](screenshot.png)
-
 A tiny **always-on-top desktop panel for Windows** that shows your **Claude Code
 usage for today** — summed across **every session you've run since midnight**,
 so the numbers only grow through the day and reset each morning. Because it's a
@@ -18,6 +16,9 @@ everything stays put and just climbs as you work. Shown all at once:
   that model's cache-aware cost and the tokens it generated
 - **output / turns / sessions** — total tokens generated, assistant-turn count,
   and how many distinct sessions contributed today, plus how fresh the reading is
+- **history calendar** — click the calendar button for a per-day usage calendar:
+  a heat-mapped month grid, summary cards (all-time spend, busiest day, averages,
+  total tokens), a Cost/Tokens toggle, and hover-for-details
 
 It's a single small PowerShell program. No installer, no dependencies, no
 network, no background service — it just reads the transcript files Claude Code
@@ -58,19 +59,25 @@ That's it. It never makes a network connection.
 
 ## Install & run
 
-1. Unzip this folder anywhere.
-2. Double-click **`Start Widget.vbs`**. The panel appears at the bottom-left of
-   your main screen (no console window). Drag it where you like — it remembers
-   the spot. Only one copy ever runs, so double-clicking again won't stack
-   duplicates.
-3. *(Optional)* Double-click **`Add to Startup.cmd`** to launch it
-   automatically every time you sign in. **`Remove from Startup.cmd`** undoes it.
+**Easiest — one-click install.** Unzip the folder, then double-click
+**`Install.cmd`**. It copies the widget to a stable spot, clears the "downloaded
+from the internet" flag (so nothing gets blocked), drops a **Desktop shortcut**
+with a matching icon, and launches it. If Windows shows a "Windows protected your
+PC" box, click **More info → Run anyway** (it's a small, readable script).
 
-To close it: click the **×**, or right-click → **Exit**. The round arrow (⟳)
-forces an immediate re-scan.
+**Or run it in place.** Prefer not to install? Just double-click
+**`Start Widget.vbs`** to run it straight from the folder. Only one copy ever
+runs, so double-clicking again won't stack duplicates.
 
-> **If Windows blocks the `.vbs`/`.cmd`** (common on files extracted from a
-> downloaded zip): right-click the file → **Properties** → tick **Unblock** → OK.
+*(Optional)* Double-click **`Add to Startup.cmd`** to launch it automatically
+every time you sign in. **`Remove from Startup.cmd`** undoes it.
+
+Using it: drag the panel anywhere; the **calendar** button opens your history,
+the **⟳** re-scans now, and the **×** (or right-click → **Exit**) closes it.
+
+> **If Windows blocks the `.vbs`/`.cmd`** (only if you skipped `Install.cmd`,
+> which unblocks for you): right-click the file → **Properties** → tick
+> **Unblock** → OK.
 
 ## Keeping it running day to day
 
@@ -90,9 +97,9 @@ won't reappear on its own until your next login; relaunch with
 
 ## The two dollar figures
 
-Both are **estimates at API list prices**. If you're on a Claude Max/Pro plan you
-pay nothing per token, so read them as "what today would cost on the
-pay-as-you-go API," a sense of weight rather than a bill.
+Both are **estimates at API list prices** — if you're on a Max/Pro plan you pay
+nothing per token, so read them as "what today would cost on the pay-as-you-go
+API," a sense of weight rather than a bill.
 
 - **spent today · cached** is the realistic one. Real API billing charges cache
   *reads* at ~10% of the input rate and cache *writes* at a small premium, and
@@ -120,6 +127,12 @@ Because it only re-reads new bytes, even a busy live session refreshes in a few
 milliseconds — it's effectively free to leave running. At local midnight the
 counters reset and the new day begins.
 
+The **history calendar** does a fuller (de-duplicated) scan of every transcript,
+buckets it per day, and merges the result into a persistent store
+(`usage-widget-history.json`) that keeps the fuller record for each day — so your
+history survives even after Claude Code prunes old transcripts. It then renders
+the calendar from `calendar-template.html` and opens it in your browser.
+
 ## Configuring
 
 Open `usage-widget.ps1` in any text editor:
@@ -144,13 +157,19 @@ Open `usage-widget.ps1` in any text editor:
 | File | Purpose |
 |------|---------|
 | `usage-widget.ps1` | The widget itself |
-| `Start Widget.vbs` | Double-click to launch (no console flash) |
+| `calendar-template.html` | Template the history calendar is generated from |
+| `widget.ico` | Icon for the Desktop shortcut |
+| `Install.cmd` / `install.ps1` | One-click install (copy + unblock + Desktop icon + launch) |
+| `Start Widget.vbs` | Double-click to launch in place (no console flash) |
 | `Add to Startup.cmd` | Launch automatically at sign-in |
 | `Remove from Startup.cmd` | Undo auto-launch |
-| `admin-instructions.html` | Friendly illustrated guide (same as this, with a mockup) |
+| `START HERE.txt` | Quick-start for first-time users |
+| `admin-instructions.html` | Friendly illustrated guide (with a mockup) |
+| `README.md` / `CHANGELOG.md` | This file / version history |
 
-The widget also writes one small file, `%USERPROFILE%\.claude\usage-widget-pos.txt`,
-to remember its on-screen position.
+The widget also writes small files under `%USERPROFILE%\.claude\`:
+`usage-widget-pos.txt` (window position), `usage-widget-history.json` (the
+per-day history store), and `usage-widget-calendar.html` (the generated calendar).
 
 ## License
 

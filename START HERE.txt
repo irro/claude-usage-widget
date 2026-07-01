@@ -1,0 +1,54 @@
+Claude Usage Widget  —  START HERE
+==================================================
+
+A tiny always-on-top panel that shows your Claude Code usage for TODAY —
+what it would cost on the API, tokens, turns, and a per-model breakdown, all
+in one little window you can park anywhere. There's also a beautiful history
+calendar (click the calendar icon in the corner).
+
+Windows only. Nothing to download — it uses PowerShell that's already built
+into Windows. No internet connection, no background service, no account.
+
+
+SET IT UP  (about 30 seconds)
+--------------------------------------------------
+1. Extract this whole folder somewhere you'll keep it
+   (right-click the .zip  ->  "Extract All...").
+
+2. Double-click   Install.cmd
+
+   Windows may show a blue "Windows protected your PC" box, or a
+   security warning, because the file came from the internet:
+       ->  click "More info"  ->  "Run anyway"     (blue box)
+       ->  or just click "Run"                     (security warning)
+   It's a small, readable script — it only copies the widget into your
+   user folder and makes a Desktop shortcut. It changes nothing else.
+
+3. That's it. The widget appears at the bottom-left of your screen, and you
+   get a "Claude Usage Widget" icon on your Desktop to launch it anytime.
+
+Prefer not to "install"?  Just double-click  "Start Widget.vbs"  to run it
+right from this folder instead.
+
+
+USING IT
+--------------------------------------------------
+* Drag the panel anywhere — it remembers where you put it.
+* Calendar icon  = open your usage history (a lovely per-day calendar).
+* Refresh icon   = re-scan right now.
+* The  x  (or right-click -> Exit) closes it.
+* Want it to start automatically with Windows? Double-click
+  "Add to Startup.cmd"  (and "Remove from Startup.cmd" undoes it).
+
+
+GOOD TO KNOW
+--------------------------------------------------
+* It reads the local files Claude Code writes on THIS PC, so it shows *your*
+  Claude Code usage. If you don't use Claude Code, it'll just say
+  "no Claude usage yet today."
+* The dollar amounts are estimates at API list prices — a sense of weight,
+  not a bill. On a Max/Pro plan you don't pay per token.
+* It only ever reads local files. No network, nothing leaves your computer.
+
+Full guide: open  admin-instructions.html  in your browser.
+Enjoy!  💚

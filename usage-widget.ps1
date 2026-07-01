@@ -27,6 +27,11 @@ if(-not $gotInstance){ return }
 
 $ProjRoot = Join-Path $env:USERPROFILE '.claude\projects'
 $PosPath  = Join-Path $env:USERPROFILE '.claude\usage-widget-pos.txt'
+# History calendar: a persistent per-day datastore (survives transcript pruning)
+# and the generated calendar page; the template ships beside this script.
+$HistPath = Join-Path $env:USERPROFILE '.claude\usage-widget-history.json'
+$CalOut   = Join-Path $env:USERPROFILE '.claude\usage-widget-calendar.html'
+$CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -64,6 +69,7 @@ $DailyBudgetTokens = 2000000000
 # --- state ----------------------------------------------------------------
 $script:files     = @{}     # path -> per-file accumulator (today only)
 $script:curDay    = $null   # 'yyyy-MM-dd' the accumulators belong to
+$script:seenToday = @{}     # message.id|requestId -> 1 (dedup resumed/copied turns)
 $script:layoutKey = $null
 
 # --- palette --------------------------------------------------------------
@@ -152,6 +158,15 @@ function Set-T($l,$t){ if($l.Text -ne $t){ $l.Text = $t } }
 # header
 $lblTitle = New-Lbl $padL 9 130 18 $cCyan 9.5 $true ; $lblTitle.Text = 'Claude usage'
 
+# history (calendar) button - opens a beautiful per-day usage calendar
+$btnHist = New-Lbl ($W-70) 7 20 18 $cDim 10 $false
+try { $btnHist.Font = New-Object System.Drawing.Font('Segoe MDL2 Assets',10) } catch {}
+$btnHist.Text = [string][char]0xE787                 # calendar glyph (Segoe MDL2 Assets)
+$btnHist.TextAlign = 'MiddleCenter'
+$btnHist.Add_Click({ Open-History })
+$btnHist.Add_MouseEnter({ $btnHist.ForeColor = $cCyan })
+$btnHist.Add_MouseLeave({ $btnHist.ForeColor = $cDim })
+
 $btnRefresh = New-Lbl ($W-46) 7 18 18 $cDim 10 $false
 $btnRefresh.Text = [string][char]0x21BB              # round arrow
 $btnRefresh.TextAlign = 'MiddleCenter'
@@ -219,10 +234,11 @@ $lblFoot2 = New-Lbl $padL 203 ($W-2*$padL) 14 $cDim  8 $false ; $lblFoot2.Text =
 
 # --- right-click menu -----------------------------------------------------
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
-$miR = $menu.Items.Add('Refresh now')       ; $miR.Add_Click({ $script:curDay=$null; Update-Widget })
-$miH = $menu.Items.Add('Open instructions') ; $miH.Add_Click({ try { Start-Process (Join-Path $PSScriptRoot 'admin-instructions.html') } catch {} })
+$miC = $menu.Items.Add('History (calendar)') ; $miC.Add_Click({ Open-History })
+$miR = $menu.Items.Add('Refresh now')        ; $miR.Add_Click({ $script:curDay=$null; Update-Widget })
+$miH = $menu.Items.Add('Open instructions')  ; $miH.Add_Click({ try { Start-Process (Join-Path $PSScriptRoot 'admin-instructions.html') } catch {} })
 [void]$menu.Items.Add('-')
-$miX = $menu.Items.Add('Exit')              ; $miX.Add_Click({ $form.Close() })
+$miX = $menu.Items.Add('Exit')               ; $miX.Add_Click({ $form.Close() })
 $form.ContextMenuStrip = $menu
 
 # --- dragging (hand off to the OS window-move loop: grab anywhere, glides) -
@@ -287,6 +303,10 @@ function Read-Today($path,$st,$todayDate){
             if($o.type -ne 'assistant'){ continue }
             $u = $o.message.usage; if($null -eq $u){ continue }
             try { if(([datetimeoffset]::Parse([string]$o.timestamp)).LocalDateTime.Date -ne $todayDate){ continue } } catch { continue }
+            # dedup turns copied into resumed/forked transcripts (else double-counted)
+            $dk = "$($o.message.id)|$($o.requestId)"; if($dk -eq '|'){ $dk = $o.uuid }
+            if($script:seenToday.ContainsKey($dk)){ continue }
+            $script:seenToday[$dk] = 1
             $i  = [double]$u.input_tokens;            $ou = [double]$u.output_tokens
             $cr = [double]$u.cache_read_input_tokens; $cc = [double]$u.cache_creation_input_tokens
             $e5 = 0.0; $e1 = 0.0
@@ -311,7 +331,7 @@ function Read-Today($path,$st,$todayDate){
 # subagents fold into the totals but don't count as separate sessions).
 function Aggregate-Today {
     $todayKey  = (Get-Date).ToString('yyyy-MM-dd')
-    if($todayKey -ne $script:curDay){ $script:files=@{}; $script:curDay=$todayKey }   # midnight reset
+    if($todayKey -ne $script:curDay){ $script:files=@{}; $script:seenToday=@{}; $script:curDay=$todayKey }   # midnight reset
     $todayDate = (Get-Date).Date
 
     $top=@(); $sub=@()
@@ -436,6 +456,76 @@ function Update-Widget {
     $key = ($fams -join ',')
     if($key -ne $script:layoutKey){ Relayout $fams; $script:layoutKey=$key }
     Repaint $d $fams $r.stamp
+}
+
+# --- history calendar -----------------------------------------------------
+# Full deduped scan of EVERY transcript, bucketed by local day. Slower than the
+# live path (reads all history once, ~a few seconds), so it runs only on demand.
+function Scan-AllHistory {
+    $files = @(Get-ChildItem (Join-Path $ProjRoot '*\*.jsonl') -ErrorAction SilentlyContinue) +
+             @(Get-ChildItem (Join-Path $ProjRoot '*\*\subagents\*.jsonl') -ErrorAction SilentlyContinue)
+    $seen=@{}; $byDay=@{}
+    foreach($f in $files){
+        $fs=$null; $sr=$null
+        try { $fs=New-Object System.IO.FileStream($f.FullName,[System.IO.FileMode]::Open,[System.IO.FileAccess]::Read,[System.IO.FileShare]::ReadWrite); $sr=New-Object System.IO.StreamReader($fs) } catch { continue }
+        try {
+            while($null -ne ($line=$sr.ReadLine())){
+                if($line.IndexOf('output_tokens') -lt 0){ continue }
+                try { $o=$line|ConvertFrom-Json } catch { continue }
+                if($o.type -ne 'assistant'){ continue }
+                $u=$o.message.usage; if($null -eq $u){ continue }
+                $k="$($o.message.id)|$($o.requestId)"; if($k -eq '|'){ $k=$o.uuid }
+                if($seen.ContainsKey($k)){ continue }; $seen[$k]=1
+                try { $day=([datetimeoffset]::Parse([string]$o.timestamp)).LocalDateTime.ToString('yyyy-MM-dd') } catch { continue }
+                $i=[double]$u.input_tokens; $ou=[double]$u.output_tokens; $cr=[double]$u.cache_read_input_tokens; $cc=[double]$u.cache_creation_input_tokens
+                $e5=0.0; $e1=0.0; if($u.cache_creation){ $e5=[double]$u.cache_creation.ephemeral_5m_input_tokens; $e1=[double]$u.cache_creation.ephemeral_1h_input_tokens } else { $e5=$cc }
+                $pr=Get-Price $o.message.model; $bi=$pr.In/1e6; $bo=$pr.Out/1e6
+                $tc=$i*$bi+$ou*$bo+$cr*($bi*0.1)+$e5*($bi*1.25)+$e1*($bi*2.0); $tr=($i+$cr+$cc)*$bi+$ou*$bo
+                if(-not $byDay.ContainsKey($day)){ $byDay[$day]=@{cost=0.0;raw=0.0;tok=0.0;out=0.0;turns=0} }
+                $d=$byDay[$day]; $d.cost+=$tc; $d.raw+=$tr; $d.tok+=$i+$ou+$cr+$cc; $d.out+=$ou; $d.turns++
+            }
+        } catch { } finally { if($sr){ $sr.Close() }; if($fs){ $fs.Close() } }
+    }
+    return $byDay
+}
+# Persistent per-day store, so history survives Claude Code pruning old transcripts.
+function Load-History {
+    $h=@{}
+    if(Test-Path $HistPath){
+        try {
+            $o = Get-Content $HistPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            foreach($p in $o.PSObject.Properties){ $v=$p.Value; $h[$p.Name]=@{cost=[double]$v.cost;raw=[double]$v.raw;tok=[double]$v.tok;out=[double]$v.out;turns=[int]$v.turns} }
+        } catch { }
+    }
+    return $h
+}
+function Save-History($h){
+    $clean=[ordered]@{}
+    foreach($k in ($h.Keys | Sort-Object)){ $d=$h[$k]; $clean[$k]=[ordered]@{cost=[math]::Round($d.cost,2);raw=[math]::Round($d.raw,2);tok=[math]::Round($d.tok);out=[math]::Round($d.out);turns=$d.turns} }
+    try { ($clean | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $HistPath -Encoding UTF8 } catch { }
+    return $clean
+}
+# Scan -> merge into the store (keep the fuller record per day) -> generate the
+# calendar from the template -> open it in the browser.
+function Open-History {
+    try {
+        $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
+        [System.Windows.Forms.Application]::DoEvents()
+        $scanned = Scan-AllHistory
+        $hist = Load-History
+        foreach($k in $scanned.Keys){
+            if(-not $hist.ContainsKey($k) -or $scanned[$k].turns -ge $hist[$k].turns){ $hist[$k]=$scanned[$k] }
+        }
+        $clean = Save-History $hist
+        if(-not (Test-Path $CalTpl)){ $lblFoot2.Text='calendar-template.html missing'; return }
+        $json = $clean | ConvertTo-Json -Depth 5 -Compress
+        if($null -eq $json -or $json.Trim() -eq '' ){ $json='{}' }
+        $tpl  = Get-Content $CalTpl -Raw -Encoding UTF8
+        $gen  = (Get-Date).ToString('MMM d, yyyy h:mm tt')
+        $html = $tpl.Replace('__USAGE_DATA__',$json).Replace('__GENERATED__',$gen)
+        [System.IO.File]::WriteAllText($CalOut,$html,(New-Object System.Text.UTF8Encoding($false)))
+        Start-Process $CalOut
+    } catch { } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default }
 }
 
 # --- timer + run ----------------------------------------------------------

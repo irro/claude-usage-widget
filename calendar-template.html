@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude usage · history</title>
+<style>
+  :root{
+    --bg:#0d1117; --bg2:#11161f; --panel:#161b22; --panel2:#1c2330;
+    --line:#30363d; --track:#21262d; --text:#e6edf3; --dim:#8b949e;
+    --cyan:#39c5cf; --green:#3fb950; --amber:#e3b341; --red:#e5534b; --purple:#a855f7;
+    --h0:#191f27; --h1:#0e3a44; --h2:#11616e; --h3:#1f97a6; --h4:#39c5cf; --h5:#e3b341;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:radial-gradient(1200px 600px at 70% -10%, #15202b 0%, var(--bg) 55%) fixed, var(--bg);
+    color:var(--text); font:15px/1.55 "Segoe UI",system-ui,sans-serif;
+    padding:40px 22px 70px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1040px;margin:0 auto}
+
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  header h1{font-size:26px;margin:0;letter-spacing:-.4px;font-weight:700}
+  header h1 .c{color:var(--cyan)}
+  header .tag{color:var(--dim);font-size:13.5px}
+  header .gen{margin-left:auto;color:var(--dim);font-size:12px}
+
+  /* summary cards */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:22px 0 26px}
+  .card{background:linear-gradient(180deg,var(--panel),#12171f);border:1px solid var(--line);
+        border-radius:14px;padding:14px 16px;position:relative;overflow:hidden}
+  .card::after{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:var(--accent,var(--cyan));opacity:.7}
+  .card .lbl{color:var(--dim);font-size:11.5px;text-transform:uppercase;letter-spacing:.6px}
+  .card .val{font-size:23px;font-weight:700;margin-top:5px;line-height:1.1}
+  .card .sub{color:var(--dim);font-size:11.5px;margin-top:3px}
+  .card.cost .val{color:var(--cyan)} .card.cost{--accent:var(--cyan)}
+  .card.raw .val{color:var(--amber)} .card.raw{--accent:var(--amber)}
+  .card.peak .val{color:var(--purple)} .card.peak{--accent:var(--purple)}
+  .card.avg .val{color:var(--green)} .card.avg{--accent:var(--green)}
+  .card.tok .val{color:var(--text)} .card.tok{--accent:var(--dim)}
+
+  /* controls */
+  .bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+  .nav{display:flex;align-items:center;gap:6px}
+  .nav button{background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    width:30px;height:30px;border-radius:9px;cursor:pointer;font-size:15px;line-height:1;transition:.15s}
+  .nav button:hover{border-color:var(--cyan);color:var(--cyan)}
+  .nav button:disabled{opacity:.35;cursor:default}
+  .nav .month{min-width:165px;text-align:center;font-weight:700;font-size:16px}
+  .nav .mtot{color:var(--dim);font-size:12.5px}
+  .seg{margin-left:auto;display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
+  .seg button{background:transparent;border:0;color:var(--dim);padding:5px 12px;border-radius:7px;cursor:pointer;font-size:12.5px;font-weight:600}
+  .seg button.on{background:var(--panel2);color:var(--cyan)}
+
+  /* calendar */
+  .cal{background:linear-gradient(180deg,var(--panel),#12171f);border:1px solid var(--line);border-radius:16px;padding:18px}
+  .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:8px}
+  .dow div{color:var(--dim);font-size:11.5px;text-align:center;text-transform:uppercase;letter-spacing:.5px}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+  .cell{aspect-ratio:1/.82;border-radius:11px;background:var(--h0);border:1px solid #00000030;
+        padding:8px 9px;position:relative;transition:transform .12s, box-shadow .12s, border-color .12s;cursor:default}
+  .cell.empty{background:transparent;border-color:transparent}
+  .cell.has{cursor:pointer}
+  .cell.has:hover{transform:translateY(-2px);box-shadow:0 8px 22px #0008;border-color:#ffffff35;z-index:3}
+  .cell .dn{font-size:12px;font-weight:600;opacity:.9}
+  .cell .cv{position:absolute;left:9px;right:9px;bottom:7px;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cell.today{outline:2px solid var(--cyan);outline-offset:1px}
+  /* heat text contrast: dark text on the brightest cells */
+  .cell.lvl4 .dn,.cell.lvl4 .cv,.cell.lvl5 .dn,.cell.lvl5 .cv{color:#08252a}
+  .cell.lvl0 .cv{color:var(--dim)}
+
+  .legend{display:flex;align-items:center;gap:7px;justify-content:flex-end;margin-top:14px;color:var(--dim);font-size:12px}
+  .legend i{width:15px;height:15px;border-radius:4px;display:inline-block}
+
+  /* tooltip */
+  #tip{position:fixed;pointer-events:none;z-index:50;background:#0b0f15ee;border:1px solid var(--line);
+       border-radius:11px;padding:10px 12px;font-size:12.5px;min-width:188px;box-shadow:0 12px 34px #000a;opacity:0;transition:opacity .1s;backdrop-filter:blur(4px)}
+  #tip.show{opacity:1}
+  #tip .d{font-weight:700;margin-bottom:6px;font-size:13px}
+  #tip .r{display:flex;justify-content:space-between;gap:18px;margin:2px 0}
+  #tip .r .k{color:var(--dim)} #tip .r .v{font-weight:600}
+  #tip .v.cy{color:var(--cyan)} #tip .v.am{color:var(--amber)}
+  #tip .none{color:var(--dim)}
+
+  .foot{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;border-top:1px solid var(--line);padding-top:16px}
+  .empty-state{padding:60px 20px;text-align:center;color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Claude usage <span class="c">history</span></h1>
+    <span class="tag">every recorded day of Claude Code usage</span>
+    <span class="gen" id="gen"></span>
+  </header>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="bar">
+    <div class="nav">
+      <button id="prev" title="Previous month">&#8249;</button>
+      <div>
+        <div class="month" id="mlabel">—</div>
+        <div class="mtot" id="mtot"></div>
+      </div>
+      <button id="next" title="Next month">&#8250;</button>
+    </div>
+    <div class="seg" id="seg">
+      <button data-m="cost" class="on">Cost</button>
+      <button data-m="tok">Tokens</button>
+    </div>
+  </div>
+
+  <div class="cal">
+    <div class="dow"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
+    <div class="grid" id="grid"></div>
+    <div class="legend">
+      <span>Less</span>
+      <i style="background:var(--h0)"></i><i style="background:var(--h1)"></i>
+      <i style="background:var(--h2)"></i><i style="background:var(--h3)"></i>
+      <i style="background:var(--h4)"></i><i style="background:var(--h5)"></i>
+      <span>More</span>
+    </div>
+  </div>
+
+  <div class="foot">Estimates at API list prices — a sense of weight, not a bill. Cache-aware unless noted. Self-contained, offline, transcript-driven.</div>
+</div>
+
+<div id="tip"></div>
+
+<script>
+const DATA = __USAGE_DATA__;
+const GENERATED = "__GENERATED__";
+
+const days = Object.keys(DATA).sort();
+const has = days.length > 0;
+document.getElementById('gen').textContent = GENERATED ? ("updated " + GENERATED) : "";
+
+const fmtMoney = n => "$" + (n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtTok = n => { n=n||0; if(n>=1e9) return (n/1e9).toFixed(2)+"B"; if(n>=1e6) return (n/1e6).toFixed(1)+"M"; if(n>=1e3) return Math.round(n/1e3)+"k"; return ""+Math.round(n); };
+const parseDay = s => { const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); };
+const keyOf = dt => dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,'0')+"-"+String(dt.getDate()).padStart(2,'0');
+
+let metric = "cost"; // or "tok"
+const maxFor = m => Math.max(1, ...days.map(d => DATA[d][m]||0));
+const levelOf = (v,mx) => { if(!v) return 0; const r=v/mx; if(r<=.12) return 1; if(r<=.30) return 2; if(r<=.55) return 3; if(r<=.80) return 4; return 5; };
+const heat = ['--h0','--h1','--h2','--h3','--h4','--h5'];
+
+// ---- summary cards ----
+function renderCards(){
+  const tot = days.reduce((a,d)=>{ const x=DATA[d]; a.cost+=x.cost; a.raw+=x.raw; a.tok+=x.tok; a.out+=x.out; a.turns+=x.turns; return a; },{cost:0,raw:0,tok:0,out:0,turns:0});
+  let peak={d:null,cost:0}; days.forEach(d=>{ if(DATA[d].cost>peak.cost) peak={d,cost:DATA[d].cost}; });
+  const avg = has ? tot.cost/days.length : 0;
+  const cards = [
+    {cls:'cost', lbl:'All-time spend', val:fmtMoney(tot.cost), sub:'cache-aware estimate'},
+    {cls:'raw',  lbl:'If billed per token', val:fmtMoney(tot.raw), sub:'no cache discount'},
+    {cls:'peak', lbl:'Busiest day', val: peak.d ? fmtMoney(peak.cost) : '—', sub: peak.d ? niceDate(parseDay(peak.d)) : ''},
+    {cls:'avg',  lbl:'Avg / active day', val:fmtMoney(avg), sub: days.length+' active days'},
+    {cls:'tok',  lbl:'Total tokens', val:fmtTok(tot.tok), sub: fmtTok(tot.out)+' generated · '+tot.turns.toLocaleString()+' turns'},
+  ];
+  document.getElementById('cards').innerHTML = cards.map(c=>
+    `<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
+}
+const MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const niceDate = dt => MON[dt.getMonth()].slice(0,3)+" "+dt.getDate()+", "+dt.getFullYear();
+
+// ---- calendar ----
+let cur; // Date pointing at first of shown month
+function firstWithData(){ return has ? parseDay(days[days.length-1]) : new Date(); }
+function clampNav(){
+  const min = has ? parseDay(days[0]) : new Date();
+  const max = has ? parseDay(days[days.length-1]) : new Date();
+  document.getElementById('prev').disabled = (cur.getFullYear()<min.getFullYear()||(cur.getFullYear()==min.getFullYear()&&cur.getMonth()<=min.getMonth()));
+  document.getElementById('next').disabled = (cur.getFullYear()>max.getFullYear()||(cur.getFullYear()==max.getFullYear()&&cur.getMonth()>=max.getMonth()));
+}
+function renderMonth(){
+  const y=cur.getFullYear(), m=cur.getMonth();
+  document.getElementById('mlabel').textContent = MON[m]+" "+y;
+  const mx = maxFor(metric);
+  const todayKey = keyOf(new Date());
+  const first=new Date(y,m,1), lead=first.getDay(), dim=new Date(y,m+1,0).getDate();
+  let cells=[], mtot=0;
+  for(let i=0;i<lead;i++) cells.push('<div class="cell empty"></div>');
+  for(let d=1; d<=dim; d++){
+    const k=keyOf(new Date(y,m,d)); const x=DATA[k];
+    if(x){
+      const lvl=levelOf(x[metric],mx); mtot+=x.cost;
+      const cv = metric==='cost' ? fmtMoney(x.cost) : fmtTok(x.tok);
+      cells.push(`<div class="cell has lvl${lvl}${k===todayKey?' today':''}" style="background:var(${heat[lvl]})" data-k="${k}">
+        <div class="dn">${d}</div><div class="cv">${cv}</div></div>`);
+    } else {
+      cells.push(`<div class="cell lvl0${k===todayKey?' today':''}"><div class="dn">${d}</div></div>`);
+    }
+  }
+  document.getElementById('grid').innerHTML = cells.join('');
+  document.getElementById('mtot').textContent = mtot>0 ? (fmtMoney(mtot)+" this month") : "no usage this month";
+  clampNav();
+}
+
+// ---- tooltip ----
+const tip=document.getElementById('tip');
+function showTip(e,k){
+  const x=DATA[k]; if(!x){ tip.classList.remove('show'); return; }
+  tip.innerHTML = `<div class="d">${niceDate(parseDay(k))}</div>
+    <div class="r"><span class="k">Spent (cached)</span><span class="v cy">${fmtMoney(x.cost)}</span></div>
+    <div class="r"><span class="k">If per token</span><span class="v am">${fmtMoney(x.raw)}</span></div>
+    <div class="r"><span class="k">Tokens</span><span class="v">${fmtTok(x.tok)}</span></div>
+    <div class="r"><span class="k">Generated</span><span class="v">${fmtTok(x.out)}</span></div>
+    <div class="r"><span class="k">Turns</span><span class="v">${x.turns.toLocaleString()}</span></div>`;
+  tip.classList.add('show');
+  const pad=14, w=tip.offsetWidth, h=tip.offsetHeight;
+  let left=e.clientX+pad, top=e.clientY+pad;
+  if(left+w>innerWidth-8) left=e.clientX-w-pad;
+  if(top+h>innerHeight-8) top=e.clientY-h-pad;
+  tip.style.left=left+'px'; tip.style.top=top+'px';
+}
+document.getElementById('grid').addEventListener('mousemove', e=>{ const c=e.target.closest('.cell.has'); if(c) showTip(e,c.dataset.k); else tip.classList.remove('show'); });
+document.getElementById('grid').addEventListener('mouseleave', ()=> tip.classList.remove('show'));
+
+// ---- wiring ----
+document.getElementById('prev').onclick=()=>{ cur=new Date(cur.getFullYear(),cur.getMonth()-1,1); renderMonth(); };
+document.getElementById('next').onclick=()=>{ cur=new Date(cur.getFullYear(),cur.getMonth()+1,1); renderMonth(); };
+document.getElementById('seg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
+  metric=b.dataset.m; [...document.querySelectorAll('#seg button')].forEach(x=>x.classList.toggle('on',x===b)); renderMonth(); });
+
+if(!has){
+  document.querySelector('.cal').innerHTML='<div class="empty-state">No recorded usage yet. Use Claude Code and reopen history.</div>';
+  document.querySelector('.bar').style.display='none';
+} else {
+  renderCards(); cur=firstWithData(); cur=new Date(cur.getFullYear(),cur.getMonth(),1); renderMonth();
+}
+</script>
+</body>
+</html>
