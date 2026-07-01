@@ -2,6 +2,14 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.1.1 — 2026-06-25
+
+- **Continuous history auto-save.** Today's total is now written to the
+  persistent store (`usage-widget-history.json`) automatically while the widget
+  runs (about once a minute, and on close) — not only when you open the calendar.
+  So long-term history accrues on its own and survives Claude Code pruning old
+  transcripts, even if you never open the calendar.
+
 ## v1.1.0 — 2026-06-25
 
 - **History calendar.** A new calendar button (and right-click → "History

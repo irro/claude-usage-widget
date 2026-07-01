@@ -71,6 +71,8 @@ $script:files     = @{}     # path -> per-file accumulator (today only)
 $script:curDay    = $null   # 'yyyy-MM-dd' the accumulators belong to
 $script:seenToday = @{}     # message.id|requestId -> 1 (dedup resumed/copied turns)
 $script:layoutKey = $null
+$script:data      = $null   # latest today aggregate (for the on-close save)
+$script:lastPersist = $null # last time today's total was written to the history store
 
 # --- palette --------------------------------------------------------------
 $cBg     = [System.Drawing.Color]::FromArgb(22,27,34)
@@ -267,7 +269,7 @@ $dragCtrls += $rowName + $rowCost + $rowOut
 foreach($c in $dragCtrls){ Wire-Drag $c }
 
 function Save-Pos { try { "$($form.Left),$($form.Top)" | Set-Content -LiteralPath $PosPath -Encoding ASCII } catch {} }
-$form.Add_FormClosing({ Save-Pos })
+$form.Add_FormClosing({ Save-Pos; if($script:data){ Persist-Today $script:data } })
 
 # --- data: today's aggregate across all sessions --------------------------
 function New-FileState { @{ off=[long]0; lw=$null; turns=0; out=0.0; tok=0.0; cost=0.0; raw=0.0; by=@{} } }
@@ -456,6 +458,12 @@ function Update-Widget {
     $key = ($fams -join ',')
     if($key -ne $script:layoutKey){ Relayout $fams; $script:layoutKey=$key }
     Repaint $d $fams $r.stamp
+    # keep today's total in the persistent history store (throttled to ~60s)
+    $script:data = $d
+    $now = [DateTime]::UtcNow
+    if($null -eq $script:lastPersist -or ($now - $script:lastPersist).TotalSeconds -ge 60){
+        Persist-Today $d; $script:lastPersist = $now
+    }
 }
 
 # --- history calendar -----------------------------------------------------
@@ -504,6 +512,20 @@ function Save-History($h){
     foreach($k in ($h.Keys | Sort-Object)){ $d=$h[$k]; $clean[$k]=[ordered]@{cost=[math]::Round($d.cost,2);raw=[math]::Round($d.raw,2);tok=[math]::Round($d.tok);out=[math]::Round($d.out);turns=$d.turns} }
     try { ($clean | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $HistPath -Encoding UTF8 } catch { }
     return $clean
+}
+# Continuously fold TODAY's live total into the persistent store, so long-term
+# history accrues even if the calendar is never opened (and survives pruning).
+# Guarded so a just-started widget that hasn't caught up can't shrink the day.
+function Persist-Today($d){
+    if($null -eq $d -or $d.turns -le 0){ return }
+    try {
+        $hist  = Load-History
+        $today = (Get-Date).ToString('yyyy-MM-dd')
+        if(-not $hist.ContainsKey($today) -or $d.turns -ge $hist[$today].turns){
+            $hist[$today] = @{ cost=$d.cost; raw=$d.raw; tok=$d.tok; out=$d.out; turns=$d.turns }
+            [void](Save-History $hist)
+        }
+    } catch { }
 }
 # Scan -> merge into the store (keep the fuller record per day) -> generate the
 # calendar from the template -> open it in the browser.
