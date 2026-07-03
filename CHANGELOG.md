@@ -2,6 +2,12 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.2.1 — 2026-07-03
+
+- **Installer asks about shortcuts.** `Install.cmd` now prompts whether to add a
+  **Desktop** shortcut and a **Start Menu** shortcut (both default Yes), instead
+  of always creating just the Desktop one.
+
 ## v1.2.0 — 2026-06-25
 
 - **Click a day → full detail page.** Every date in the calendar is now

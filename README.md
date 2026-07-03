@@ -63,9 +63,10 @@ That's it. It never makes a network connection.
 
 **Easiest — one-click install.** Unzip the folder, then double-click
 **`Install.cmd`**. It copies the widget to a stable spot, clears the "downloaded
-from the internet" flag (so nothing gets blocked), drops a **Desktop shortcut**
-with a matching icon, and launches it. If Windows shows a "Windows protected your
-PC" box, click **More info → Run anyway** (it's a small, readable script).
+from the internet" flag (so nothing gets blocked), **asks whether to add a
+Desktop and/or Start Menu shortcut** (both default Yes), and launches it. If
+Windows shows a "Windows protected your PC" box, click **More info → Run anyway**
+(it's a small, readable script).
 
 **Or run it in place.** Prefer not to install? Just double-click
 **`Start Widget.vbs`** to run it straight from the folder. Only one copy ever

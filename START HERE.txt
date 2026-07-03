@@ -22,10 +22,13 @@ SET IT UP  (about 30 seconds)
        ->  click "More info"  ->  "Run anyway"     (blue box)
        ->  or just click "Run"                     (security warning)
    It's a small, readable script — it only copies the widget into your
-   user folder and makes a Desktop shortcut. It changes nothing else.
+   user folder and makes shortcuts. It changes nothing else.
+
+   It will ASK whether to add a Desktop shortcut and a Start Menu
+   shortcut (just press Enter to accept both).
 
 3. That's it. The widget appears at the bottom-left of your screen, and you
-   get a "Claude Usage Widget" icon on your Desktop to launch it anytime.
+   can launch it anytime from the shortcut(s) you chose.
 
 Prefer not to "install"?  Just double-click  "Start Widget.vbs"  to run it
 right from this folder instead.
