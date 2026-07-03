@@ -32,8 +32,7 @@ $PosPath  = Join-Path $env:USERPROFILE '.claude\usage-widget-pos.txt'
 $HistPath = Join-Path $env:USERPROFILE '.claude\usage-widget-history.json'
 $CalOut   = Join-Path $env:USERPROFILE '.claude\usage-widget-calendar.html'
 $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
-$ProjPath = Join-Path $env:USERPROFILE '.claude\usage-widget-projects.json'
-$Version  = '1.1.3'   # bump on each release; shown next to the title in the widget
+$Version  = '1.2.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -475,35 +474,58 @@ function Update-Widget {
 function Scan-AllHistory {
     $files = @(Get-ChildItem (Join-Path $ProjRoot '*\*.jsonl') -ErrorAction SilentlyContinue) +
              @(Get-ChildItem (Join-Path $ProjRoot '*\*\subagents\*.jsonl') -ErrorAction SilentlyContinue)
-    $seen=@{}; $byDay=@{}; $byProj=@{}
+    $seen=@{}; $byDay=@{}; $meta=@{}
     foreach($f in $files){
+        $isSub = (Split-Path $f.DirectoryName -Leaf) -eq 'subagents'
+        if($isSub){ $sid = Split-Path (Split-Path $f.DirectoryName -Parent) -Leaf }
+        else      { $sid = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) }
+        if(-not $meta.ContainsKey($sid)){ $meta[$sid]=@{ label=$null; cwd=$null } }
         $fs=$null; $sr=$null
         try { $fs=New-Object System.IO.FileStream($f.FullName,[System.IO.FileMode]::Open,[System.IO.FileAccess]::Read,[System.IO.FileShare]::ReadWrite); $sr=New-Object System.IO.StreamReader($fs) } catch { continue }
         try {
             while($null -ne ($line=$sr.ReadLine())){
+                # label a session by its first real user prompt (top-level files only)
+                if((-not $isSub) -and (-not $meta[$sid].label) -and $line.IndexOf('"user"') -ge 0){
+                    try { $uo=$line|ConvertFrom-Json } catch { $uo=$null }
+                    if($uo -and $uo.type -eq 'user' -and $uo.message){
+                        $c=$uo.message.content; $txt=$null
+                        if($c -is [string]){ $txt=$c } elseif($c){ $tb=($c | Where-Object { $_.type -eq 'text' } | Select-Object -First 1); if($tb){ $txt=$tb.text } }
+                        if($txt){
+                            $txt=($txt -replace '\s+',' ').Trim()
+                            if($txt -and $txt -notmatch '^(This session is being continued|Caveat:|<command-|<local-command|\[Request interrupted)'){
+                                if($txt.Length -gt 80){ $txt=$txt.Substring(0,80)+[char]0x2026 }
+                                $meta[$sid].label=$txt
+                            }
+                        }
+                    }
+                }
                 if($line.IndexOf('output_tokens') -lt 0){ continue }
                 try { $o=$line|ConvertFrom-Json } catch { continue }
                 if($o.type -ne 'assistant'){ continue }
                 $u=$o.message.usage; if($null -eq $u){ continue }
                 $k="$($o.message.id)|$($o.requestId)"; if($k -eq '|'){ $k=$o.uuid }
                 if($seen.ContainsKey($k)){ continue }; $seen[$k]=1
-                try { $day=([datetimeoffset]::Parse([string]$o.timestamp)).LocalDateTime.ToString('yyyy-MM-dd') } catch { continue }
+                try { $dt=([datetimeoffset]::Parse([string]$o.timestamp)).LocalDateTime } catch { continue }
+                $day=$dt.ToString('yyyy-MM-dd'); $hh=$dt.Hour; $hm=$dt.ToString('HH:mm')
+                if(-not $meta[$sid].cwd -and $o.cwd){ $meta[$sid].cwd = Split-Path ([string]$o.cwd) -Leaf }
                 $i=[double]$u.input_tokens; $ou=[double]$u.output_tokens; $cr=[double]$u.cache_read_input_tokens; $cc=[double]$u.cache_creation_input_tokens
                 $e5=0.0; $e1=0.0; if($u.cache_creation){ $e5=[double]$u.cache_creation.ephemeral_5m_input_tokens; $e1=[double]$u.cache_creation.ephemeral_1h_input_tokens } else { $e5=$cc }
                 $pr=Get-Price $o.message.model; $bi=$pr.In/1e6; $bo=$pr.Out/1e6
-                $tc=$i*$bi+$ou*$bo+$cr*($bi*0.1)+$e5*($bi*1.25)+$e1*($bi*2.0); $tr=($i+$cr+$cc)*$bi+$ou*$bo
-                $tkn = $i+$ou+$cr+$cc
-                if(-not $byDay.ContainsKey($day)){ $byDay[$day]=@{cost=0.0;raw=0.0;tok=0.0;out=0.0;turns=0} }
+                $tc=$i*$bi+$ou*$bo+$cr*($bi*0.1)+$e5*($bi*1.25)+$e1*($bi*2.0); $tr=($i+$cr+$cc)*$bi+$ou*$bo; $tkn=$i+$ou+$cr+$cc
+                $fam=Family $o.message.model
+                if(-not $byDay.ContainsKey($day)){ $byDay[$day]=@{cost=0.0;raw=0.0;tok=0.0;out=0.0;turns=0;byModel=@{};hours=(New-Object 'double[]' 24);sessions=@{}} }
                 $d=$byDay[$day]; $d.cost+=$tc; $d.raw+=$tr; $d.tok+=$tkn; $d.out+=$ou; $d.turns++
-                # attribute to a project = the working directory (leaf of cwd)
-                $proj = if($o.cwd){ Split-Path ([string]$o.cwd) -Leaf } else { '(unknown)' }
-                if([string]::IsNullOrWhiteSpace($proj)){ $proj='(unknown)' }
-                if(-not $byProj.ContainsKey($proj)){ $byProj[$proj]=@{cost=0.0;raw=0.0;tok=0.0;out=0.0;turns=0} }
-                $pj=$byProj[$proj]; $pj.cost+=$tc; $pj.raw+=$tr; $pj.tok+=$tkn; $pj.out+=$ou; $pj.turns++
+                if($hh -ge 0 -and $hh -lt 24){ $d.hours[$hh]+=$tkn }
+                if(-not $d.byModel.ContainsKey($fam)){ $d.byModel[$fam]=@{cost=0.0;raw=0.0;out=0.0;tok=0.0;turns=0} }
+                $fm=$d.byModel[$fam]; $fm.cost+=$tc; $fm.raw+=$tr; $fm.out+=$ou; $fm.tok+=$tkn; $fm.turns++
+                if(-not $d.sessions.ContainsKey($sid)){ $d.sessions[$sid]=@{cost=0.0;raw=0.0;tok=0.0;out=0.0;turns=0;byModel=@{};start=$hm;end=$hm} }
+                $s=$d.sessions[$sid]; $s.cost+=$tc; $s.raw+=$tr; $s.tok+=$tkn; $s.out+=$ou; $s.turns++
+                if($hm -lt $s.start){ $s.start=$hm }; if($hm -gt $s.end){ $s.end=$hm }
+                if(-not $s.byModel.ContainsKey($fam)){ $s.byModel[$fam]=0.0 }; $s.byModel[$fam]+=$tkn
             }
         } catch { } finally { if($sr){ $sr.Close() }; if($fs){ $fs.Close() } }
     }
-    return @{ byDay=$byDay; byProj=$byProj }
+    return @{ byDay=$byDay; meta=$meta }
 }
 # Persistent per-day store, so history survives Claude Code pruning old transcripts.
 function Load-History {
@@ -520,23 +542,6 @@ function Save-History($h){
     $clean=[ordered]@{}
     foreach($k in ($h.Keys | Sort-Object)){ $d=$h[$k]; $clean[$k]=[ordered]@{cost=[math]::Round($d.cost,2);raw=[math]::Round($d.raw,2);tok=[math]::Round($d.tok);out=[math]::Round($d.out);turns=$d.turns} }
     try { ($clean | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $HistPath -Encoding UTF8 } catch { }
-    return $clean
-}
-# Persistent per-PROJECT store (all-time totals), same pattern as the daily store.
-function Load-Projects {
-    $h=@{}
-    if(Test-Path $ProjPath){
-        try {
-            $o = Get-Content $ProjPath -Raw -Encoding UTF8 | ConvertFrom-Json
-            foreach($p in $o.PSObject.Properties){ $v=$p.Value; $h[$p.Name]=@{cost=[double]$v.cost;raw=[double]$v.raw;tok=[double]$v.tok;out=[double]$v.out;turns=[int]$v.turns} }
-        } catch { }
-    }
-    return $h
-}
-function Save-Projects($h){
-    $clean=[ordered]@{}
-    foreach($k in ($h.Keys | Sort-Object { $h[$_].tok } -Descending)){ $d=$h[$k]; $clean[$k]=[ordered]@{cost=[math]::Round($d.cost,2);raw=[math]::Round($d.raw,2);tok=[math]::Round($d.tok);out=[math]::Round($d.out);turns=$d.turns} }
-    try { ($clean | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $ProjPath -Encoding UTF8 } catch { }
     return $clean
 }
 # Continuously fold TODAY's live total into the persistent store, so long-term
@@ -560,26 +565,46 @@ function Open-History {
         $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
         [System.Windows.Forms.Application]::DoEvents()
         $scan = Scan-AllHistory
-        # per-day store (keep the fuller record per day)
+        # persist the simple per-day TOTALS (pruning-proof; drives heatmap for old days)
         $hist = Load-History
         foreach($k in $scan.byDay.Keys){
-            if(-not $hist.ContainsKey($k) -or $scan.byDay[$k].turns -ge $hist[$k].turns){ $hist[$k]=$scan.byDay[$k] }
+            $sd=$scan.byDay[$k]
+            if(-not $hist.ContainsKey($k) -or $sd.turns -ge $hist[$k].turns){
+                $hist[$k]=@{ cost=$sd.cost; raw=$sd.raw; tok=$sd.tok; out=$sd.out; turns=$sd.turns }
+            }
         }
-        $clean = Save-History $hist
-        # per-project store (keep the fuller record per project)
-        $projStore = Load-Projects
-        foreach($k in $scan.byProj.Keys){
-            if(-not $projStore.ContainsKey($k) -or $scan.byProj[$k].turns -ge $projStore[$k].turns){ $projStore[$k]=$scan.byProj[$k] }
-        }
-        $cleanProj = Save-Projects $projStore
+        [void](Save-History $hist)
         if(-not (Test-Path $CalTpl)){ $lblFoot2.Text='calendar-template.html missing'; return }
-        $json = $clean | ConvertTo-Json -Depth 5 -Compress
+
+        # build the rich embedded data: every day (scanned + pruned-but-stored),
+        # with per-model, hourly, and per-session detail where transcripts still exist
+        $embed=[ordered]@{}
+        foreach($day in ($hist.Keys | Sort-Object)){
+            $t=$hist[$day]
+            $entry=[ordered]@{ cost=[math]::Round($t.cost,2); raw=[math]::Round($t.raw,2); tok=[math]::Round($t.tok); out=[math]::Round($t.out); turns=$t.turns; byModel=[ordered]@{}; hours=@(); sessions=@() }
+            $rich=$scan.byDay[$day]
+            if($rich){
+                foreach($fam in ($rich.byModel.Keys | Sort-Object { $rich.byModel[$_].tok } -Descending)){
+                    $x=$rich.byModel[$fam]; $entry.byModel[$fam]=[ordered]@{ cost=[math]::Round($x.cost,2); raw=[math]::Round($x.raw,2); out=[math]::Round($x.out); tok=[math]::Round($x.tok); turns=$x.turns }
+                }
+                $entry.hours=@($rich.hours | ForEach-Object { [math]::Round($_) })
+                $sess=@()
+                foreach($sid in ($rich.sessions.Keys | Sort-Object { $rich.sessions[$_].tok } -Descending)){
+                    $s=$rich.sessions[$sid]; $m=$scan.meta[$sid]
+                    $topFam=''; $topTok=-1.0; foreach($fam in $s.byModel.Keys){ if($s.byModel[$fam] -gt $topTok){ $topTok=$s.byModel[$fam]; $topFam=$fam } }
+                    $lbl = if($m -and $m.label){ $m.label } else { '(no prompt captured)' }
+                    $cw  = if($m -and $m.cwd){ $m.cwd } else { '' }
+                    $sess += ,([ordered]@{ id=$sid.Substring(0,8); label=$lbl; cwd=$cw; start=$s.start; end=$s.end; turns=$s.turns; tok=[math]::Round($s.tok); cost=[math]::Round($s.cost,2); raw=[math]::Round($s.raw,2); out=[math]::Round($s.out); model=$topFam })
+                }
+                $entry.sessions=$sess
+            }
+            $embed[$day]=$entry
+        }
+        $json = $embed | ConvertTo-Json -Depth 12 -Compress
         if($null -eq $json -or $json.Trim() -eq '' ){ $json='{}' }
-        $pjson = $cleanProj | ConvertTo-Json -Depth 5 -Compress
-        if($null -eq $pjson -or $pjson.Trim() -eq '' ){ $pjson='{}' }
         $tpl  = Get-Content $CalTpl -Raw -Encoding UTF8
         $gen  = (Get-Date).ToString('MMM d, yyyy h:mm tt')
-        $html = $tpl.Replace('__USAGE_DATA__',$json).Replace('__PROJECTS_DATA__',$pjson).Replace('__GENERATED__',$gen)
+        $html = $tpl.Replace('__USAGE_DATA__',$json).Replace('__GENERATED__',$gen)
         [System.IO.File]::WriteAllText($CalOut,$html,(New-Object System.Text.UTF8Encoding($false)))
         Start-Process $CalOut
     } catch { } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default }

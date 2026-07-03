@@ -18,8 +18,9 @@ everything stays put and just climbs as you work. Shown all at once:
   and how many distinct sessions contributed today, plus how fresh the reading is
 - **history calendar** — click the calendar button for a per-day usage calendar:
   a heat-mapped month grid, summary cards (all-time spend, busiest day, averages,
-  total tokens), a **"by project"** breakdown (which project used how much), a
-  Cost/Tokens toggle, and hover-for-details
+  total tokens), and a Cost/Tokens toggle. **Click any day** to open a full
+  breakdown of that date — by model, by hour, and **every chat session
+  individually** (labelled by its opening prompt, with turns/tokens/cost/time)
 
 It's a single small PowerShell program. No installer, no dependencies, no
 network, no background service — it just reads the transcript files Claude Code
@@ -170,8 +171,7 @@ Open `usage-widget.ps1` in any text editor:
 
 The widget also writes small files under `%USERPROFILE%\.claude\`:
 `usage-widget-pos.txt` (window position), `usage-widget-history.json` (the
-per-day history store), `usage-widget-projects.json` (the per-project totals), and
-`usage-widget-calendar.html` (the generated calendar).
+per-day history store), and `usage-widget-calendar.html` (the generated calendar).
 
 ## License
 

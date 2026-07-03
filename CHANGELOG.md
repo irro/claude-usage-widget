@@ -2,6 +2,19 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.2.0 — 2026-06-25
+
+- **Click a day → full detail page.** Every date in the calendar is now
+  clickable and opens (in the same tab) a detailed breakdown of that day: day
+  totals, a by-model breakdown, an activity-by-hour chart, and — the headline —
+  **every chat session that ran that day, individually**, each labelled by its
+  opening prompt, with its time range, turns, tokens, cost, and model.
+- **Per-session, not per-project.** Replaced the old "by project" view (which was
+  useless because every session runs from the same folder) with per-session
+  tracking. Sessions are identified by their first user message.
+- Browser Back returns to the calendar; the Cost/Tokens toggle applies to the day
+  view too.
+
 ## v1.1.3 — 2026-06-25
 
 - **"By project" breakdown in the calendar.** The history calendar now shows a
