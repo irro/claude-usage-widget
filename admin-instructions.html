@@ -88,35 +88,30 @@
 <div class="wrap">
 
   <h1>Claude Usage Widget<span class="dot">.</span></h1>
-  <p class="sub">A small always-on-top panel that shows your <b>Claude Code usage for today</b> &mdash; summed across every session since midnight, so it never flips between sessions. Headline spend, two cost figures, a per-model breakdown, <b>rolling last-5h / 7d usage</b>, and a live list of your <b>recent chats with how full each one's context is</b> &mdash; all at once. Windows only.</p>
+  <p class="sub">A small always-on-top panel that shows your <b>Claude Code usage for today</b> &mdash; summed across every session since midnight, so it never flips between sessions. Headline spend, two cost figures, a per-model breakdown (with each model's tokens today), a live list of your <b>recent chats with how full each one's context is</b>, and your all-time totals &mdash; all at once. Windows only.</p>
 
   <div class="hero">
     <div class="mock">
-      <div class="top"><span class="model">Claude usage <span style="color:var(--dim);font-weight:400;font-size:11px">v1.8.0</span></span><span class="x">&#128197;&nbsp;&#8635;&nbsp;&times;</span></div>
+      <div class="top"><span class="model">Claude Usage <span style="color:var(--dim);font-weight:400;font-size:11px">v1.9.0</span></span><span class="x">&#128197;&nbsp;&#8635;&nbsp;&times;</span></div>
       <div style="color:var(--dim);font-size:11px;margin:2px 0 1px">spent today &middot; cached</div>
       <div style="color:var(--cyan);font-weight:700;font-size:27px;line-height:1.1;margin-bottom:4px">$480.44</div>
       <div class="trow"><span class="tlab">if billed per token</span><span class="tval raw">$2,256.56</span></div>
       <div class="div"></div>
-      <div class="mrow"><span class="mname opus">Opus</span><span class="cost">$480.44</span><span class="out">&#8595; 1.9M</span></div>
-      <div class="div"></div>
-      <div class="foot">&#8595; 1.9M output &middot; 739 turns &middot; 6 sessions<br>updated 1s ago</div>
-      <div class="div"></div>
-      <div class="shdr">rolling usage &middot; cost / tokens</div>
-      <div class="rrow"><span class="rl">last 5h</span><span class="rc">$398.11</span><span class="rt">532.3M</span></div>
-      <div class="rrow"><span class="rl">last 7d</span><span class="rc">$2,098.17</span><span class="rt">2.53B</span></div>
-      <div class="rrow"><span class="rl" style="color:var(--amber)">Fable 7d</span><span class="rc">$468.77</span><span class="rt">238.8M</span></div>
+      <div class="mrow"><span class="mname opus">Opus</span><span class="cost">$480.44</span><span class="out">1.04B</span></div>
+      <div class="mrow"><span class="mname" style="color:var(--amber)">Fable</span><span class="cost">$14.83</span><span class="out">29.6M</span></div>
       <div class="div"></div>
       <div class="shdr" style="cursor:pointer">&#9662; recent chats &middot; context used</div>
       <div class="srow"><span class="sname">Hearth</span><span class="sbar"><span style="width:41%;background:var(--green)"></span></span><span class="spct" style="color:var(--green)">41%</span><span class="ssep"></span><span class="stok">410k</span></div>
       <div class="srow"><span class="sname">United Disease&hellip;</span><span class="sbar"><span style="width:95%;background:var(--red)"></span></span><span class="spct" style="color:var(--red)">95%</span><span class="ssep"></span><span class="stok">950k</span></div>
       <div class="srow"><span class="sname">Maestro</span><span class="sbar"><span style="width:58%;background:var(--green)"></span></span><span class="spct" style="color:var(--green)">58%</span><span class="ssep"></span><span class="stok">580k</span></div>
-      <div class="srow"><span class="sname">Wildcards Adventure</span><span class="sbar"><span style="width:42%;background:var(--green)"></span></span><span class="spct" style="color:var(--green)">42%</span><span class="ssep"></span><span class="stok">420k</span></div>
       <div class="div"></div>
-      <div class="tick">all time &middot; <b>6.38B tokens</b></div>
+      <div class="tick"><b>All Time Usage:</b> 6.38B tokens</div>
       <div class="tick">$5,528.96 cached &middot; $31,343.45 per token</div>
+      <div class="foot" style="text-align:left">&#8595; 1.9M output &middot; 739 turns &middot; 6 sessions</div>
+      <div class="foot" style="text-align:right;margin-top:2px">updated 1s ago</div>
     </div>
     <div class="legend">
-      <p style="margin-top:0"><b>What you're looking at.</b> Everything you've used <b>today</b>, across all sessions: the big <span style="color:var(--cyan)">spent-today</span> figure, the raw <span style="color:var(--amber)">per-token</span> price, a daily-tokens gauge, and a row for <b>every model used today</b> (cost + tokens it generated). It's a running daily total &mdash; it only grows and resets each morning, so it never jumps between sessions. Drag it anywhere &mdash; many people park it bottom-left.</p>
+      <p style="margin-top:0"><b>What you're looking at.</b> Everything you've used <b>today</b>, across all sessions: the big <span style="color:var(--cyan)">spent-today</span> figure, the raw <span style="color:var(--amber)">per-token</span> price, and a row for <b>every model used today</b> (its cost + the total tokens it used today). It's a running daily total &mdash; it only grows and resets each morning, so it never jumps between sessions. Drag it anywhere &mdash; many people park it bottom-left.</p>
       <p><b>Recent chats.</b> Under the totals is a live list of your up to <b>10 most-recent chat sessions</b>, named exactly as in the Claude app, each with a bar for <b>how full that chat's context window is</b> right now. See every chat at a glance instead of one bar that flips when you switch chats. Hover a row for exact tokens, model, and last-active time.</p>
       <p>Context-bar colour (each chat):
          <span class="swatch" style="background:var(--green)"></span>under 70% &nbsp;
@@ -164,12 +159,9 @@
       <div class="k">title</div><div>The label &ldquo;Claude usage,&rdquo; with a <b>&#8635;</b> refresh button and a <b>&times;</b> close button.</div>
       <div class="k">spent today &middot; cached</div><div>The headline number: today's <b>cache-aware</b> cost, summed across every session since midnight. The realistic API estimate &mdash; <b>see the note below.</b></div>
       <div class="k">if billed per token</div><div>The raw &ldquo;sticker&rdquo; price for today: <i>every</i> input, cache, and output token at full list rate, no cache discount. Always larger &mdash; usually several times the cached figure.</div>
-      <div class="k">model rows</div><div>One row per model family you've <b>used today</b> (Opus, Sonnet, Haiku, Fable, &hellip;), summed across all sessions. Each shows that model's cache-aware cost and <span>&#8595;</span> the tokens it generated. The panel grows/shrinks to fit &mdash; no empty rows.</div>
-      <div class="k">output &middot; turns &middot; sessions</div><div>Today's total tokens generated, the assistant-turn count, and how many distinct sessions contributed today.</div>
-      <div class="k">rolling usage</div><div>How much you've used in the <b>last 5 hours</b> and <b>last 7 days</b> (cost + tokens), plus <b>Fable's</b> share of the last 7 days. This is <i>your usage in that rolling window</i>, summed from the transcripts &mdash; it is <b>not</b> your plan's remaining percentage. On first launch these rows briefly say &ldquo;reading&hellip;&rdquo; while the window is computed (longer only if you've had a very heavy week). <b>See the note below about the real 5-hour/weekly meters.</b></div>
-      <div class="k">updated &hellip; ago</div><div>How fresh the reading is &mdash; the time since the most recent turn in any of today's sessions.</div>
+      <div class="k">model rows</div><div>Up to four rows &mdash; one per model family you've <b>used today</b> (Opus, Sonnet, Haiku, Fable), summed across all sessions. Each shows that model's cache-aware cost and <b>the total tokens it used today</b>. The panel grows/shrinks to fit &mdash; no empty rows.</div>
       <div class="k">recent chats &middot; context used</div><div>Your up to <b>10 most-recent chat sessions</b>, each named exactly as in the Claude app (its custom or AI-generated title). The bar shows <b>how full that chat's context window is</b> right now &mdash; green under 70%, amber to 89%, red at 90%+ (getting close to a compaction) &mdash; with the <b>percentage and the absolute context-token count</b> beside it, split by a thin divider (e.g. <code>67% | 670k</code>). Hover a row for the model and how long ago it was active; <b>right-click a row to archive that chat</b>, or <b>click the section header (&#9662;) to collapse the whole list</b> (it remembers your choice). Unlike the totals above, this list spans <i>all</i> your recent chats, not just today's.</div>
-      <div class="k">all time</div><div>The very bottom line: your <b>all-time</b> total tokens and both cost estimates (cache-aware and per-token), summed from your saved history. This is the figure that grows into the millions and billions over time. (It reflects recorded history &mdash; opening the calendar once fills in any older days it hasn't seen.)</div>
+      <div class="k">All Time Usage:</div><div>Near the bottom: your <b>all-time</b> total tokens and both cost estimates (cache-aware and per-token), summed from your saved history &mdash; the figure that grows into the millions and billions. (It reflects recorded history; opening the calendar once fills in any older days.) Just below it, left-aligned, is the day's <b>output / turns / sessions</b>; and on the very bottom line, right-aligned, <b>updated &hellip; ago</b> (how fresh the reading is).</div>
     </div>
   </div>
   <div class="note">
@@ -180,7 +172,7 @@
   </div>
 
   <div class="note">
-    <b>Why not the real 5-hour / weekly / Fable meters?</b> Claude Code shows official plan meters in its <code>/usage</code> view (the 5-hour session limit, the weekly all-models limit, the weekly Fable limit). Those percentages come <b>live from Anthropic's API and are never written to any local file</b> &mdash; so an offline, transcript-only tool like this genuinely can't read them without making network calls, which would break its no-network promise. The <b>rolling usage</b> section is the honest alternative: it sums <i>your</i> actual token usage in the last 5 hours / 7 days. It tells you how hard you've been working in those windows &mdash; it just can't know your plan's remaining percentage.
+    <b>Why not the real 5-hour / weekly / Fable meters?</b> Claude Code shows official plan meters in its <code>/usage</code> view (the 5-hour session limit, the weekly all-models limit, the weekly Fable limit). Those percentages come <b>live from Anthropic's API and are never written to any local file</b> &mdash; so an offline, transcript-only tool like this genuinely can't read them without making network calls, which would break its no-network promise. The history calendar's <b>rolling-usage cards</b> are the honest alternative: they sum <i>your</i> actual token usage in the last 5 hours / 7 days. They tell you how hard you've been working in those windows &mdash; they just can't know your plan's remaining percentage.
   </div>
 
   <h2><span class="n">6</span>How it works (under the hood)</h2>
@@ -194,7 +186,7 @@
     <li><b>Row colours / order:</b> <code>$FamColor</code> and <code>$FamOrder</code>. Every family with usage today is shown automatically &mdash; you don't choose which.</li>
     <li><b>Recent-chats list length:</b> <code>$MaxSessions</code> (default <code>10</code>) &mdash; how many recent chats appear in the context list.</li>
     <li><b>Context window:</b> <code>$ContextWindowTokens</code> (default <code>0</code> = auto: 200K, or 1M if any recent chat is bigger). Set a fixed number to force it; the tiers auto-detect chooses from live in <code>$CtxWindowTiers</code>.</li>
-    <li><b>Rolling windows:</b> <code>$Roll5hHours</code> / <code>$Roll7dDays</code> (default <code>5</code> / <code>7</code>) set the two rolling windows; <code>$ShowRolling = $false</code> hides the rolling section entirely.</li>
+    <li><b>Rolling windows (calendar):</b> <code>$Roll5hHours</code> / <code>$Roll7dDays</code> (default <code>5</code> / <code>7</code>) set the last-5h / last-7d windows shown as cards in the history calendar. (The panel itself no longer shows a rolling section.)</li>
   </ul>
 
   <h2><span class="n">8</span>Troubleshooting</h2>
@@ -202,7 +194,6 @@
     <li><b>&ldquo;no Claude usage yet today&rdquo;:</b> you haven't used Claude Code yet today, or it's just past midnight. Send a message and it appears.</li>
     <li><b>Numbers feel frozen:</b> they only change when a new turn is written. The &ldquo;updated &hellip; ago&rdquo; line tells you how fresh it is.</li>
     <li><b>The cost looks big:</b> that's the API-list estimate for the whole day, not a charge &mdash; see section 5. The &ldquo;per token&rdquo; figure is deliberately the larger, no-caching number.</li>
-    <li><b>Rolling rows say &ldquo;reading&hellip;&rdquo;:</b> that's normal on first launch while it reads your last week of history; it fills in shortly (longer only if you've had a very heavy week).</li>
     <li><b>Only one model row:</b> you only used one model today. Rows appear as you (or sub-agents) use more &mdash; e.g. Haiku often shows up once a sub-agent runs.</li>
     <li><b>A recent chat shows a red bar:</b> that chat's context is nearly full (90%+) and will soon compact &mdash; nothing to fix, just a heads-up. <b>No recent chats listed?</b> You haven't chatted recently, or your transcripts were pruned. A chat named <i>(untitled chat)</i> simply hasn't been given a title yet by the app.</li>
     <li><b>Widget disappeared:</b> double-click <code>Start Widget.vbs</code> again. Only one copy runs at a time, so you can't accidentally stack duplicates.</li>

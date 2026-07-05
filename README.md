@@ -10,14 +10,8 @@ everything stays put and just climbs as you work. Shown all at once:
   the way a real API bill works with prompt caching (cache reads ~90% off)
 - **if billed per token** — the raw "sticker" price: every token at full list
   rate, no cache discount (always the larger number)
-- **a row for every model used today** — Opus, Sonnet, Haiku, Fable, … each with
-  that model's cache-aware cost and the tokens it generated
-- **output / turns / sessions** — total tokens generated, assistant-turn count,
-  and how many distinct sessions contributed today, plus how fresh the reading is
-- **rolling usage** — how much you've used in the **last 5 hours** and **last 7
-  days** (cost + tokens), plus **Fable's** slice of the last 7 days. An honest,
-  transcript-derived measure of *your usage in that window* — **not** a plan-limit
-  percentage (see below)
+- **a row for every model used today** — up to four (Opus, Sonnet, Haiku, Fable),
+  each with that model's cache-aware cost and **the total tokens it used today**
 - **recent chats · context used** — a live list of your up to **10 most-recent
   chat sessions**, each named exactly as in the Claude app (its custom or
   AI-generated title) with a bar for **how full that chat's context window is**
@@ -29,9 +23,11 @@ everything stays put and just climbs as you work. Shown all at once:
 - **archive** — archiving a chat drops it from the recent-chats list **and** the
   calendar's catalog and day cards, but its tokens **still count in every total**.
   Nothing is deleted; right-click → *Unarchive N chats* restores them
-- **all-time ticker** — a line at the very bottom with your **all-time** total
-  tokens and both cost estimates (cache-aware and per-token), summed from your
-  saved history — the figure that climbs into the millions and billions
+- **All Time Usage** — near the bottom, your **all-time** total tokens and both
+  cost estimates (cache-aware and per-token), summed from your saved history — the
+  figure that climbs into the millions and billions. Just below it: the day's
+  **output / turns / sessions**, and — right-aligned on the very bottom line —
+  how fresh the reading is (**updated Xs ago**)
 - **history calendar** — click the calendar button for a per-day usage calendar:
   a heat-mapped month grid, all-time summary cards, **rolling-usage cards**
   (last 5h / 7d / Fable), and a Cost/Tokens toggle. **Click any day** for a full
@@ -47,29 +43,23 @@ already writes to disk.
 
 ```
 ┌──────────────────────────────────────┐
-│ Claude usage v1.8.0      🗓  ⟳   ×      │
+│ Claude Usage v1.9.0     🗓  ⟳   ×      │
 │ spent today · cached                   │
 │ $480.44                                │
 │ if billed per token        $2,256.56   │
 │ ────────────────────────────────────── │
-│ Opus       $480.44           ↓ 1.9M    │
-│ ────────────────────────────────────── │
-│ ↓ 1.9M output · 739 turns · 6 sessions  │
-│ updated 1s ago                         │
-│ ────────────────────────────────────── │
-│ rolling usage · cost / tokens          │
-│ last 5h    $398.11           532.3M    │
-│ last 7d    $2,098.17         2.53B     │
-│ Fable 7d   $468.77           238.8M    │
+│ Opus       $480.44           1.04B     │
+│ Fable      $14.83            29.6M      │
 │ ────────────────────────────────────── │
 │ ▾ recent chats · context used          │
 │ Hearth        ▓▓▓▓░░░  41% │ 410k       │
 │ United Dise…  ▓▓▓▓▓▓▓  95% │ 950k       │
-│ Maestro       ▓▓▓▓▓░░  58% │ 580k       │
 │ …up to 10 (right-click → archive)      │
 │ ────────────────────────────────────── │
-│ all time · 6.38B tokens                │
+│ All Time Usage: 6.38B tokens           │
 │ $5,528.96 cached · $31,343.45 per token│
+│ ↓ 1.9M output · 739 turns · 6 sessions  │
+│                        updated 1s ago   │
 └──────────────────────────────────────┘
 ```
 
@@ -200,7 +190,8 @@ Open `usage-widget.ps1` in any text editor:
   chat exceeds 200K (the long-context beta). Set a fixed number (e.g. `200000`
   or `1000000`) to force it. Tiers live in `$CtxWindowTiers`.
 - **`$Roll5hHours` / `$Roll7dDays`** (default `5` / `7`) — the two rolling
-  windows. **`$ShowRolling`** (`$true`) — set `$false` to hide the section.
+  windows shown as cards in the **history calendar** (the panel itself no longer
+  has a rolling section).
 
 ## Why not the real 5-hour / weekly / Fable meters?
 
@@ -209,7 +200,8 @@ all-models limit, the weekly Fable limit) in its `/usage` view. Those percentage
 come **live from Anthropic's API** and are **never written to any local file** —
 so a standalone, offline, transcript-only tool like this one genuinely cannot
 read them without making authenticated network calls, which would break its
-no-network promise. The **rolling usage** section is the honest alternative: it
+no-network promise. The **rolling-usage cards** in the history calendar are the
+honest alternative: they
 sums *your* actual token usage in the last 5 hours / 7 days from the transcripts.
 It tells you how heavily you've been working in those windows — it just can't
 know your plan's remaining percentage.

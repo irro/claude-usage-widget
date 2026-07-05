@@ -2,6 +2,20 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.9.0 — 2026-07-05
+
+- **Cleaner layout (a middle/bottom redesign).** The title is now **Claude Usage**,
+  and the panel reads top-to-bottom: spend → per-model → recent chats → all-time.
+- **Per-model rows show today's tokens.** Each model you've used today (up to four
+  — Opus / Sonnet / Haiku / Fable) now shows its cost and **the total tokens it
+  used today**, instead of just output tokens.
+- **Removed the "rolling usage" section** from the panel (the last-5h/7d/Fable
+  windows are still available as cards in the history calendar).
+- **Reorganized the bottom.** The all-time figures are now labelled **"All Time
+  Usage:"**; the **output / turns / sessions** line sits just below it, left-aligned;
+  and **"updated Xs ago"** moved to the very bottom, right-aligned, so it stays out
+  of the way.
+
 ## v1.8.0 — 2026-07-05
 
 - **Collapsible recent-chats list.** Click the **recent chats** header to fold the

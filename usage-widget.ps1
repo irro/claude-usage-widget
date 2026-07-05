@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.8.0'   # bump on each release; shown next to the title in the widget
+$Version  = '1.9.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -80,14 +80,11 @@ $ContextWindowTokens = 0
 # chat wins). Add more here if larger windows appear.
 $CtxWindowTiers = @(200000, 1000000)
 
-# --- rolling usage windows -------------------------------------------------
-# An honest "how much have I used lately" panel: tokens + cost of every turn in
-# the last 5 hours and last 7 days (and Fable's slice of the 7 days). This is
-# YOUR usage in that rolling window, derived from transcripts - NOT your plan's
-# rate-limit percentage (Claude Code never writes that to disk; see README).
+# --- rolling windows (calendar only) ---------------------------------------
+# The history calendar shows "last 5h / 7d / Fable-7d" rolling-usage cards; these
+# set those windows. (The widget itself no longer shows a rolling section.)
 $Roll5hHours = 5           # "last 5h" window length
 $Roll7dDays  = 7           # "last 7d" window length
-$ShowRolling = $true       # set $false to hide the rolling section entirely
 
 # --- state ----------------------------------------------------------------
 $script:files     = @{}     # path -> per-file accumulator (today only)
@@ -99,13 +96,6 @@ $script:lastPersist = $null # last time today's total was written to the history
 $script:sessCache = @{}     # path -> cached tail read {mtime,ctx,model,tstamp,title}
 $script:archived  = @{}     # session-id -> 1 for archived chats (out of lists, still in totals)
 $script:sessCollapsed = $false  # recent-chats list collapsed? (persisted in the pos file)
-# rolling-window engine state
-$script:rollFiles  = @{}    # path -> @{off;lw;primed} incremental offsets (7d files)
-$script:rollTurns  = New-Object System.Collections.ArrayList  # {ts;tok;cost;fam;key}
-$script:rollSeen   = @{}    # dedup keys currently in the buffer
-$script:rollPrimed = $false # true once every 7d file has been read at least once
-$script:rollPrune  = $null  # last buffer-prune time
-$script:rollData   = $null  # cached @{h5;d7;f7;primed}
 $script:allTime    = $null  # cached all-time totals @{tok;cost;raw}
 $script:allTimeAt  = $null  # last all-time recompute time
 
@@ -202,7 +192,7 @@ function New-Lbl($x,$y,$w,$h,$color,$size,$bold){
 function Set-T($l,$t){ if($l.Text -ne $t){ $l.Text = $t } }
 
 # header
-$lblTitle = New-Lbl $padL 9 86 18 $cCyan 9.5 $true ; $lblTitle.Text = 'Claude usage'
+$lblTitle = New-Lbl $padL 9 92 18 $cCyan 9.5 $true ; $lblTitle.Text = 'Claude Usage'
 $lblVer   = New-Lbl 95 12 70 14 $cDim 8 $false ; $lblVer.Text = 'v' + $Version
 
 # history (calendar) button - opens a beautiful per-day usage calendar
@@ -261,8 +251,8 @@ $div2.BackColor = $cTrack
 $div2.Location = New-Object System.Drawing.Point($padL,180)
 $form.Controls.Add($div2)
 
-$lblFoot1 = New-Lbl $padL 188 ($W-2*$padL) 15 $cText 8 $false ; $lblFoot1.Text = 'starting...'
-$lblFoot2 = New-Lbl $padL 203 ($W-2*$padL) 14 $cDim  8 $false ; $lblFoot2.Text = ''
+$lblFoot1 = New-Lbl $padL 188 ($W-2*$padL) 15 $cDim 8 $false ; $lblFoot1.Text = 'starting...'   # turns/sessions, left
+$lblFoot2 = New-Lbl $padL 203 ($W-2*$padL) 14 $cDim 8 $false ; $lblFoot2.Text = '' ; $lblFoot2.TextAlign = 'MiddleRight'  # updated Xs ago, right
 
 # --- recent-chats context section (divider + header + N chat rows) ---------
 # One tooltip serves every chat row (full name + exact token detail on hover).
@@ -320,28 +310,6 @@ $form.Controls.Add($divT)
 $lblTick1 = New-Lbl $padL 308 ($W-2*$padL) 14 $cText 8 $false ; $lblTick1.Visible=$false
 $lblTick2 = New-Lbl $padL 322 ($W-2*$padL) 14 $cDim  8 $false ; $lblTick2.Visible=$false
 
-# --- rolling-usage section (divider + header + up to 3 rows) ---------------
-$divR = New-Object System.Windows.Forms.Panel
-$divR.Size = New-Object System.Drawing.Size(($W-2*$padL),1)
-$divR.BackColor = $cTrack
-$divR.Location = New-Object System.Drawing.Point($padL,222)
-$divR.Visible = $false
-$form.Controls.Add($divR)
-
-$lblRollHdr = New-Lbl $padL 232 ($W-2*$padL) 14 $cDim 8 $false
-$lblRollHdr.Text = 'rolling usage  ' + [string][char]0x00B7 + '  cost / tokens'
-$lblRollHdr.Visible = $false
-
-# Fixed slots: window label | cost | tokens (rows: last 5h, last 7d, Fable 7d).
-$rollLbl=@(); $rollCost=@(); $rollTok=@()
-for($k=0;$k -lt 3;$k++){
-    $rl = New-Lbl $padL 252 54 16 $cText 8.5 $true
-    $rc = New-Lbl 68 252 78 16 $cText 8.5 $false
-    $rt = New-Lbl 148 253 84 15 $cDim 8.5 $false ; $rt.TextAlign='MiddleRight'   # right edge ~232, aligned with the chat %
-    $rl.Visible=$false; $rc.Visible=$false; $rt.Visible=$false
-    $rollLbl += ,$rl ; $rollCost += ,$rc ; $rollTok += ,$rt
-}
-
 # --- right-click menu -----------------------------------------------------
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 $miC = $menu.Items.Add('History (calendar)') ; $miC.Add_Click({ Open-History })
@@ -388,9 +356,8 @@ $dragHandler = {
 }
 function Wire-Drag($c){ $c.ContextMenuStrip = $menu; $c.Add_MouseDown($dragHandler) }
 # everything is a drag handle EXCEPT the refresh / close buttons (they click)
-$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1,$lblFoot2,$divR,$lblRollHdr,$div3,$divT,$lblTick1,$lblTick2)
+$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1,$lblFoot2,$div3,$divT,$lblTick1,$lblTick2)
 $dragCtrls += $rowName + $rowCost + $rowOut
-$dragCtrls += $rollLbl + $rollCost + $rollTok
 $dragCtrls += $sName + $sTrack + $sFill + $sPct + $sSep + $sTok
 foreach($c in $dragCtrls){ Wire-Drag $c }
 # recent-chat rows keep drag, but right-click shows the per-chat menu instead
@@ -452,10 +419,11 @@ function Read-Today($path,$st,$todayDate){
             $tr = ($i + $cr + $cc)*$bi + $ou*$bo
             $st.turns++; $st.out += $ou; $st.cost += $tc; $st.raw += $tr; $st.tok += $i + $ou + $cr + $cc
             $fam = Family $o.message.model
-            if(-not $st.by.ContainsKey($fam)){ $st.by[$fam] = @{ out=0.0; cost=0.0; raw=0.0 } }
+            if(-not $st.by.ContainsKey($fam)){ $st.by[$fam] = @{ out=0.0; cost=0.0; raw=0.0; tok=0.0 } }
             $st.by[$fam].out  += $ou
             $st.by[$fam].cost += $tc
             $st.by[$fam].raw  += $tr
+            $st.by[$fam].tok  += $i + $ou + $cr + $cc
         }
     } catch { }
     finally { if($fs){ $fs.Close() } }
@@ -488,119 +456,15 @@ function Aggregate-Today {
         $isSub = (Split-Path $f.DirectoryName -Leaf) -eq 'subagents'
         $agg.turns += $st.turns; $agg.out += $st.out; $agg.tok += $st.tok; $agg.cost += $st.cost; $agg.raw += $st.raw
         foreach($fam in $st.by.Keys){
-            if(-not $agg.by.ContainsKey($fam)){ $agg.by[$fam] = @{ out=0.0; cost=0.0; raw=0.0 } }
+            if(-not $agg.by.ContainsKey($fam)){ $agg.by[$fam] = @{ out=0.0; cost=0.0; raw=0.0; tok=0.0 } }
             $agg.by[$fam].out  += $st.by[$fam].out
             $agg.by[$fam].cost += $st.by[$fam].cost
             $agg.by[$fam].raw  += $st.by[$fam].raw
+            $agg.by[$fam].tok  += $st.by[$fam].tok
         }
         if((-not $isSub) -and $st.turns -gt 0){ $agg.sessions++ }
     }
     return @{ agg=$agg; stamp=$stamp }
-}
-
-# --- rolling windows: usage in the last 5h / 7d ---------------------------
-# Incrementally read every transcript touched in the last 7 days into a pruned
-# buffer of lightweight per-turn records, so "how much have I used lately" can
-# be summed for any sub-window. A cheap timestamp pre-check skips turns older
-# than the window WITHOUT a full JSON parse, so priming a weeks-long transcript
-# only fully-parses its recent turns.
-# Reads AT MOST one ~2MB chunk of new bytes per call and advances $st.off, so a
-# cold prime of a 100MB transcript is spread over many calls instead of one
-# multi-second read that would freeze the UI. Returns $true if more remains.
-function Read-RollFile($path,$st,$cut7){
-    $maxChunk = 2MB
-    $fs=$null
-    try { $fs=New-Object System.IO.FileStream($path,[System.IO.FileMode]::Open,[System.IO.FileAccess]::Read,[System.IO.FileShare]::ReadWrite) }
-    catch { return $false }
-    try {
-        $len=$fs.Length
-        if($len -lt $st.off){ $st.off=0 }             # rotated/truncated -> restart
-        if($len -le $st.off){ return $false }
-        [void]$fs.Seek($st.off,[System.IO.SeekOrigin]::Begin)
-        $count=[int][Math]::Min([long]($len-$st.off), [long]$maxChunk)
-        $buf=New-Object byte[] $count
-        $got=0; while($got -lt $count){ $r=$fs.Read($buf,$got,$count-$got); if($r -le 0){break}; $got+=$r }
-        $lastNl=-1; for($x=$got-1;$x -ge 0;$x--){ if($buf[$x] -eq 10){ $lastNl=$x; break } }
-        if($lastNl -lt 0){
-            # no complete line in this chunk: a single line longer than the chunk.
-            # If more file follows, skip past it (giant lines are uncounted tool
-            # results, not assistant turns); else wait for more to be appended.
-            if(($st.off + $got) -lt $len){ $st.off += $got; return $true }
-            return $false
-        }
-        $text=[System.Text.Encoding]::UTF8.GetString($buf,0,$lastNl+1)
-        $st.off += ($lastNl+1)
-        foreach($line in ($text -split "`n")){
-            if($line.Length -lt 1){ continue }
-            if($line.IndexOf('output_tokens') -lt 0){ continue }
-            # cheap timestamp pre-check: skip old turns without a full parse
-            $ti=$line.IndexOf('"timestamp":"'); if($ti -lt 0){ continue }
-            $te=$line.IndexOf('"',$ti+13); if($te -lt 0){ continue }
-            $tu=$null
-            try { $tu=([datetimeoffset]::Parse($line.Substring($ti+13,$te-($ti+13)))).UtcDateTime } catch { continue }
-            if($tu -lt $cut7){ continue }
-            try { $o=$line|ConvertFrom-Json } catch { continue }
-            if($o.type -ne 'assistant'){ continue }
-            $u=$o.message.usage; if($null -eq $u){ continue }
-            $dk="$($o.message.id)|$($o.requestId)"; if($dk -eq '|'){ $dk=$o.uuid }
-            if($script:rollSeen.ContainsKey($dk)){ continue }
-            $script:rollSeen[$dk]=1
-            $i=[double]$u.input_tokens; $ou=[double]$u.output_tokens
-            $cr=[double]$u.cache_read_input_tokens; $cc=[double]$u.cache_creation_input_tokens
-            $e5=0.0;$e1=0.0; if($u.cache_creation){ $e5=[double]$u.cache_creation.ephemeral_5m_input_tokens; $e1=[double]$u.cache_creation.ephemeral_1h_input_tokens } else { $e5=$cc }
-            $pr=Get-Price $o.message.model; $bi=$pr.In/1e6; $bo=$pr.Out/1e6
-            $tc=$i*$bi+$ou*$bo+$cr*($bi*0.1)+$e5*($bi*1.25)+$e1*($bi*2.0)
-            [void]$script:rollTurns.Add([pscustomobject]@{ ts=$tu; tok=($i+$ou+$cr+$cc); cost=$tc; fam=(Family $o.message.model); key=$dk })
-        }
-        return ($st.off -lt $len)   # more to read next call?
-    } catch { return $false } finally { if($fs){ $fs.Close() } }
-}
-
-# Refresh the rolling buffer (bounded work per call so a cold prime can't freeze
-# the UI) and sum the last-5h / last-7d / Fable-7d windows. Returns cached sums.
-function Aggregate-Rolling {
-    if(-not $ShowRolling){ return $null }
-    $nowUtc=[DateTime]::UtcNow
-    $cut7=$nowUtc.AddDays(-$Roll7dDays)
-    $cut5=$nowUtc.AddHours(-$Roll5hHours)
-    $files=@()
-    try { $files += @(Get-ChildItem (Join-Path $ProjRoot '*\*.jsonl') -ErrorAction Stop | Where-Object { $_.LastWriteTimeUtc -ge $cut7 }) } catch {}
-    try { $files += @(Get-ChildItem (Join-Path $ProjRoot '*\*\subagents\*.jsonl') -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTimeUtc -ge $cut7 }) } catch {}
-    $files = @($files | Sort-Object LastWriteTimeUtc -Descending)   # freshest first
-    $sw=[System.Diagnostics.Stopwatch]::StartNew(); $budget=250; $deferred=$false
-    foreach($f in $files){
-        if($deferred){ break }
-        $st=$script:rollFiles[$f.FullName]
-        if($null -eq $st){ $st=@{off=[long]0; lw=$null; primed=$false}; $script:rollFiles[$f.FullName]=$st }
-        if($st.lw -eq $f.LastWriteTimeUtc -and $st.primed){ continue }   # already current
-        # read this file in bounded chunks, checking the budget BETWEEN chunks so
-        # one big cold file can't monopolise a tick (it resumes next tick)
-        while($true){
-            if($sw.ElapsedMilliseconds -gt $budget){ $deferred=$true; break }
-            $more = Read-RollFile $f.FullName $st $cut7
-            if(-not $more){ $st.lw=$f.LastWriteTimeUtc; $st.primed=$true; break }
-        }
-    }
-    if(-not $deferred){ $script:rollPrimed=$true }
-    # prune buffer + dedup set to the 7d window (throttled)
-    if($null -eq $script:rollPrune -or ($nowUtc-$script:rollPrune).TotalSeconds -ge 60){
-        if($script:rollTurns.Count -gt 0){
-            $kept=New-Object System.Collections.ArrayList; $seen2=@{}
-            foreach($r in $script:rollTurns){ if($r.ts -ge $cut7){ [void]$kept.Add($r); $seen2[$r.key]=1 } }
-            $script:rollTurns=$kept; $script:rollSeen=$seen2
-        }
-        $script:rollPrune=$nowUtc
-    }
-    # sum the windows (re-filter by the live cutoffs)
-    $h5t=0.0;$h5c=0.0;$d7t=0.0;$d7c=0.0;$f7t=0.0;$f7c=0.0
-    foreach($r in $script:rollTurns){
-        if($r.ts -lt $cut7){ continue }
-        $d7t+=$r.tok; $d7c+=$r.cost
-        if($r.fam -eq 'Fable'){ $f7t+=$r.tok; $f7c+=$r.cost }
-        if($r.ts -ge $cut5){ $h5t+=$r.tok; $h5c+=$r.cost }
-    }
-    $script:rollData=@{ h5=@{tok=$h5t;cost=$h5c}; d7=@{tok=$d7t;cost=$d7c}; f7=@{tok=$f7t;cost=$f7c}; primed=$script:rollPrimed }
-    return $script:rollData
 }
 
 # --- recent chats: per-session context fill -------------------------------
@@ -808,10 +672,10 @@ function Active-Families($bm){
     if($r.Count -eq 0){ $r = @('Opus') }
     ,$r
 }
-# Reposition model rows + footer + the rolling + recent-chats sections, and
-# resize the form. Called only when a row count changes (folded into the layout
-# key), not every tick.
-function Relayout($fams,$nRoll,$nSess){
+# Reposition model rows + recent-chats section + the bottom block (All Time
+# Usage / turns-sessions / updated), and resize the form. Called only when a row
+# count changes (folded into the layout key), not every tick.
+function Relayout($fams,$nSess){
     $n = $fams.Count
     for($k=0;$k -lt 5;$k++){
         if($k -lt $n){
@@ -824,40 +688,16 @@ function Relayout($fams,$nRoll,$nSess){
         }
     }
     $dY = $rowsTop + $n*$rowH + 6
-    $div2.Top     = $dY
-    $lblFoot1.Top = $dY + 8
-    $lblFoot2.Top = $dY + 23
-    $bottom = $dY + 40
-
-    # rolling-usage section (last 5h / 7d / Fable 7d)
-    if($nRoll -gt 0){
-        $r0 = $bottom + 2
-        $divR.Top = $r0; $divR.Visible=$true
-        $lblRollHdr.Top = $r0 + 7; $lblRollHdr.Visible=$true
-        $rTop = $r0 + 24
-        for($k=0;$k -lt 3;$k++){
-            if($k -lt $nRoll){
-                $y = $rTop + $k*$rowH
-                $rollLbl[$k].Top=$y; $rollCost[$k].Top=$y; $rollTok[$k].Top=$y+1
-                $rollLbl[$k].Visible=$true; $rollCost[$k].Visible=$true; $rollTok[$k].Visible=$true
-            } else {
-                $rollLbl[$k].Visible=$false; $rollCost[$k].Visible=$false; $rollTok[$k].Visible=$false
-            }
-        }
-        $bottom = $rTop + $nRoll*$rowH + 8
-    } else {
-        $divR.Visible=$false; $lblRollHdr.Visible=$false
-        for($k=0;$k -lt 3;$k++){ $rollLbl[$k].Visible=$false; $rollCost[$k].Visible=$false; $rollTok[$k].Visible=$false }
-    }
+    $div2.Top = $dY; $div2.Visible=$true          # divider between models and recent chats
+    $bottom = $dY + 6
 
     # recent-chats section (header always shown when there are chats; the rows
     # collapse away when $script:sessCollapsed, leaving just the clickable header)
     if($nSess -gt 0){
         $s0 = $bottom + 2
-        $div3.Top = $s0; $div3.Visible=$true
-        $lblSessHdr.Top = $s0 + 7; $lblSessHdr.Visible=$true
+        $lblSessHdr.Top = $s0; $lblSessHdr.Visible=$true
         $rowsShown = if($script:sessCollapsed){ 0 } else { $nSess }
-        $sTop = $s0 + 25
+        $sTop = $s0 + 18
         for($k=0;$k -lt $MaxSessions;$k++){
             if($k -lt $rowsShown){
                 $y = $sTop + $k*$sRowH
@@ -871,18 +711,22 @@ function Relayout($fams,$nRoll,$nSess){
                 $sName[$k].Visible=$false; $sTrack[$k].Visible=$false; $sPct[$k].Visible=$false; $sSep[$k].Visible=$false; $sTok[$k].Visible=$false
             }
         }
-        $bottom = if($rowsShown -gt 0){ $sTop + $rowsShown*$sRowH + 8 } else { $s0 + 24 }
+        $bottom = if($rowsShown -gt 0){ $sTop + $rowsShown*$sRowH + 6 } else { $s0 + 18 }
     } else {
-        $div3.Visible=$false; $lblSessHdr.Visible=$false
+        $lblSessHdr.Visible=$false
         for($k=0;$k -lt $MaxSessions;$k++){ $sName[$k].Visible=$false; $sTrack[$k].Visible=$false; $sPct[$k].Visible=$false; $sSep[$k].Visible=$false; $sTok[$k].Visible=$false }
     }
 
-    # all-time ticker: always the very bottom line
-    $tt = $bottom + 2
-    $divT.Top = $tt; $divT.Visible=$true
-    $lblTick1.Top = $tt + 7;  $lblTick1.Visible=$true
-    $lblTick2.Top = $tt + 21; $lblTick2.Visible=$true
-    $bottom = $tt + 38
+    # bottom block: divider -> All Time Usage (2 lines) -> turns/sessions (left)
+    # -> updated (right, the very bottom line)
+    $div3.Top = $bottom + 2; $div3.Visible=$true
+    $b0 = $div3.Top + 8
+    $lblTick1.Top = $b0;       $lblTick1.Visible=$true      # All Time Usage: X tokens
+    $lblTick2.Top = $b0 + 14;  $lblTick2.Visible=$true      # cached / per-token costs
+    $lblFoot1.Top = $b0 + 31;  $lblFoot1.Visible=$true      # output / turns / sessions (left)
+    $lblFoot2.Top = $b0 + 47;  $lblFoot2.Visible=$true      # updated Xs ago (right)
+    $divT.Visible=$false                                    # (old ticker divider, unused now)
+    $bottom = $b0 + 47 + 16
 
     $newH = $bottom
     if($form.Height -ne $newH){
@@ -895,14 +739,14 @@ function Relayout($fams,$nRoll,$nSess){
 function Repaint($d,$fams,$stamp){
     Set-T $lblHero (Money $d.cost)
     Set-T $lblRawVal (Money $d.raw)
-    $bm = $d.by; $arrow = [string][char]0x2193
+    $bm = $d.by
     for($k=0;$k -lt $fams.Count;$k++){
         $f=$fams[$k]
         Set-T $rowName[$k] $f
         Set-T $rowCost[$k] (Money $bm[$f].cost)
-        Set-T $rowOut[$k]  ($arrow + ' ' + (Fmt-Tok $bm[$f].out))
+        Set-T $rowOut[$k]  (Fmt-Tok $bm[$f].tok)   # total tokens this model used today
     }
-    $dot = [string][char]0x00B7
+    $dot = [string][char]0x00B7 ; $arrow = [string][char]0x2193
     $sx = if($d.sessions -eq 1){'session'}else{'sessions'}
     Set-T $lblFoot1 ($arrow + ' ' + (Fmt-Tok $d.out) + ' output   ' + $dot + '   ' + $d.turns + ' turns   ' + $dot + '   ' + $d.sessions + ' ' + $sx)
     Set-T $lblFoot2 (Fmt-Ago $stamp)
@@ -931,20 +775,6 @@ function Repaint-Sessions($sessions){
         $sName[$k].Tag=$s.id; $sTrack[$k].Tag=$s.id; $sFill[$k].Tag=$s.id; $sPct[$k].Tag=$s.id; $sSep[$k].Tag=$s.id; $sTok[$k].Tag=$s.id
     }
 }
-# Paint the rolling-usage rows: last 5h, last 7d, and (if used) Fable's 7d slice.
-# Deliberately no bar - there's no known plan limit to measure against.
-function Repaint-Rolling($roll){
-    if(-not $roll.primed){
-        Set-T $rollLbl[0] 'last 5h'; Set-T $rollCost[0] 'reading...'; $rollCost[0].ForeColor=$cDim; Set-T $rollTok[0] ''
-        Set-T $rollLbl[1] 'last 7d'; Set-T $rollCost[1] 'reading...'; $rollCost[1].ForeColor=$cDim; Set-T $rollTok[1] ''
-        return
-    }
-    Set-T $rollLbl[0] 'last 5h'; $rollLbl[0].ForeColor=$cText; Set-T $rollCost[0] (Money $roll.h5.cost); $rollCost[0].ForeColor=$cText; Set-T $rollTok[0] (Fmt-Tok $roll.h5.tok)
-    Set-T $rollLbl[1] 'last 7d'; $rollLbl[1].ForeColor=$cText; Set-T $rollCost[1] (Money $roll.d7.cost); $rollCost[1].ForeColor=$cText; Set-T $rollTok[1] (Fmt-Tok $roll.d7.tok)
-    if($roll.f7.tok -gt 0){
-        Set-T $rollLbl[2] 'Fable 7d'; $rollLbl[2].ForeColor=$cAmber; Set-T $rollCost[2] (Money $roll.f7.cost); $rollCost[2].ForeColor=$cText; Set-T $rollTok[2] (Fmt-Tok $roll.f7.tok)
-    }
-}
 # All-time totals, summed from the persistent per-day history store (cheap; the
 # same store the calendar uses). Throttled - all-time changes slowly. Reflects
 # recorded history (grows as you use it; a calendar open fills in any old days).
@@ -956,11 +786,11 @@ function Get-AllTime {
     $script:allTime=@{ tok=$tok; cost=$cost; raw=$raw }; $script:allTimeAt=$now
     return $script:allTime
 }
-# Paint the all-time ticker at the very bottom (total tokens + both cost estimates).
+# Paint the bottom "All Time Usage:" lines (total tokens + both cost estimates).
 function Repaint-Ticker {
     $dot=[string][char]0x00B7
     $a=Get-AllTime
-    Set-T $lblTick1 ('all time  ' + $dot + '  ' + (Fmt-Tok $a.tok) + ' tokens')
+    Set-T $lblTick1 ('All Time Usage:  ' + (Fmt-Tok $a.tok) + ' tokens')
     Set-T $lblTick2 ((Money $a.cost) + ' cached  ' + $dot + '  ' + (Money $a.raw) + ' per token')
 }
 function Update-Widget {
@@ -970,17 +800,9 @@ function Update-Widget {
     $nSess = $sessions.Count
     $hasDaily = ($d.turns -gt 0)
 
-    # rolling windows (self-throttled/bounded); decide how many rows to show
-    $roll=$null; try { $roll=Aggregate-Rolling } catch {}
-    $nRoll = 0
-    if($roll){
-        if(-not $roll.primed){ $nRoll = 2 }                                   # 5h + 7d as "reading..."
-        elseif($roll.d7.tok -gt 0){ $nRoll = 2 + [int]($roll.f7.tok -gt 0) }  # + Fable row if used
-    }
-
     $fams = if($hasDaily){ Active-Families $d.by } else { @() }
-    $key = ($fams -join ',') + '|' + $nRoll + '|' + $nSess + '|' + [int]$script:sessCollapsed
-    if($key -ne $script:layoutKey){ Relayout $fams $nRoll $nSess; $script:layoutKey=$key }
+    $key = ($fams -join ',') + '|' + $nSess + '|' + [int]$script:sessCollapsed
+    if($key -ne $script:layoutKey){ Relayout $fams $nSess; $script:layoutKey=$key }
 
     if($hasDaily){
         Repaint $d $fams $r.stamp
@@ -989,7 +811,6 @@ function Update-Widget {
         Set-T $lblFoot1 'no Claude usage yet today'
         Set-T $lblFoot2 ''
     }
-    if($nRoll -gt 0){ try { Repaint-Rolling $roll } catch {} }
     if($nSess -gt 0){
         # header doubles as a collapse toggle: chevron + (count when collapsed)
         $chev = if($script:sessCollapsed){ [string][char]0x25B8 } else { [string][char]0x25BE }   # > / v
