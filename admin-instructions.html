@@ -65,6 +65,10 @@
   .mock .tval.raw{color:var(--amber)}
   .mock .foot{color:var(--dim);font-size:11px;margin-top:8px}
   .mock .shdr{color:var(--dim);font-size:11px;margin:2px 0 4px}
+  .mock .rrow{display:flex;align-items:baseline;gap:8px;margin:4px 0;font-size:12px}
+  .mock .rrow .rl{width:56px;font-weight:700}
+  .mock .rrow .rc{font-weight:700}
+  .mock .rrow .rt{color:var(--dim);margin-left:auto}
   .mock .srow{display:flex;align-items:center;gap:8px;margin:4px 0}
   .mock .sname{flex:0 0 92px;font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
   .mock .sbar{flex:1;height:7px;background:var(--track);overflow:hidden}
@@ -80,11 +84,11 @@
 <div class="wrap">
 
   <h1>Claude Usage Widget<span class="dot">.</span></h1>
-  <p class="sub">A small always-on-top panel that shows your <b>Claude Code usage for today</b> &mdash; summed across every session since midnight, so it never flips between sessions. Headline spend, two cost figures, a daily-tokens gauge, a per-model breakdown, and a live list of your <b>recent chats with how full each one's context is</b> &mdash; all at once. Windows only.</p>
+  <p class="sub">A small always-on-top panel that shows your <b>Claude Code usage for today</b> &mdash; summed across every session since midnight, so it never flips between sessions. Headline spend, two cost figures, a daily-tokens gauge, a per-model breakdown, <b>rolling last-5h / 7d usage</b>, and a live list of your <b>recent chats with how full each one's context is</b> &mdash; all at once. Windows only.</p>
 
   <div class="hero">
     <div class="mock">
-      <div class="top"><span class="model">Claude usage <span style="color:var(--dim);font-weight:400;font-size:11px">v1.4.0</span></span><span class="x">&#128197;&nbsp;&#8635;&nbsp;&times;</span></div>
+      <div class="top"><span class="model">Claude usage <span style="color:var(--dim);font-weight:400;font-size:11px">v1.5.0</span></span><span class="x">&#128197;&nbsp;&#8635;&nbsp;&times;</span></div>
       <div style="color:var(--dim);font-size:11px;margin:2px 0 1px">spent today &middot; cached</div>
       <div style="color:var(--cyan);font-weight:700;font-size:27px;line-height:1.1;margin-bottom:4px">$480.44</div>
       <div class="trow"><span class="tlab">if billed per token</span><span class="tval raw">$2,256.56</span></div>
@@ -93,6 +97,11 @@
       <div class="mrow"><span class="mname opus">Opus</span><span class="cost">$480.44</span><span class="out">&#8595; 1.9M</span></div>
       <div class="div"></div>
       <div class="foot">&#8595; 1.9M output &middot; 739 turns &middot; 6 sessions<br>updated 1s ago</div>
+      <div class="div"></div>
+      <div class="shdr">rolling usage &middot; cost / tokens</div>
+      <div class="rrow"><span class="rl">last 5h</span><span class="rc">$398.11</span><span class="rt">532.3M</span></div>
+      <div class="rrow"><span class="rl">last 7d</span><span class="rc">$2,098.17</span><span class="rt">2.53B</span></div>
+      <div class="rrow"><span class="rl" style="color:var(--amber)">Fable 7d</span><span class="rc">$468.77</span><span class="rt">238.8M</span></div>
       <div class="div"></div>
       <div class="shdr">recent chats &middot; context used</div>
       <div class="srow"><span class="sname">Hearth</span><span class="sbar"><span style="width:41%;background:var(--green)"></span></span><span class="spct" style="color:var(--green)">41%</span></div>
@@ -136,7 +145,7 @@
   <h2><span class="n">4</span>Move, history &amp; close</h2>
   <ul>
     <li><b>Move:</b> click and drag anywhere on the panel.</li>
-    <li><b>History calendar:</b> click the <b>calendar</b> button in the top-right (or right-click &rarr; <b>History (calendar)</b>). It opens a per-day usage calendar in your browser &mdash; a heat-mapped month grid, summary cards (all-time spend, busiest day, averages, total tokens), and a <b>Cost/Tokens</b> toggle. <b>Click any day</b> to open a full breakdown of that date: by model, by hour, and <b>every chat session individually</b>. Under the grid there's also an <b>All chats</b> catalog &mdash; every chat you still have logs for, as a zebra-striped, collapsed list; <b>click a row</b> to expand its total tokens, cost, turns, active dates, and per-model breakdown (sort by Recent or Heaviest). Your history is saved locally, so it keeps growing even after Claude Code prunes old transcripts.</li>
+    <li><b>History calendar:</b> click the <b>calendar</b> button in the top-right (or right-click &rarr; <b>History (calendar)</b>). It opens a per-day usage calendar in your browser &mdash; all-time summary cards, <b>rolling usage</b> cards (last 5 hours / 7 days / Fable 7 days), a heat-mapped month grid, and a <b>Cost/Tokens</b> toggle. <b>Click any day</b> to open a full breakdown of that date: by model, by hour, and <b>every chat session individually</b>. Under the grid there's also an <b>All chats</b> catalog &mdash; every chat you still have logs for, as a zebra-striped, collapsed list; <b>click a row</b> to expand its total tokens, cost, turns, active dates, and per-model breakdown (sort by Recent or Heaviest). Your history is saved locally, so it keeps growing even after Claude Code prunes old transcripts.</li>
     <li><b>Remove a chat from the list:</b> right-click a chat in the <b>recent chats</b> section &rarr; <b>Remove this chat from the list</b>. It's hidden from the panel only &mdash; the transcript and history are never touched. Right-click &rarr; <b>Show hidden chats</b> (also on the main menu) restores them.</li>
     <li><b>Refresh:</b> click the <b>&#8635;</b> button to re-scan right now.</li>
     <li><b>Close:</b> click the <b>&times;</b> in the top-right, or right-click the panel &rarr; <b>Exit</b>.</li>
@@ -152,6 +161,7 @@
       <div class="k">tokens</div><div>Today's <i>cumulative</i> tokens (input + output + cache) as a bar against a daily budget you can set (default 2B). A &ldquo;how heavy is today&rdquo; gauge. <b>Note:</b> this is a tunable budget, not your real plan limit &mdash; see the note below.</div>
       <div class="k">model rows</div><div>One row per model family you've <b>used today</b> (Opus, Sonnet, Haiku, Fable, &hellip;), summed across all sessions. Each shows that model's cache-aware cost and <span>&#8595;</span> the tokens it generated. The panel grows/shrinks to fit &mdash; no empty rows.</div>
       <div class="k">output &middot; turns &middot; sessions</div><div>Today's total tokens generated, the assistant-turn count, and how many distinct sessions contributed today.</div>
+      <div class="k">rolling usage</div><div>How much you've used in the <b>last 5 hours</b> and <b>last 7 days</b> (cost + tokens), plus <b>Fable's</b> share of the last 7 days. This is <i>your usage in that rolling window</i>, summed from the transcripts &mdash; it is <b>not</b> your plan's remaining percentage. On first launch these rows briefly say &ldquo;reading&hellip;&rdquo; while the window is computed (longer only if you've had a very heavy week). <b>See the note below about the real 5-hour/weekly meters.</b></div>
       <div class="k">updated &hellip; ago</div><div>How fresh the reading is &mdash; the time since the most recent turn in any of today's sessions.</div>
       <div class="k">recent chats &middot; context used</div><div>Your up to <b>10 most-recent chat sessions</b>, each named exactly as in the Claude app (its custom or AI-generated title). The bar shows <b>how full that chat's context window is</b> right now &mdash; green under 70%, amber to 89%, red at 90%+ (getting close to a compaction) &mdash; with the percentage beside it. Hover a row to see exact tokens, the model, and how long ago the chat was active; <b>right-click a row to remove that chat</b> from the list. Unlike the totals above, this list spans <i>all</i> your recent chats, not just today's.</div>
     </div>
@@ -167,6 +177,10 @@
     <b>About the &ldquo;tokens&rdquo; bar.</b> It's <i>today's</i> cumulative tokens against a daily budget you choose (<code>$DailyBudgetTokens</code>, default 2B) &mdash; a sense of how heavy today has gotten. It is <b>not</b> your Claude plan's real rate-limit: that number only exists in the data Claude Code feeds its <i>status line</i>, which this standalone widget never receives. So treat the bar as a tunable gauge, and set the budget to whatever daily ceiling is meaningful to you.
   </div>
 
+  <div class="note">
+    <b>Why not the real 5-hour / weekly / Fable meters?</b> Claude Code shows official plan meters in its <code>/usage</code> view (the 5-hour session limit, the weekly all-models limit, the weekly Fable limit). Those percentages come <b>live from Anthropic's API and are never written to any local file</b> &mdash; so an offline, transcript-only tool like this genuinely can't read them without making network calls, which would break its no-network promise. The <b>rolling usage</b> section is the honest alternative: it sums <i>your</i> actual token usage in the last 5 hours / 7 days. It tells you how hard you've been working in those windows &mdash; it just can't know your plan's remaining percentage.
+  </div>
+
   <h2><span class="n">6</span>How it works (under the hood)</h2>
   <p>Every turn, Claude Code appends your conversation &mdash; including exact token counts and a timestamp &mdash; to a transcript file under <code>%USERPROFILE%\.claude\projects\</code>. The widget looks at every transcript touched today (and any <code>subagents\*.jsonl</code> beside them), and for each one reads <b>only the bytes appended since it last looked</b>, keeping a per-file running total of the turns timestamped <i>today</i>. It sums those into one daily figure and buckets cost + output <b>by model family</b>. From that it paints the headline cost, the daily-tokens bar, one row per model used today, the raw cost, and the footer. Because it only re-reads new bytes, even a busy live session refreshes in a few milliseconds, and at local midnight the counters reset. <b>No status line, no background service, no network &mdash; just one small program reading files that already exist.</b></p>
   <p>The <b>recent chats</b> list works a little differently: for each of your latest chats it reads only the <b>tail</b> of that chat's transcript to find its current context size and its title (as the app shows it). Those tail reads are cached by the file's modified-time, so an idle second reads nothing and only the chat you're actively working in gets re-sampled.</p>
@@ -179,6 +193,7 @@
     <li><b>Row colours / order:</b> <code>$FamColor</code> and <code>$FamOrder</code>. Every family with usage today is shown automatically &mdash; you don't choose which.</li>
     <li><b>Recent-chats list length:</b> <code>$MaxSessions</code> (default <code>10</code>) &mdash; how many recent chats appear in the context list.</li>
     <li><b>Context window:</b> <code>$ContextWindowTokens</code> (default <code>0</code> = auto: 200K, or 1M if any recent chat is bigger). Set a fixed number to force it; the tiers auto-detect chooses from live in <code>$CtxWindowTiers</code>.</li>
+    <li><b>Rolling windows:</b> <code>$Roll5hHours</code> / <code>$Roll7dDays</code> (default <code>5</code> / <code>7</code>) set the two rolling windows; <code>$ShowRolling = $false</code> hides the rolling section entirely.</li>
   </ul>
 
   <h2><span class="n">8</span>Troubleshooting</h2>

@@ -57,6 +57,9 @@ GOOD TO KNOW
   "no Claude usage yet today."
 * The dollar amounts are estimates at API list prices — a sense of weight,
   not a bill. On a Max/Pro plan you don't pay per token.
+* "rolling usage" shows how much you've used in the last 5 hours and 7 days
+  (and Fable's share). It's YOUR usage in that window — not your plan's
+  remaining %, which Claude keeps online and never saves to a file.
 * It only ever reads local files. No network, nothing leaves your computer.
 
 Full guide: open  admin-instructions.html  in your browser.

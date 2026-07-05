@@ -2,6 +2,22 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.5.0 — 2026-07-05
+
+- **Rolling usage windows.** A new **rolling usage** section shows how much
+  you've used in the **last 5 hours** and the **last 7 days** (cost + tokens),
+  plus **Fable's** slice of the last 7 days. It's an honest, transcript-derived
+  measure of *your usage in that window* — deliberately **not** a plan-limit
+  percentage (Claude Code never writes your real rate-limit to disk, so no
+  offline tool can show the official 5-hour/weekly meters; this is the faithful
+  alternative). The same three figures also appear as cards at the top of the
+  history calendar. Configurable via `$Roll5hHours`, `$Roll7dDays`, and
+  `$ShowRolling`.
+- The rolling data is gathered by the same efficient incremental reader the rest
+  of the widget uses, with the per-tick work bounded so it never freezes the
+  panel — the rows show "reading…" for a moment on first launch (longer only if
+  you have a very heavy week of history), then fill in.
+
 ## v1.4.0 — 2026-07-05
 
 - **Remove a chat from the list.** Right-click any chat in the **recent chats**

@@ -16,6 +16,10 @@ everything stays put and just climbs as you work. Shown all at once:
   that model's cache-aware cost and the tokens it generated
 - **output / turns / sessions** — total tokens generated, assistant-turn count,
   and how many distinct sessions contributed today, plus how fresh the reading is
+- **rolling usage** — how much you've used in the **last 5 hours** and **last 7
+  days** (cost + tokens), plus **Fable's** slice of the last 7 days. An honest,
+  transcript-derived measure of *your usage in that window* — **not** a plan-limit
+  percentage (see below)
 - **recent chats · context used** — a live list of your up to **10 most-recent
   chat sessions**, each named exactly as in the Claude app (its custom or
   AI-generated title) with a bar for **how full that chat's context window is**
@@ -39,7 +43,7 @@ already writes to disk.
 
 ```
 ┌────────────────────────────────────────┐
-│ Claude usage  v1.3.0        🗓  ⟳   ×     │
+│ Claude usage  v1.5.0        🗓  ⟳   ×     │
 │ spent today · cached                     │
 │ $480.44                                  │
 │ if billed per token          $2,256.56   │
@@ -50,11 +54,15 @@ already writes to disk.
 │ ↓ 1.9M output · 739 turns · 6 sessions    │
 │ updated 1s ago                           │
 │ ──────────────────────────────────────── │
+│ rolling usage · cost / tokens            │
+│ last 5h    $398.11             532.3M     │
+│ last 7d    $2,098.17           2.53B      │
+│ Fable 7d   $468.77             238.8M     │
+│ ──────────────────────────────────────── │
 │ recent chats · context used              │
 │ Hearth              ▓▓▓▓░░░░░░      41%   │
 │ United Disease…     ▓▓▓▓▓▓▓▓▓░      95%   │
 │ Maestro             ▓▓▓▓▓░░░░░      58%   │
-│ Wildcards Adventure ▓▓▓▓░░░░░░      42%   │
 │ …up to 10 recent chats                    │
 └────────────────────────────────────────┘
 ```
@@ -188,6 +196,20 @@ Open `usage-widget.ps1` in any text editor:
   context bar is measured against. Auto picks 200K, bumping to 1M if any recent
   chat exceeds 200K (the long-context beta). Set a fixed number (e.g. `200000`
   or `1000000`) to force it. Tiers live in `$CtxWindowTiers`.
+- **`$Roll5hHours` / `$Roll7dDays`** (default `5` / `7`) — the two rolling
+  windows. **`$ShowRolling`** (`$true`) — set `$false` to hide the section.
+
+## Why not the real 5-hour / weekly / Fable meters?
+
+Claude Code shows official plan meters (the 5-hour session limit, the weekly
+all-models limit, the weekly Fable limit) in its `/usage` view. Those percentages
+come **live from Anthropic's API** and are **never written to any local file** —
+so a standalone, offline, transcript-only tool like this one genuinely cannot
+read them without making authenticated network calls, which would break its
+no-network promise. The **rolling usage** section is the honest alternative: it
+sums *your* actual token usage in the last 5 hours / 7 days from the transcripts.
+It tells you how heavily you've been working in those windows — it just can't
+know your plan's remaining percentage.
 
 ## Files
 
