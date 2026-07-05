@@ -2,6 +2,16 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.8.0 — 2026-07-05
+
+- **Collapsible recent-chats list.** Click the **recent chats** header to fold the
+  list away (the chevron flips and it shows the count, e.g. `▸ recent chats (10)`)
+  and click again to expand it. Your choice is remembered between launches.
+- **Less horizontal white space / a bit narrower.** The panel is narrower, and the
+  right-hand figures (the per-token total, each model's output, each rolling
+  window's tokens, and each chat's %) now line up in one tidy column instead of
+  floating out at the far edge with a gap.
+
 ## v1.7.0 — 2026-07-05
 
 - **All-time ticker.** A new line at the very bottom of the panel shows your

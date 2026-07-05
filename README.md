@@ -25,7 +25,7 @@ everything stays put and just climbs as you work. Shown all at once:
   **absolute context-token count** beside it (e.g. `67% │ 670k`). See every
   chat's context at a glance instead of one bar that flips as you switch chats;
   hover a row for model + last-active time. **Right-click a chat → Archive** to
-  put it away (see below)
+  put it away (see below), or **click the section header to collapse the list**
 - **archive** — archiving a chat drops it from the recent-chats list **and** the
   calendar's catalog and day cards, but its tokens **still count in every total**.
   Nothing is deleted; right-click → *Unarchive N chats* restores them
@@ -46,32 +46,35 @@ network, no background service — it just reads the transcript files Claude Cod
 already writes to disk.
 
 ```
-┌────────────────────────────────────────────┐
-│ Claude usage  v1.7.0          🗓   ⟳    ×      │
-│ spent today · cached                         │
-│ $480.44                                      │
-│ if billed per token              $2,256.56   │
-│ ──────────────────────────────────────────── │
-│ Opus       $480.44                  ↓ 1.9M    │
-│ ──────────────────────────────────────────── │
-│ ↓ 1.9M output · 739 turns · 6 sessions        │
-│ updated 1s ago                               │
-│ ──────────────────────────────────────────── │
-│ rolling usage · cost / tokens                │
-│ last 5h    $398.11                   532.3M   │
-│ last 7d    $2,098.17                 2.53B    │
-│ Fable 7d   $468.77                   238.8M   │
-│ ──────────────────────────────────────────── │
-│ recent chats · context used                  │
-│ Hearth          ▓▓▓▓░░░░  41% │ 410k          │
-│ United Disease… ▓▓▓▓▓▓▓▓  95% │ 950k          │
-│ Maestro         ▓▓▓▓▓░░░  58% │ 580k          │
-│ …up to 10 recent chats (right-click → archive)│
-│ ──────────────────────────────────────────── │
-│ all time · 6.38B tokens                      │
-│ $5,528.96 cached · $31,343.45 per token      │
-└────────────────────────────────────────────┘
+┌──────────────────────────────────────┐
+│ Claude usage v1.8.0      🗓  ⟳   ×      │
+│ spent today · cached                   │
+│ $480.44                                │
+│ if billed per token        $2,256.56   │
+│ ────────────────────────────────────── │
+│ Opus       $480.44           ↓ 1.9M    │
+│ ────────────────────────────────────── │
+│ ↓ 1.9M output · 739 turns · 6 sessions  │
+│ updated 1s ago                         │
+│ ────────────────────────────────────── │
+│ rolling usage · cost / tokens          │
+│ last 5h    $398.11           532.3M    │
+│ last 7d    $2,098.17         2.53B     │
+│ Fable 7d   $468.77           238.8M    │
+│ ────────────────────────────────────── │
+│ ▾ recent chats · context used          │
+│ Hearth        ▓▓▓▓░░░  41% │ 410k       │
+│ United Dise…  ▓▓▓▓▓▓▓  95% │ 950k       │
+│ Maestro       ▓▓▓▓▓░░  58% │ 580k       │
+│ …up to 10 (right-click → archive)      │
+│ ────────────────────────────────────── │
+│ all time · 6.38B tokens                │
+│ $5,528.96 cached · $31,343.45 per token│
+└──────────────────────────────────────┘
 ```
+
+Click the **▾ recent chats** header to collapse the list (`▸ recent chats (10)`)
+and again to expand it — your choice is remembered.
 
 Only models you've actually used today get a row, so the panel grows or shrinks
 to fit — no empty placeholders. The **recent-chats** list shows up to 10 of your

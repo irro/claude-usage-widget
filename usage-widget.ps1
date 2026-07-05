@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.7.0'   # bump on each release; shown next to the title in the widget
+$Version  = '1.8.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -98,6 +98,7 @@ $script:data      = $null   # latest today aggregate (for the on-close save)
 $script:lastPersist = $null # last time today's total was written to the history store
 $script:sessCache = @{}     # path -> cached tail read {mtime,ctx,model,tstamp,title}
 $script:archived  = @{}     # session-id -> 1 for archived chats (out of lists, still in totals)
+$script:sessCollapsed = $false  # recent-chats list collapsed? (persisted in the pos file)
 # rolling-window engine state
 $script:rollFiles  = @{}    # path -> @{off;lw;primed} incremental offsets (7d files)
 $script:rollTurns  = New-Object System.Collections.ArrayList  # {ts;tok;cost;fam;key}
@@ -128,7 +129,7 @@ $FamColor = @{ Opus=$cCyan; Sonnet=$cPurple; Haiku=$cGreen; Fable=$cAmber; Other
 function Hue([double]$p){ if($p -ge 90){$cRed}elseif($p -ge 70){$cAmber}else{$cGreen} }
 
 # --- layout constants -----------------------------------------------------
-$W        = 340            # form width
+$W        = 300            # form width
 $padL     = 12
 $rowH     = 20             # per-model row height
 $heroTagY = 32
@@ -137,11 +138,11 @@ $rawY     = 83             # "if billed per token" line
 $div1Y    = 105
 $rowsTop  = 116            # first model row (right below divider 1)
 $sRowH    = 18             # per-chat context row height
-$sTrackX  = 114            # x of the context bar in a chat row
-$sTrackW  = 98             # width of the context bar track
-$sPctX    = 218            # x of the context % (right-justified in its column)
-$sSepX    = 256            # x of the thin separator between % and tokens
-$sTokX    = 262            # x of the context tokens (LEFT-aligned, hugs the separator)
+$sTrackX  = 100            # x of the context bar in a chat row
+$sTrackW  = 94             # width of the context bar track
+$sPctX    = 200            # x of the context % (right-justified in its column)
+$sSepX    = 236            # x of the thin separator between % and tokens
+$sTokX    = 242            # x of the context tokens (LEFT-aligned, hugs the separator)
 
 # --- form -----------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
@@ -175,7 +176,11 @@ $defX = $wa.Left + 8
 $defY = $wa.Bottom - $form.Height - 8
 $form.Left = $defX; $form.Top = $defY
 if (Test-Path $PosPath) {
-    try { $p = (Get-Content $PosPath -Raw) -split ','; $form.Left=[int]$p[0]; $form.Top=[int]$p[1] }
+    try {
+        $p = (Get-Content $PosPath -Raw) -split ','
+        $form.Left=[int]$p[0]; $form.Top=[int]$p[1]
+        if($p.Count -ge 3){ $script:sessCollapsed = ($p[2].Trim() -eq '1') }   # restore collapse state
+    }
     catch { $form.Left=$defX; $form.Top=$defY }
 }
 if ($form.Left -lt $wa.Left -or $form.Left -gt $wa.Right-50) { $form.Left = $defX }
@@ -228,8 +233,8 @@ $lblHeroTag = New-Lbl $padL $heroTagY 200 14 $cDim 8 $false ; $lblHeroTag.Text =
 $lblHero    = New-Lbl $padL $heroY ($W-2*$padL) 34 $cCyan 20 $true ; $lblHero.Text = '$0.00' ; $lblHero.TextAlign = 'MiddleLeft'
 
 # raw "if billed per token"
-$lblRawTag = New-Lbl $padL $rawY 150 16 $cDim 8.5 $false ; $lblRawTag.Text = 'if billed per token'
-$lblRawVal = New-Lbl ($W-130) $rawY (130-$padL) 16 $cAmber 9.5 $true ; $lblRawVal.TextAlign='MiddleRight'
+$lblRawTag = New-Lbl $padL $rawY 108 16 $cDim 8.5 $false ; $lblRawTag.Text = 'if billed per token'
+$lblRawVal = New-Lbl 124 $rawY 108 16 $cAmber 9.5 $true ; $lblRawVal.TextAlign='MiddleRight'   # right edge ~232
 
 # divider 1
 $div1 = New-Object System.Windows.Forms.Panel
@@ -242,9 +247,9 @@ $form.Controls.Add($div1)
 $rowName=@(); $rowCost=@(); $rowOut=@()
 for($k=0;$k -lt 5;$k++){
     $y = $rowsTop + $k*$rowH
-    $rn = New-Lbl $padL $y 64 17 $cText 9.5 $true
-    $rc = New-Lbl 80 $y 104 17 $cText 9.5 $false
-    $ro = New-Lbl 188 ($y+1) ($W-188-$padL) 15 $cDim 8.5 $false ; $ro.TextAlign = 'MiddleRight'
+    $rn = New-Lbl $padL $y 52 17 $cText 9.5 $true
+    $rc = New-Lbl 66 $y 78 17 $cText 9.5 $false
+    $ro = New-Lbl 148 ($y+1) 84 15 $cDim 8.5 $false ; $ro.TextAlign = 'MiddleRight'   # right edge ~232, aligned with the chat %
     $rn.Visible=$false; $rc.Visible=$false; $ro.Visible=$false
     $rowName += ,$rn ; $rowCost += ,$rc ; $rowOut += ,$ro
 }
@@ -330,9 +335,9 @@ $lblRollHdr.Visible = $false
 # Fixed slots: window label | cost | tokens (rows: last 5h, last 7d, Fable 7d).
 $rollLbl=@(); $rollCost=@(); $rollTok=@()
 for($k=0;$k -lt 3;$k++){
-    $rl = New-Lbl $padL 252 66 16 $cText 8.5 $true
-    $rc = New-Lbl 82 252 100 16 $cText 8.5 $false
-    $rt = New-Lbl 188 253 ($W-188-$padL) 15 $cDim 8.5 $false ; $rt.TextAlign='MiddleRight'
+    $rl = New-Lbl $padL 252 54 16 $cText 8.5 $true
+    $rc = New-Lbl 68 252 78 16 $cText 8.5 $false
+    $rt = New-Lbl 148 253 84 15 $cDim 8.5 $false ; $rt.TextAlign='MiddleRight'   # right edge ~232, aligned with the chat %
     $rl.Visible=$false; $rc.Visible=$false; $rt.Visible=$false
     $rollLbl += ,$rl ; $rollCost += ,$rc ; $rollTok += ,$rt
 }
@@ -383,15 +388,19 @@ $dragHandler = {
 }
 function Wire-Drag($c){ $c.ContextMenuStrip = $menu; $c.Add_MouseDown($dragHandler) }
 # everything is a drag handle EXCEPT the refresh / close buttons (they click)
-$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1,$lblFoot2,$divR,$lblRollHdr,$div3,$lblSessHdr,$divT,$lblTick1,$lblTick2)
+$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1,$lblFoot2,$divR,$lblRollHdr,$div3,$divT,$lblTick1,$lblTick2)
 $dragCtrls += $rowName + $rowCost + $rowOut
 $dragCtrls += $rollLbl + $rollCost + $rollTok
 $dragCtrls += $sName + $sTrack + $sFill + $sPct + $sSep + $sTok
 foreach($c in $dragCtrls){ Wire-Drag $c }
 # recent-chat rows keep drag, but right-click shows the per-chat menu instead
 foreach($c in ($sName + $sTrack + $sFill + $sPct + $sSep + $sTok)){ $c.ContextMenuStrip = $sessMenu }
+# the recent-chats HEADER is a click-to-collapse toggle (not a drag handle)
+$lblSessHdr.ContextMenuStrip = $menu
+$lblSessHdr.Cursor = [System.Windows.Forms.Cursors]::Hand
+$lblSessHdr.Add_Click({ Toggle-Sessions })
 
-function Save-Pos { try { "$($form.Left),$($form.Top)" | Set-Content -LiteralPath $PosPath -Encoding ASCII } catch {} }
+function Save-Pos { try { "$($form.Left),$($form.Top),$([int][bool]$script:sessCollapsed)" | Set-Content -LiteralPath $PosPath -Encoding ASCII } catch {} }
 $form.Add_FormClosing({ Save-Pos; if($script:data){ Persist-Today $script:data } })
 
 # --- data: today's aggregate across all sessions --------------------------
@@ -715,6 +724,13 @@ function Unarchive-All {
     $script:layoutKey=$null
     Update-Widget
 }
+# Collapse/expand the recent-chats list (clicking its header). Persisted.
+function Toggle-Sessions {
+    $script:sessCollapsed = -not $script:sessCollapsed
+    Save-Pos
+    $script:layoutKey=$null
+    Update-Widget
+}
 
 # Enumerate every top-level transcript across all project folders, take the
 # most-recent $MaxSessions, and resolve each to {title, ctx, pct, ...}. Tail
@@ -834,14 +850,16 @@ function Relayout($fams,$nRoll,$nSess){
         for($k=0;$k -lt 3;$k++){ $rollLbl[$k].Visible=$false; $rollCost[$k].Visible=$false; $rollTok[$k].Visible=$false }
     }
 
-    # recent-chats section
+    # recent-chats section (header always shown when there are chats; the rows
+    # collapse away when $script:sessCollapsed, leaving just the clickable header)
     if($nSess -gt 0){
         $s0 = $bottom + 2
         $div3.Top = $s0; $div3.Visible=$true
         $lblSessHdr.Top = $s0 + 7; $lblSessHdr.Visible=$true
+        $rowsShown = if($script:sessCollapsed){ 0 } else { $nSess }
         $sTop = $s0 + 25
         for($k=0;$k -lt $MaxSessions;$k++){
-            if($k -lt $nSess){
+            if($k -lt $rowsShown){
                 $y = $sTop + $k*$sRowH
                 $sName[$k].Top=$y
                 $sTrack[$k].Top=$y+5
@@ -853,7 +871,7 @@ function Relayout($fams,$nRoll,$nSess){
                 $sName[$k].Visible=$false; $sTrack[$k].Visible=$false; $sPct[$k].Visible=$false; $sSep[$k].Visible=$false; $sTok[$k].Visible=$false
             }
         }
-        $bottom = $sTop + $nSess*$sRowH + 8
+        $bottom = if($rowsShown -gt 0){ $sTop + $rowsShown*$sRowH + 8 } else { $s0 + 24 }
     } else {
         $div3.Visible=$false; $lblSessHdr.Visible=$false
         for($k=0;$k -lt $MaxSessions;$k++){ $sName[$k].Visible=$false; $sTrack[$k].Visible=$false; $sPct[$k].Visible=$false; $sSep[$k].Visible=$false; $sTok[$k].Visible=$false }
@@ -961,7 +979,7 @@ function Update-Widget {
     }
 
     $fams = if($hasDaily){ Active-Families $d.by } else { @() }
-    $key = ($fams -join ',') + '|' + $nRoll + '|' + $nSess
+    $key = ($fams -join ',') + '|' + $nRoll + '|' + $nSess + '|' + [int]$script:sessCollapsed
     if($key -ne $script:layoutKey){ Relayout $fams $nRoll $nSess; $script:layoutKey=$key }
 
     if($hasDaily){
@@ -972,7 +990,13 @@ function Update-Widget {
         Set-T $lblFoot2 ''
     }
     if($nRoll -gt 0){ try { Repaint-Rolling $roll } catch {} }
-    if($nSess -gt 0){ try { Repaint-Sessions $sessions } catch {} }
+    if($nSess -gt 0){
+        # header doubles as a collapse toggle: chevron + (count when collapsed)
+        $chev = if($script:sessCollapsed){ [string][char]0x25B8 } else { [string][char]0x25BE }   # > / v
+        if($script:sessCollapsed){ Set-T $lblSessHdr ($chev + '  recent chats  (' + $nSess + ')') }
+        else { Set-T $lblSessHdr ($chev + '  recent chats  ' + [string][char]0x00B7 + '  context used') }
+        if(-not $script:sessCollapsed){ try { Repaint-Sessions $sessions } catch {} }
+    }
     try { Repaint-Ticker } catch {}
 
     # keep today's total in the persistent history store (throttled to ~60s)
