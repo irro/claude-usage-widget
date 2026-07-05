@@ -84,7 +84,7 @@
 
   <div class="hero">
     <div class="mock">
-      <div class="top"><span class="model">Claude usage <span style="color:var(--dim);font-weight:400;font-size:11px">v1.3.0</span></span><span class="x">&#128197;&nbsp;&#8635;&nbsp;&times;</span></div>
+      <div class="top"><span class="model">Claude usage <span style="color:var(--dim);font-weight:400;font-size:11px">v1.4.0</span></span><span class="x">&#128197;&nbsp;&#8635;&nbsp;&times;</span></div>
       <div style="color:var(--dim);font-size:11px;margin:2px 0 1px">spent today &middot; cached</div>
       <div style="color:var(--cyan);font-weight:700;font-size:27px;line-height:1.1;margin-bottom:4px">$480.44</div>
       <div class="trow"><span class="tlab">if billed per token</span><span class="tval raw">$2,256.56</span></div>
@@ -136,7 +136,8 @@
   <h2><span class="n">4</span>Move, history &amp; close</h2>
   <ul>
     <li><b>Move:</b> click and drag anywhere on the panel.</li>
-    <li><b>History calendar:</b> click the <b>calendar</b> button in the top-right (or right-click &rarr; <b>History (calendar)</b>). It opens a per-day usage calendar in your browser &mdash; a heat-mapped month grid, summary cards (all-time spend, busiest day, averages, total tokens), and a <b>Cost/Tokens</b> toggle. <b>Click any day</b> to open a full breakdown of that date: by model, by hour, and <b>every chat session individually</b> (labelled by its opening prompt, with turns, tokens, cost, and time). Your history is saved locally, so it keeps growing even after Claude Code prunes old transcripts.</li>
+    <li><b>History calendar:</b> click the <b>calendar</b> button in the top-right (or right-click &rarr; <b>History (calendar)</b>). It opens a per-day usage calendar in your browser &mdash; a heat-mapped month grid, summary cards (all-time spend, busiest day, averages, total tokens), and a <b>Cost/Tokens</b> toggle. <b>Click any day</b> to open a full breakdown of that date: by model, by hour, and <b>every chat session individually</b>. Under the grid there's also an <b>All chats</b> catalog &mdash; every chat you still have logs for, as a zebra-striped, collapsed list; <b>click a row</b> to expand its total tokens, cost, turns, active dates, and per-model breakdown (sort by Recent or Heaviest). Your history is saved locally, so it keeps growing even after Claude Code prunes old transcripts.</li>
+    <li><b>Remove a chat from the list:</b> right-click a chat in the <b>recent chats</b> section &rarr; <b>Remove this chat from the list</b>. It's hidden from the panel only &mdash; the transcript and history are never touched. Right-click &rarr; <b>Show hidden chats</b> (also on the main menu) restores them.</li>
     <li><b>Refresh:</b> click the <b>&#8635;</b> button to re-scan right now.</li>
     <li><b>Close:</b> click the <b>&times;</b> in the top-right, or right-click the panel &rarr; <b>Exit</b>.</li>
     <li><b>Right-click menu:</b> <span class="pill">History (calendar)</span> <span class="pill">Refresh now</span> <span class="pill">Open instructions</span> <span class="pill">Exit</span></li>
@@ -152,7 +153,7 @@
       <div class="k">model rows</div><div>One row per model family you've <b>used today</b> (Opus, Sonnet, Haiku, Fable, &hellip;), summed across all sessions. Each shows that model's cache-aware cost and <span>&#8595;</span> the tokens it generated. The panel grows/shrinks to fit &mdash; no empty rows.</div>
       <div class="k">output &middot; turns &middot; sessions</div><div>Today's total tokens generated, the assistant-turn count, and how many distinct sessions contributed today.</div>
       <div class="k">updated &hellip; ago</div><div>How fresh the reading is &mdash; the time since the most recent turn in any of today's sessions.</div>
-      <div class="k">recent chats &middot; context used</div><div>Your up to <b>10 most-recent chat sessions</b>, each named exactly as in the Claude app (its custom or AI-generated title). The bar shows <b>how full that chat's context window is</b> right now &mdash; green under 70%, amber to 89%, red at 90%+ (getting close to a compaction) &mdash; with the percentage beside it. Hover a row to see exact tokens, the model, and how long ago the chat was active. Unlike the totals above, this list spans <i>all</i> your recent chats, not just today's.</div>
+      <div class="k">recent chats &middot; context used</div><div>Your up to <b>10 most-recent chat sessions</b>, each named exactly as in the Claude app (its custom or AI-generated title). The bar shows <b>how full that chat's context window is</b> right now &mdash; green under 70%, amber to 89%, red at 90%+ (getting close to a compaction) &mdash; with the percentage beside it. Hover a row to see exact tokens, the model, and how long ago the chat was active; <b>right-click a row to remove that chat</b> from the list. Unlike the totals above, this list spans <i>all</i> your recent chats, not just today's.</div>
     </div>
   </div>
   <div class="note">

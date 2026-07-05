@@ -21,12 +21,17 @@ everything stays put and just climbs as you work. Shown all at once:
   AI-generated title) with a bar for **how full that chat's context window is**
   right now (green → amber → red as it fills, with the percentage). See every
   chat's context at a glance instead of one bar that flips as you switch chats;
-  hover a row for exact tokens, model, and last-active time
+  hover a row for exact tokens, model, and last-active time. **Right-click a chat
+  to remove it** from the list (it's only hidden from the panel — never deleted);
+  right-click → *Show hidden chats* brings them back
 - **history calendar** — click the calendar button for a per-day usage calendar:
   a heat-mapped month grid, summary cards (all-time spend, busiest day, averages,
   total tokens), and a Cost/Tokens toggle. **Click any day** to open a full
   breakdown of that date — by model, by hour, and **every chat session
-  individually** (labelled by its opening prompt, with turns/tokens/cost/time)
+  individually**. Under the grid, an **All chats** catalog lists every chat you
+  still have logs for — a zebra-striped, collapsed-by-default list; click a row
+  to expand its tokens, cost, turns, active date range, and per-model breakdown,
+  sorted by Recent or Heaviest
 
 It's a single small PowerShell program. No installer, no dependencies, no
 network, no background service — it just reads the transcript files Claude Code
@@ -202,7 +207,8 @@ Open `usage-widget.ps1` in any text editor:
 
 The widget also writes small files under `%USERPROFILE%\.claude\`:
 `usage-widget-pos.txt` (window position), `usage-widget-history.json` (the
-per-day history store), and `usage-widget-calendar.html` (the generated calendar).
+per-day history store), `usage-widget-hidden.json` (chats you removed from the
+list), and `usage-widget-calendar.html` (the generated calendar).
 
 ## License
 

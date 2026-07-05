@@ -36,7 +36,10 @@ $PosPath  = Join-Path $env:USERPROFILE '.claude\usage-widget-pos.txt'
 $HistPath = Join-Path $env:USERPROFILE '.claude\usage-widget-history.json'
 $CalOut   = Join-Path $env:USERPROFILE '.claude\usage-widget-calendar.html'
 $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
-$Version  = '1.3.0'   # bump on each release; shown next to the title in the widget
+# Chats the user has removed from the widget's recent-chats list (session ids).
+# Hidden from the panel only; their transcripts and history are never touched.
+$HiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'
+$Version  = '1.4.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -91,6 +94,7 @@ $script:layoutKey = $null
 $script:data      = $null   # latest today aggregate (for the on-close save)
 $script:lastPersist = $null # last time today's total was written to the history store
 $script:sessCache = @{}     # path -> cached tail read {mtime,ctx,model,tstamp,title}
+$script:hidden    = @{}     # session-id -> 1 for chats removed from the recent list
 
 # --- palette --------------------------------------------------------------
 $cBg     = [System.Drawing.Color]::FromArgb(22,27,34)
@@ -123,7 +127,7 @@ $barY     = 112            # daily-tokens bar row
 $rowsTop  = 138            # first model row
 $sRowH    = 18             # per-chat context row height
 $sTrackX  = 150            # x of the context bar in a chat row
-$sTrackW  = 100            # width of the context bar track
+$sTrackW  = 94             # width of the context bar track (leaves room for "100%")
 
 # --- form -----------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
@@ -297,10 +301,26 @@ for($k=0;$k -lt $MaxSessions;$k++){
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 $miC = $menu.Items.Add('History (calendar)') ; $miC.Add_Click({ Open-History })
 $miR = $menu.Items.Add('Refresh now')        ; $miR.Add_Click({ $script:curDay=$null; Update-Widget })
+$miS = $menu.Items.Add('Show hidden chats')  ; $miS.Add_Click({ Unhide-All })
 $miH = $menu.Items.Add('Open instructions')  ; $miH.Add_Click({ try { Start-Process (Join-Path $PSScriptRoot 'admin-instructions.html') } catch {} })
 [void]$menu.Items.Add('-')
 $miX = $menu.Items.Add('Exit')               ; $miX.Add_Click({ $form.Close() })
+# reflect how many chats are hidden; hide the item entirely when none are
+$menu.Add_Opening({ $n=$script:hidden.Count; $miS.Text = "Show $n hidden chat$(if($n-ne 1){'s'})"; $miS.Visible = ($n -gt 0) })
 $form.ContextMenuStrip = $menu
+
+# per-chat menu: right-click a recent-chat row to remove it (or restore hidden).
+# The clicked row's session id is captured from the menu's SourceControl.Tag.
+$sessMenu = New-Object System.Windows.Forms.ContextMenuStrip
+$miHide = $sessMenu.Items.Add('Remove this chat from the list') ; $miHide.Add_Click({ Hide-Session $script:sessMenuId })
+[void]$sessMenu.Items.Add('-')
+$miRestore = $sessMenu.Items.Add('Show hidden chats')           ; $miRestore.Add_Click({ Unhide-All })
+$miCal2   = $sessMenu.Items.Add('History (calendar)')           ; $miCal2.Add_Click({ Open-History })
+$sessMenu.Add_Opening({
+    $src = $sessMenu.SourceControl
+    $script:sessMenuId = if($src){ [string]$src.Tag } else { $null }
+    $n=$script:hidden.Count; $miRestore.Text = "Show $n hidden chat$(if($n-ne 1){'s'})"; $miRestore.Visible = ($n -gt 0)
+})
 
 # --- dragging (hand off to the OS window-move loop: grab anywhere, glides) -
 Add-Type @"
@@ -327,6 +347,8 @@ $dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVa
 $dragCtrls += $rowName + $rowCost + $rowOut
 $dragCtrls += $sName + $sTrack + $sFill + $sPct
 foreach($c in $dragCtrls){ Wire-Drag $c }
+# recent-chat rows keep drag, but right-click shows the per-chat menu instead
+foreach($c in ($sName + $sTrack + $sFill + $sPct)){ $c.ContextMenuStrip = $sessMenu }
 
 function Save-Pos { try { "$($form.Left),$($form.Top)" | Set-Content -LiteralPath $PosPath -Encoding ASCII } catch {} }
 $form.Add_FormClosing({ Save-Pos; if($script:data){ Persist-Today $script:data } })
@@ -512,6 +534,38 @@ function Get-HeadPrompt($path){
     return $null
 }
 
+# --- hidden chats (removed from the recent list by the user) ---------------
+# Hides a chat from the panel ONLY; the transcript + history are never touched.
+function Load-Hidden {
+    $h=@{}
+    if(Test-Path $HiddenPath){
+        try {
+            $o = Get-Content $HiddenPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            foreach($id in @($o)){ if($id){ $h["$id"]=1 } }
+        } catch {}
+    }
+    return $h
+}
+function Save-Hidden {
+    try {
+        $ids = @($script:hidden.Keys)
+        $json = if($ids.Count -eq 0){ '[]' } else { ConvertTo-Json -InputObject $ids }
+        Set-Content -LiteralPath $HiddenPath -Value $json -Encoding UTF8
+    } catch {}
+}
+function Hide-Session($id){
+    if([string]::IsNullOrWhiteSpace($id)){ return }
+    $script:hidden["$id"]=1; Save-Hidden
+    $script:layoutKey=$null            # row count shrank -> force relayout
+    Update-Widget
+}
+function Unhide-All {
+    if($script:hidden.Count -eq 0){ return }
+    $script:hidden=@{}; Save-Hidden
+    $script:layoutKey=$null
+    Update-Widget
+}
+
 # Enumerate every top-level transcript across all project folders, take the
 # most-recent $MaxSessions, and resolve each to {title, ctx, pct, ...}. Tail
 # reads are cached by mtime, so idle ticks touch no files and an active tick
@@ -521,11 +575,16 @@ function Get-Sessions {
     $files=@()
     try { $files=@(Get-ChildItem (Join-Path $ProjRoot '*\*.jsonl') -ErrorAction Stop) } catch {}
     if($files.Count -eq 0){ return @() }
+    # drop chats the user removed from the list (by session id = file base name)
+    if($script:hidden.Count -gt 0){
+        $files = @($files | Where-Object { -not $script:hidden.ContainsKey([System.IO.Path]::GetFileNameWithoutExtension($_.Name)) })
+    }
     $recent = $files | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First ([Math]::Max($MaxSessions*2,$MaxSessions))
     $out=@()
     foreach($f in $recent){
         if($out.Count -ge $MaxSessions){ break }
         $path=$f.FullName
+        $sid=[System.IO.Path]::GetFileNameWithoutExtension($f.Name)
         $c=$script:sessCache[$path]
         if($null -eq $c -or $c.mtime -ne $f.LastWriteTimeUtc){
             $t = Read-SessionTail $path
@@ -539,7 +598,7 @@ function Get-Sessions {
             $script:sessCache[$path]=$c
         }
         if($null -eq $c.ctx){ continue }
-        $out += ,@{ title=$c.title; ctx=[double]$c.ctx; model=$c.model; tstamp=$c.tstamp }
+        $out += ,@{ id=$sid; title=$c.title; ctx=[double]$c.ctx; model=$c.model; tstamp=$c.tstamp }
     }
     # choose the context-window denominator
     $win=[double]$ContextWindowTokens
@@ -675,9 +734,11 @@ function Repaint-Sessions($sessions){
         $sFill[$k].BackColor=$col
         Set-T $sPct[$k] (('{0:0}' -f $p) + '%')
         $sPct[$k].ForeColor=$col
-        $detail = $s.title + "`n" + (Fmt-Tok $s.ctx) + ' / ' + (Fmt-Tok $s.win) + ' context tokens  ' + $dot + '  ' + ('{0:0}' -f $p) + '% used' + "`n" + (Family $s.model) + '  ' + $dot + '  ' + (Fmt-Ago $s.tstamp)
+        $detail = $s.title + "`n" + (Fmt-Tok $s.ctx) + ' / ' + (Fmt-Tok $s.win) + ' context tokens  ' + $dot + '  ' + ('{0:0}' -f $p) + '% used' + "`n" + (Family $s.model) + '  ' + $dot + '  ' + (Fmt-Ago $s.tstamp) + "`n" + 'right-click to remove'
         $tip.SetToolTip($sName[$k], $detail)
         $tip.SetToolTip($sTrack[$k], $detail)
+        # stamp the session id on every control in the row for the per-chat menu
+        $sName[$k].Tag=$s.id; $sTrack[$k].Tag=$s.id; $sFill[$k].Tag=$s.id; $sPct[$k].Tag=$s.id
     }
 }
 function Update-Widget {
@@ -718,12 +779,12 @@ function Update-Widget {
 function Scan-AllHistory {
     $files = @(Get-ChildItem (Join-Path $ProjRoot '*\*.jsonl') -ErrorAction SilentlyContinue) +
              @(Get-ChildItem (Join-Path $ProjRoot '*\*\subagents\*.jsonl') -ErrorAction SilentlyContinue)
-    $seen=@{}; $byDay=@{}; $meta=@{}
+    $seen=@{}; $byDay=@{}; $meta=@{}; $bySession=@{}
     foreach($f in $files){
         $isSub = (Split-Path $f.DirectoryName -Leaf) -eq 'subagents'
         if($isSub){ $sid = Split-Path (Split-Path $f.DirectoryName -Parent) -Leaf }
         else      { $sid = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) }
-        if(-not $meta.ContainsKey($sid)){ $meta[$sid]=@{ label=$null; cwd=$null } }
+        if(-not $meta.ContainsKey($sid)){ $meta[$sid]=@{ label=$null; cwd=$null; custom=$null; ai=$null } }
         $fs=$null; $sr=$null
         try { $fs=New-Object System.IO.FileStream($f.FullName,[System.IO.FileMode]::Open,[System.IO.FileAccess]::Read,[System.IO.FileShare]::ReadWrite); $sr=New-Object System.IO.StreamReader($fs) } catch { continue }
         try {
@@ -742,6 +803,12 @@ function Scan-AllHistory {
                             }
                         }
                     }
+                }
+                # capture the chat's app title (desktop-app format); keep the latest.
+                # Title records are tiny, so skip big content lines that merely mention it.
+                if((-not $isSub) -and $line.Length -lt 500){
+                    if($line.IndexOf('"custom-title"') -ge 0){ try { $ct=($line|ConvertFrom-Json).customTitle; if(-not [string]::IsNullOrWhiteSpace($ct)){ $meta[$sid].custom=[string]$ct } } catch {} }
+                    elseif($line.IndexOf('"ai-title"') -ge 0){ try { $at=($line|ConvertFrom-Json).aiTitle; if(-not [string]::IsNullOrWhiteSpace($at)){ $meta[$sid].ai=[string]$at } } catch {} }
                 }
                 if($line.IndexOf('output_tokens') -lt 0){ continue }
                 try { $o=$line|ConvertFrom-Json } catch { continue }
@@ -766,10 +833,16 @@ function Scan-AllHistory {
                 $s=$d.sessions[$sid]; $s.cost+=$tc; $s.raw+=$tr; $s.tok+=$tkn; $s.out+=$ou; $s.turns++
                 if($hm -lt $s.start){ $s.start=$hm }; if($hm -gt $s.end){ $s.end=$hm }
                 if(-not $s.byModel.ContainsKey($fam)){ $s.byModel[$fam]=0.0 }; $s.byModel[$fam]+=$tkn
+                # all-time per-chat rollup (subagent turns fold into the parent sid)
+                if(-not $bySession.ContainsKey($sid)){ $bySession[$sid]=@{cost=0.0;raw=0.0;tok=0.0;out=0.0;turns=0;byModel=@{};first=$day;last=$day;days=@{}} }
+                $g=$bySession[$sid]; $g.cost+=$tc; $g.raw+=$tr; $g.tok+=$tkn; $g.out+=$ou; $g.turns++
+                if($day -lt $g.first){ $g.first=$day }; if($day -gt $g.last){ $g.last=$day }; $g.days[$day]=1
+                if(-not $g.byModel.ContainsKey($fam)){ $g.byModel[$fam]=@{cost=0.0;tok=0.0} }
+                $g.byModel[$fam].cost+=$tc; $g.byModel[$fam].tok+=$tkn
             }
         } catch { } finally { if($sr){ $sr.Close() }; if($fs){ $fs.Close() } }
     }
-    return @{ byDay=$byDay; meta=$meta }
+    return @{ byDay=$byDay; meta=$meta; bySession=$bySession }
 }
 # Persistent per-day store, so history survives Claude Code pruning old transcripts.
 function Load-History {
@@ -836,7 +909,7 @@ function Open-History {
                 foreach($sid in ($rich.sessions.Keys | Sort-Object { $rich.sessions[$_].tok } -Descending)){
                     $s=$rich.sessions[$sid]; $m=$scan.meta[$sid]
                     $topFam=''; $topTok=-1.0; foreach($fam in $s.byModel.Keys){ if($s.byModel[$fam] -gt $topTok){ $topTok=$s.byModel[$fam]; $topFam=$fam } }
-                    $lbl = if($m -and $m.label){ $m.label } else { '(no prompt captured)' }
+                    $lbl = if($m -and $m.custom){ $m.custom } elseif($m -and $m.ai){ $m.ai } elseif($m -and $m.label){ $m.label } else { '(no prompt captured)' }
                     $cw  = if($m -and $m.cwd){ $m.cwd } else { '' }
                     $sess += ,([ordered]@{ id=$sid.Substring(0,8); label=$lbl; cwd=$cw; start=$s.start; end=$s.end; turns=$s.turns; tok=[math]::Round($s.tok); cost=[math]::Round($s.cost,2); raw=[math]::Round($s.raw,2); out=[math]::Round($s.out); model=$topFam })
                 }
@@ -846,15 +919,30 @@ function Open-History {
         }
         $json = $embed | ConvertTo-Json -Depth 12 -Compress
         if($null -eq $json -or $json.Trim() -eq '' ){ $json='{}' }
+
+        # all-time per-chat catalog (every session we still have logs for), for the
+        # zebra "All chats" list on the calendar's main view.
+        $allSess=@()
+        foreach($sid in $scan.bySession.Keys){
+            $g=$scan.bySession[$sid]; $m=$scan.meta[$sid]
+            $name = if($m -and $m.custom){ $m.custom } elseif($m -and $m.ai){ $m.ai } elseif($m -and $m.label){ $m.label } else { '(untitled chat)' }
+            $cw   = if($m -and $m.cwd){ $m.cwd } else { '' }
+            $bmodel=[ordered]@{}
+            foreach($fam in ($g.byModel.Keys | Sort-Object { $g.byModel[$_].tok } -Descending)){ $bmodel[$fam]=[ordered]@{ tok=[math]::Round($g.byModel[$fam].tok); cost=[math]::Round($g.byModel[$fam].cost,2) } }
+            $allSess += ,([ordered]@{ id=$sid.Substring(0,8); name=$name; cwd=$cw; tok=[math]::Round($g.tok); cost=[math]::Round($g.cost,2); raw=[math]::Round($g.raw,2); out=[math]::Round($g.out); turns=$g.turns; first=$g.first; last=$g.last; days=$g.days.Count; byModel=$bmodel })
+        }
+        $sessJson = if($allSess.Count -eq 0){ '[]' } elseif($allSess.Count -eq 1){ '[' + ($allSess[0] | ConvertTo-Json -Depth 8 -Compress) + ']' } else { $allSess | ConvertTo-Json -Depth 8 -Compress }
+
         $tpl  = Get-Content $CalTpl -Raw -Encoding UTF8
         $gen  = (Get-Date).ToString('MMM d, yyyy h:mm tt')
-        $html = $tpl.Replace('__USAGE_DATA__',$json).Replace('__GENERATED__',$gen)
+        $html = $tpl.Replace('__USAGE_DATA__',$json).Replace('__ALL_SESSIONS__',$sessJson).Replace('__GENERATED__',$gen)
         [System.IO.File]::WriteAllText($CalOut,$html,(New-Object System.Text.UTF8Encoding($false)))
         Start-Process $CalOut
     } catch { } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default }
 }
 
 # --- timer + run ----------------------------------------------------------
+$script:hidden = Load-Hidden      # restore chats the user previously removed
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 1000
 $timer.Add_Tick({ Update-Widget })

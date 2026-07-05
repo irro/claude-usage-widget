@@ -39,7 +39,11 @@ right from this folder instead.
 USING IT
 --------------------------------------------------
 * Drag the panel anywhere — it remembers where you put it.
-* Calendar icon  = open your usage history (a lovely per-day calendar).
+* Recent chats  = the list at the bottom shows how full each chat's context is.
+  Right-click a chat to remove it from the list (it's only hidden, never
+  deleted); right-click -> "Show hidden chats" brings them back.
+* Calendar icon  = open your usage history (a lovely per-day calendar, with an
+  "All chats" catalog you can expand for each chat's token totals).
 * Refresh icon   = re-scan right now.
 * The  x  (or right-click -> Exit) closes it.
 * Want it to start automatically with Windows? Double-click

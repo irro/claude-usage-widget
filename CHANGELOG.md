@@ -2,6 +2,25 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.4.0 — 2026-07-05
+
+- **Remove a chat from the list.** Right-click any chat in the **recent chats**
+  section → **Remove this chat from the list** to hide it from the panel. Handy
+  for parking finished or noisy chats so the list shows what you care about.
+  Hidden chats persist across restarts (`usage-widget-hidden.json`) and can be
+  brought back any time via right-click → **Show hidden chats** (also on the
+  main menu). This only hides them from the widget — **no transcript is ever
+  deleted**.
+- **"All chats" catalog in the history calendar.** Under the month grid there's
+  now a list of **every chat you still have logs for**, each named as in the
+  Claude app. It's a **zebra-striped, collapsed-by-default** list — click any
+  row to expand a full breakdown of that chat: total tokens, cache-aware and
+  per-token cost, turns, tokens generated, the date range it was active, and a
+  per-model bar breakdown. Sort by **Recent** or **Heaviest** (most tokens).
+- The calendar's per-day session cards and the catalog now use each chat's app
+  title (custom or AI-generated) instead of just its opening prompt.
+- Small fix: the recent-chats percentage no longer clips the "%" at exactly 100%.
+
 ## v1.3.0 — 2026-07-05
 
 - **Recent chats · context used.** The widget now shows a live list of your up to

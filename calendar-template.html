@@ -96,6 +96,26 @@
   .chip.Fable{background:rgba(227,179,65,.16);color:var(--amber)}
   .chip.Other{background:rgba(139,148,158,.16);color:var(--dim)}
 
+  /* all-chats zebra list (collapsible) */
+  .zlist{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .zrow{border-bottom:1px solid var(--line)}
+  .zrow:last-child{border-bottom:0}
+  .zrow.odd{background:var(--panel)}
+  .zrow.even{background:#12171f}
+  .zhead{display:grid;grid-template-columns:20px 1fr auto auto;align-items:center;gap:14px;padding:11px 14px;cursor:pointer;transition:background .12s}
+  .zhead:hover{background:var(--panel2)}
+  .zchev{color:var(--dim);font-size:11px;transition:transform .15s;display:inline-block}
+  .zrow.open .zchev{transform:rotate(90deg);color:var(--cyan)}
+  .zname{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .zsub{color:var(--dim);font-size:11.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ztok{font-weight:700;font-size:14px;text-align:right;white-space:nowrap}
+  .zcost{color:var(--cyan);font-weight:700;font-size:13px;text-align:right;white-space:nowrap;min-width:70px}
+  .zbody{display:none;padding:2px 14px 16px 46px}
+  .zrow.open .zbody{display:block}
+  .zgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px;margin:8px 0 14px}
+  .zstat .zk{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px}
+  .zstat .zv{font-weight:700;font-size:15px;margin-top:3px}
+
   #tip{position:fixed;pointer-events:none;z-index:50;background:#0b0f15ee;border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:12.5px;min-width:188px;box-shadow:0 12px 34px #000a;opacity:0;transition:opacity .1s}
   #tip.show{opacity:1}
   #tip .d{font-weight:700;margin-bottom:6px;font-size:13px}
@@ -133,6 +153,15 @@
         <i style="background:var(--h3)"></i><i style="background:var(--h4)"></i><i style="background:var(--h5)"></i>
         <span>More</span></div>
     </div>
+
+    <div class="cal" id="allchats-wrap">
+      <div class="bar" style="margin-bottom:10px">
+        <div class="dvsec" style="margin:0">All chats <span class="tag" id="acount"></span></div>
+        <div class="seg" id="acsort"><button data-s="recent" class="on">Recent</button><button data-s="tok">Heaviest</button></div>
+      </div>
+      <div class="calhint" style="margin:0 0 12px">Every chat we still have logs for. Click a row to expand its token detail.</div>
+      <div class="zlist" id="allchats"></div>
+    </div>
   </div>
 
   <div id="dayview" style="display:none">
@@ -149,6 +178,7 @@
 
 <script>
 const DATA = __USAGE_DATA__;
+const ALL_SESSIONS = __ALL_SESSIONS__;
 const GENERATED = "__GENERATED__";
 const days = Object.keys(DATA).sort();
 const has = days.length > 0;
@@ -184,6 +214,46 @@ function renderCards(){
     {cls:'tok',lbl:'Total tokens',val:fmtTok(tot.tok),sub:fmtTok(tot.out)+' generated · '+tot.turns.toLocaleString()+' turns'},
   ];
   document.getElementById('cards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
+}
+
+// ---- all chats (zebra, collapsible) ----
+let acSort = "recent";
+function renderAllChats(){
+  const wrap=document.getElementById('allchats-wrap'); if(!wrap) return;
+  const arr=(ALL_SESSIONS||[]).slice();
+  if(!arr.length){ wrap.style.display='none'; return; }
+  document.getElementById('acount').textContent = '· '+arr.length;
+  arr.sort((a,b)=> acSort==='tok'
+      ? (b.tok-a.tok)
+      : (a.last<b.last?1:a.last>b.last?-1:(b.tok-a.tok)));   // recent: newest last-active first
+  document.getElementById('allchats').innerHTML = arr.map((s,i)=>{
+    const fam=Object.keys(s.byModel||{});
+    const fmx=Math.max(1,...fam.map(f=>s.byModel[f].tok));
+    const mbars=fam.map(f=>{
+      const w=Math.max(3,Math.round(100*s.byModel[f].tok/fmx)), col=FAMCOL[f]||'var(--cyan)';
+      return `<div class="prow"><span class="pn" style="color:${col}">${f}</span><span class="pbar"><span style="width:${w}%;background:${col}"></span></span><span class="pv">${fmtTok(s.byModel[f].tok)}</span></div>`;
+    }).join('');
+    const range = s.first===s.last ? niceDate(parseDay(s.last)) : (niceDate(parseDay(s.first))+' – '+niceDate(parseDay(s.last)));
+    const sub = `${s.cwd?esc(s.cwd)+' · ':''}${s.days} day${s.days!==1?'s':''} active · #${esc(s.id)}`;
+    return `<div class="zrow ${i%2?'even':'odd'}">
+      <div class="zhead"><span class="zchev">&#9654;</span>
+        <div style="min-width:0"><div class="zname">${esc(s.name)}</div><div class="zsub">${sub}</div></div>
+        <div class="ztok">${fmtTok(s.tok)}<div class="zsub" style="text-align:right">tokens</div></div>
+        <div class="zcost">${fmtMoney(s.cost)}</div></div>
+      <div class="zbody">
+        <div class="zgrid">
+          <div class="zstat"><div class="zk">Tokens</div><div class="zv">${fmtTok(s.tok)}</div></div>
+          <div class="zstat"><div class="zk">Spent (cached)</div><div class="zv" style="color:var(--cyan)">${fmtMoney(s.cost)}</div></div>
+          <div class="zstat"><div class="zk">If per token</div><div class="zv" style="color:var(--amber)">${fmtMoney(s.raw)}</div></div>
+          <div class="zstat"><div class="zk">Turns</div><div class="zv">${s.turns.toLocaleString()}</div></div>
+          <div class="zstat"><div class="zk">Generated</div><div class="zv">${fmtTok(s.out)}</div></div>
+          <div class="zstat"><div class="zk">Active</div><div class="zv" style="font-size:12.5px">${range}</div></div>
+        </div>
+        <div class="dvsec" style="font-size:13px;margin:2px 0 9px">By model</div>
+        <div class="plist">${mbars||'<div class="zsub">no per-model detail (transcript pruned)</div>'}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ---- calendar ----
@@ -301,6 +371,11 @@ document.getElementById('seg').addEventListener('click', e=>{ const b=e.target.c
   metric=b.dataset.m; [...document.querySelectorAll('#seg button')].forEach(x=>x.classList.toggle('on',x===b));
   renderMonth(); if(document.getElementById('dayview').style.display!=='none'){ const k=(location.hash||'').slice(1); if(DATA[k]) showDay(k); } });
 
+// all-chats: expand/collapse a row, and Recent/Heaviest sort
+document.getElementById('allchats').addEventListener('click', e=>{ const h=e.target.closest('.zhead'); if(h) h.parentNode.classList.toggle('open'); });
+document.getElementById('acsort').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
+  acSort=b.dataset.s; [...document.querySelectorAll('#acsort button')].forEach(x=>x.classList.toggle('on',x===b)); renderAllChats(); });
+
 if(!has){
   document.querySelector('.cal').innerHTML='<div class="empty-state">No recorded usage yet. Use Claude Code and reopen history.</div>';
   document.querySelector('.bar').style.display='none';
@@ -308,6 +383,7 @@ if(!has){
   renderCards(); cur=firstWithData(); cur=new Date(cur.getFullYear(),cur.getMonth(),1); renderMonth();
   const h=(location.hash||'').slice(1); if(DATA[h]) showDay(h);
 }
+renderAllChats();
 </script>
 </body>
 </html>
