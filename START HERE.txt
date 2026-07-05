@@ -3,8 +3,10 @@ Claude Usage Widget  —  START HERE
 
 A tiny always-on-top panel that shows your Claude Code usage for TODAY —
 what it would cost on the API, tokens, turns, and a per-model breakdown, all
-in one little window you can park anywhere. There's also a beautiful history
-calendar (click the calendar icon in the corner).
+in one little window you can park anywhere. It also lists your recent chats
+with a bar for how full each one's context window is (named just like in the
+Claude app). There's also a beautiful history calendar (click the calendar
+icon in the corner).
 
 Windows only. Nothing to download — it uses PowerShell that's already built
 into Windows. No internet connection, no background service, no account.

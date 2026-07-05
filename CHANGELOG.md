@@ -2,6 +2,23 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.3.0 — 2026-07-05
+
+- **Recent chats · context used.** The widget now shows a live list of your up to
+  **10 most-recent chat sessions**, each named exactly as in the Claude app
+  (its custom or AI-generated title), with a bar for **how full that chat's
+  context window is** right now. No more a single context bar that flips as you
+  switch chats — every chat is visible at once, green → amber → red as it fills,
+  with the percentage alongside. Hover any row for exact tokens, model, and how
+  long ago it was active.
+- **Auto-detected context window.** Each chat's fill is measured against the
+  right window automatically — 200K normally, bumping to **1M** if any recent
+  chat is larger (the long-context beta). Override with `$ContextWindowTokens`;
+  cap the list with `$MaxSessions`.
+- Efficient: each chat is sampled by tail-reading only the end of its transcript,
+  cached by modified-time, so idle ticks touch no files and only the chat you're
+  actively using is re-read.
+
 ## v1.2.1 — 2026-07-03
 
 - **Installer asks about shortcuts.** `Install.cmd` now prompts whether to add a

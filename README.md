@@ -16,6 +16,12 @@ everything stays put and just climbs as you work. Shown all at once:
   that model's cache-aware cost and the tokens it generated
 - **output / turns / sessions** — total tokens generated, assistant-turn count,
   and how many distinct sessions contributed today, plus how fresh the reading is
+- **recent chats · context used** — a live list of your up to **10 most-recent
+  chat sessions**, each named exactly as in the Claude app (its custom or
+  AI-generated title) with a bar for **how full that chat's context window is**
+  right now (green → amber → red as it fills, with the percentage). See every
+  chat's context at a glance instead of one bar that flips as you switch chats;
+  hover a row for exact tokens, model, and last-active time
 - **history calendar** — click the calendar button for a per-day usage calendar:
   a heat-mapped month grid, summary cards (all-time spend, busiest day, averages,
   total tokens), and a Cost/Tokens toggle. **Click any day** to open a full
@@ -28,7 +34,7 @@ already writes to disk.
 
 ```
 ┌────────────────────────────────────────┐
-│ Claude usage                  ⟳    ×     │
+│ Claude usage  v1.3.0        🗓  ⟳   ×     │
 │ spent today · cached                     │
 │ $480.44                                  │
 │ if billed per token          $2,256.56   │
@@ -38,11 +44,19 @@ already writes to disk.
 │ ──────────────────────────────────────── │
 │ ↓ 1.9M output · 739 turns · 6 sessions    │
 │ updated 1s ago                           │
+│ ──────────────────────────────────────── │
+│ recent chats · context used              │
+│ Hearth              ▓▓▓▓░░░░░░      41%   │
+│ United Disease…     ▓▓▓▓▓▓▓▓▓░      95%   │
+│ Maestro             ▓▓▓▓▓░░░░░      58%   │
+│ Wildcards Adventure ▓▓▓▓░░░░░░      42%   │
+│ …up to 10 recent chats                    │
 └────────────────────────────────────────┘
 ```
 
 Only models you've actually used today get a row, so the panel grows or shrinks
-to fit — no empty placeholders.
+to fit — no empty placeholders. The **recent-chats** list shows up to 10 of your
+latest sessions (cap it with `$MaxSessions`).
 
 ## Why a floating window instead of a real sidebar item?
 
@@ -130,6 +144,15 @@ Because it only re-reads new bytes, even a busy live session refreshes in a few
 milliseconds — it's effectively free to leave running. At local midnight the
 counters reset and the new day begins.
 
+The **recent-chats** list works differently: for each of your most-recent chat
+sessions it reads only the **tail** of that chat's transcript to find the last
+turn's context size (input + cache + the reply = the tokens then in the model's
+context) and the chat's title as the app shows it (its custom or AI title).
+Tail reads are cached by the file's modified-time, so an idle second touches no
+files and only the chat you're actively working in gets re-read. The percentage
+is that context measured against the window — 200K, or 1M if any recent chat is
+bigger (the long-context beta), detected automatically.
+
 The **history calendar** does a fuller (de-duplicated) scan of every transcript,
 buckets it per day, and merges the result into a persistent store
 (`usage-widget-history.json`) that keeps the fuller record for each day — so your
@@ -154,6 +177,12 @@ Open `usage-widget.ps1` in any text editor:
   Every family in `$FamOrder` with usage today is shown automatically. `Other`
   (unknown model ids) has no row by design, but its tokens still count in the
   totals.
+- **`$MaxSessions`** (default `10`) — how many recent chats the **recent chats ·
+  context used** list shows.
+- **`$ContextWindowTokens`** (default `0` = auto) — the window each chat's
+  context bar is measured against. Auto picks 200K, bumping to 1M if any recent
+  chat exceeds 200K (the long-context beta). Set a fixed number (e.g. `200000`
+  or `1000000`) to force it. Tiers live in `$CtxWindowTiers`.
 
 ## Files
 
@@ -169,6 +198,7 @@ Open `usage-widget.ps1` in any text editor:
 | `START HERE.txt` | Quick-start for first-time users |
 | `admin-instructions.html` | Friendly illustrated guide (with a mockup) |
 | `README.md` / `CHANGELOG.md` | This file / version history |
+| `HANDOFF.md` | Maintainer's guide: architecture, gotchas, how to edit/restart |
 
 The widget also writes small files under `%USERPROFILE%\.claude\`:
 `usage-widget-pos.txt` (window position), `usage-widget-history.json` (the

@@ -9,6 +9,10 @@
 #   * a daily-tokens gauge         - today's tokens vs a tunable daily budget
 #   * one row per model family used (Opus/Sonnet/Haiku/Fable) - cost + output
 #   * a footer  - total output, turns, distinct sessions, and freshness
+#   * recent chats - up to 10 of your most-recent chat sessions (named exactly
+#     as in the Claude app), each with a live "context used" bar showing how
+#     full that chat's context window is - so you can see every chat at once
+#     instead of one bar that flips as you switch chats
 # Reads *.jsonl under %USERPROFILE%\.claude\projects\ incrementally (only the
 # newly-appended bytes of changed files), so even a busy live session stays
 # smooth. Drag anywhere to move; the round arrow refreshes; x closes.
@@ -32,7 +36,7 @@ $PosPath  = Join-Path $env:USERPROFILE '.claude\usage-widget-pos.txt'
 $HistPath = Join-Path $env:USERPROFILE '.claude\usage-widget-history.json'
 $CalOut   = Join-Path $env:USERPROFILE '.claude\usage-widget-calendar.html'
 $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
-$Version  = '1.2.1'   # bump on each release; shown next to the title in the widget
+$Version  = '1.3.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -67,6 +71,18 @@ function Family($m){
 # Default 2B: an ordinary day sits low-to-mid, only a marathon day fills it.
 $DailyBudgetTokens = 2000000000
 
+# --- recent-chats context list --------------------------------------------
+# The "recent chats" section shows your most-recent chat sessions, each with a
+# bar for how full its context window is (last turn's input + cache tokens).
+$MaxSessions = 10          # cap the list at this many most-recent chats
+# Context window each chat's fill is measured against. 0 = auto-detect: 200K
+# normally, bumping to 1M if any recent chat exceeds 200K (i.e. the long-context
+# beta is on). Set a fixed number (e.g. 200000 or 1000000) to override.
+$ContextWindowTokens = 0
+# Standard windows auto-detect chooses between (smallest that fits the fullest
+# chat wins). Add more here if larger windows appear.
+$CtxWindowTiers = @(200000, 1000000)
+
 # --- state ----------------------------------------------------------------
 $script:files     = @{}     # path -> per-file accumulator (today only)
 $script:curDay    = $null   # 'yyyy-MM-dd' the accumulators belong to
@@ -74,6 +90,7 @@ $script:seenToday = @{}     # message.id|requestId -> 1 (dedup resumed/copied tu
 $script:layoutKey = $null
 $script:data      = $null   # latest today aggregate (for the on-close save)
 $script:lastPersist = $null # last time today's total was written to the history store
+$script:sessCache = @{}     # path -> cached tail read {mtime,ctx,model,tstamp,title}
 
 # --- palette --------------------------------------------------------------
 $cBg     = [System.Drawing.Color]::FromArgb(22,27,34)
@@ -104,6 +121,9 @@ $rawY     = 83             # "if billed per token" line
 $div1Y    = 105
 $barY     = 112            # daily-tokens bar row
 $rowsTop  = 138            # first model row
+$sRowH    = 18             # per-chat context row height
+$sTrackX  = 150            # x of the context bar in a chat row
+$sTrackW  = 100            # width of the context bar track
 
 # --- form -----------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
@@ -236,6 +256,43 @@ $form.Controls.Add($div2)
 $lblFoot1 = New-Lbl $padL 188 ($W-2*$padL) 15 $cText 8 $false ; $lblFoot1.Text = 'starting...'
 $lblFoot2 = New-Lbl $padL 203 ($W-2*$padL) 14 $cDim  8 $false ; $lblFoot2.Text = ''
 
+# --- recent-chats context section (divider + header + N chat rows) ---------
+# One tooltip serves every chat row (full name + exact token detail on hover).
+$tip = New-Object System.Windows.Forms.ToolTip
+$tip.InitialDelay = 350; $tip.ReshowDelay = 120; $tip.AutoPopDelay = 12000
+
+$div3 = New-Object System.Windows.Forms.Panel
+$div3.Size = New-Object System.Drawing.Size(($W-2*$padL),1)
+$div3.BackColor = $cTrack
+$div3.Location = New-Object System.Drawing.Point($padL,230)
+$div3.Visible = $false
+$form.Controls.Add($div3)
+
+$lblSessHdr = New-Lbl $padL 240 ($W-2*$padL) 14 $cDim 8 $false
+$lblSessHdr.Text = 'recent chats  ' + [string][char]0x00B7 + '  context used'
+$lblSessHdr.Visible = $false
+
+# Fixed slots: chat name (ellipsised) | context bar (colour by fill) | percent.
+$sName=@(); $sTrack=@(); $sFill=@(); $sPct=@()
+for($k=0;$k -lt $MaxSessions;$k++){
+    $nm = New-Lbl $padL 260 ($sTrackX-$padL-4) 16 $cText 8.5 $false
+    $nm.AutoEllipsis = $true
+    $tr = New-Object System.Windows.Forms.Panel
+    $tr.Size = New-Object System.Drawing.Size($sTrackW,7)
+    $tr.BackColor = $cTrack
+    $tr.Location = New-Object System.Drawing.Point($sTrackX,264)
+    $fl = New-Object System.Windows.Forms.Panel
+    $fl.Location = New-Object System.Drawing.Point(0,0)
+    $fl.Size = New-Object System.Drawing.Size(0,7)
+    $fl.BackColor = $cGreen
+    $tr.Controls.Add($fl)
+    $form.Controls.Add($tr)
+    $pc = New-Lbl ($sTrackX+$sTrackW+4) 260 ($W-($sTrackX+$sTrackW+4)-$padL) 16 $cDim 8.5 $true
+    $pc.TextAlign = 'MiddleRight'
+    $nm.Visible=$false; $tr.Visible=$false; $pc.Visible=$false
+    $sName += ,$nm ; $sTrack += ,$tr ; $sFill += ,$fl ; $sPct += ,$pc
+}
+
 # --- right-click menu -----------------------------------------------------
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 $miC = $menu.Items.Add('History (calendar)') ; $miC.Add_Click({ Open-History })
@@ -266,8 +323,9 @@ $dragHandler = {
 }
 function Wire-Drag($c){ $c.ContextMenuStrip = $menu; $c.Add_MouseDown($dragHandler) }
 # everything is a drag handle EXCEPT the refresh / close buttons (they click)
-$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$lblBarTag,$trackBar,$fillBar,$lblBarVal,$div2,$lblFoot1,$lblFoot2)
+$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$lblBarTag,$trackBar,$fillBar,$lblBarVal,$div2,$lblFoot1,$lblFoot2,$div3,$lblSessHdr)
 $dragCtrls += $rowName + $rowCost + $rowOut
+$dragCtrls += $sName + $sTrack + $sFill + $sPct
 foreach($c in $dragCtrls){ Wire-Drag $c }
 
 function Save-Pos { try { "$($form.Left),$($form.Top)" | Set-Content -LiteralPath $PosPath -Encoding ASCII } catch {} }
@@ -368,6 +426,139 @@ function Aggregate-Today {
     return @{ agg=$agg; stamp=$stamp }
 }
 
+# --- recent chats: per-session context fill -------------------------------
+# Read only the TAIL of a transcript (last ~512KB) and scan backwards for the
+# most-recent assistant turn's context fill (input + cache_read + cache_creation
+# = the tokens that were in the model's context that turn) plus the chat's title
+# as the Claude app shows it (custom-title > ai-title). O(1)-ish per file, so
+# even a 30MB live transcript is cheap to sample every tick.
+function Read-SessionTail($path){
+    $fs=$null
+    try { $fs = New-Object System.IO.FileStream($path,[System.IO.FileMode]::Open,[System.IO.FileAccess]::Read,[System.IO.FileShare]::ReadWrite) }
+    catch { return $null }
+    $text=$null
+    try {
+        $len = $fs.Length
+        if($len -le 0){ return $null }
+        $tailLen = [int][Math]::Min(524288,$len)
+        [void]$fs.Seek($len-$tailLen,[System.IO.SeekOrigin]::Begin)
+        $buf = New-Object byte[] $tailLen
+        $got=0; while($got -lt $tailLen){ $rd=$fs.Read($buf,$got,$tailLen-$got); if($rd -le 0){break}; $got+=$rd }
+        $text = [System.Text.Encoding]::UTF8.GetString($buf,0,$got)
+    } catch { return $null } finally { if($fs){ $fs.Close() } }
+    if($null -eq $text){ return $null }
+    $lines = $text -split "`n"
+    $ctx=$null; $model=$null; $tstamp=$null; $ct=$null; $at=$null
+    $floor = [Math]::Max(0, $lines.Count-1500)   # bound the backward scan
+    for($i=$lines.Count-1; $i -ge $floor; $i--){
+        $ln = $lines[$i]
+        if($ln.Length -lt 8){ continue }
+        if($null -eq $ctx -and $ln.IndexOf('output_tokens') -ge 0){
+            # Whole extraction (parse + numeric coercions) is guarded, so a single
+            # malformed line just gets skipped instead of aborting this file's scan.
+            try {
+                $o=$ln|ConvertFrom-Json
+                if($o -and $o.type -eq 'assistant' -and $o.message.usage){
+                    $u=$o.message.usage
+                    # context at rest after this turn = the whole prompt that was sent
+                    # (input + cache read + cache write) plus the response just produced
+                    $ctx = [double]$u.input_tokens + [double]$u.cache_read_input_tokens + [double]$u.cache_creation_input_tokens + [double]$u.output_tokens
+                    $model = [string]$o.message.model
+                    try { $tstamp=([datetimeoffset]::Parse([string]$o.timestamp)).UtcDateTime } catch {}
+                }
+            } catch {}
+        }
+        elseif($null -eq $ct -and $ln.IndexOf('custom-title') -ge 0){
+            try { $ct=[string](($ln|ConvertFrom-Json).customTitle) } catch {}
+        }
+        elseif($null -eq $at -and $ln.IndexOf('ai-title') -ge 0){
+            try { $at=[string](($ln|ConvertFrom-Json).aiTitle) } catch {}
+        }
+        if($null -ne $ctx -and -not [string]::IsNullOrWhiteSpace($ct)){ break }
+    }
+    if($null -eq $ctx){ return $null }
+    return @{ ctx=$ctx; model=$model; tstamp=$tstamp; customTitle=$ct; aiTitle=$at }
+}
+
+# Fallback name for CLI/title-less transcripts: first real user prompt (reads
+# only the file HEAD, once). Mirrors the calendar's session-label heuristic.
+function Get-HeadPrompt($path){
+    $fs=$null
+    try { $fs = New-Object System.IO.FileStream($path,[System.IO.FileMode]::Open,[System.IO.FileAccess]::Read,[System.IO.FileShare]::ReadWrite) }
+    catch { return $null }
+    $text=$null
+    try {
+        $headLen=[int][Math]::Min(131072,$fs.Length)
+        if($headLen -le 0){ return $null }
+        $buf=New-Object byte[] $headLen
+        $got=0; while($got -lt $headLen){ $rd=$fs.Read($buf,$got,$headLen-$got); if($rd -le 0){break}; $got+=$rd }
+        $text=[System.Text.Encoding]::UTF8.GetString($buf,0,$got)
+    } catch { return $null } finally { if($fs){ $fs.Close() } }
+    if($null -eq $text){ return $null }
+    foreach($ln in ($text -split "`n")){
+        if($ln.IndexOf('"user"') -lt 0){ continue }
+        try { $o=$ln|ConvertFrom-Json } catch { continue }
+        if($o.type -ne 'user' -or -not $o.message){ continue }
+        $c=$o.message.content; $txt=$null
+        if($c -is [string]){ $txt=$c } elseif($c){ $tb=($c | Where-Object { $_.type -eq 'text' } | Select-Object -First 1); if($tb){ $txt=$tb.text } }
+        if($txt){
+            $txt=($txt -replace '\s+',' ').Trim()
+            if($txt -and $txt -notmatch '^(This session is being continued|Caveat:|<command-|<local-command|\[Request interrupted)'){
+                if($txt.Length -gt 60){ $txt=$txt.Substring(0,60)+[char]0x2026 }
+                return $txt
+            }
+        }
+    }
+    return $null
+}
+
+# Enumerate every top-level transcript across all project folders, take the
+# most-recent $MaxSessions, and resolve each to {title, ctx, pct, ...}. Tail
+# reads are cached by mtime, so idle ticks touch no files and an active tick
+# re-reads only the one chat that changed. Also picks the context-window
+# denominator (auto: 200K, or 1M if any chat is bigger - the long-context beta).
+function Get-Sessions {
+    $files=@()
+    try { $files=@(Get-ChildItem (Join-Path $ProjRoot '*\*.jsonl') -ErrorAction Stop) } catch {}
+    if($files.Count -eq 0){ return @() }
+    $recent = $files | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First ([Math]::Max($MaxSessions*2,$MaxSessions))
+    $out=@()
+    foreach($f in $recent){
+        if($out.Count -ge $MaxSessions){ break }
+        $path=$f.FullName
+        $c=$script:sessCache[$path]
+        if($null -eq $c -or $c.mtime -ne $f.LastWriteTimeUtc){
+            $t = Read-SessionTail $path
+            if($null -eq $t){ $script:sessCache[$path]=@{ mtime=$f.LastWriteTimeUtc; ctx=$null }; continue }
+            $title=$t.customTitle
+            if([string]::IsNullOrWhiteSpace($title)){ $title=$t.aiTitle }
+            if([string]::IsNullOrWhiteSpace($title) -and $c -and $c.title){ $title=$c.title }
+            if([string]::IsNullOrWhiteSpace($title)){ $title=Get-HeadPrompt $path }
+            if([string]::IsNullOrWhiteSpace($title)){ $title='(untitled chat)' }
+            $c=@{ mtime=$f.LastWriteTimeUtc; ctx=$t.ctx; model=$t.model; tstamp=$t.tstamp; title=([string]$title).Trim() }
+            $script:sessCache[$path]=$c
+        }
+        if($null -eq $c.ctx){ continue }
+        $out += ,@{ title=$c.title; ctx=[double]$c.ctx; model=$c.model; tstamp=$c.tstamp }
+    }
+    # choose the context-window denominator
+    $win=[double]$ContextWindowTokens
+    if($win -le 0){
+        $maxc=0.0; foreach($s in $out){ if($s.ctx -gt $maxc){ $maxc=$s.ctx } }
+        $sorted = @($CtxWindowTiers | Sort-Object)
+        $win = [double]$sorted[-1]
+        foreach($tier in $sorted){ if($maxc -le $tier){ $win=[double]$tier; break } }
+        if($maxc -gt $win){ $win=[double]$maxc }
+    }
+    foreach($s in $out){
+        $p = if($win -gt 0){ 100.0*$s.ctx/$win } else { 0 }
+        if($p -lt 0){ $p=0 }
+        $s.pct=$p; $s.win=$win
+    }
+    # Return bare: the caller wraps with @(...) to normalise 0/1/N into an array.
+    return $out
+}
+
 # --- formatting -----------------------------------------------------------
 function Fmt-Tok($n){
     $n=[double]$n
@@ -401,9 +592,10 @@ function Active-Families($bm){
     if($r.Count -eq 0){ $r = @('Opus') }
     ,$r
 }
-# Reposition rows + divider + footer and resize the form for N model rows.
-# Called only when the set of active families changes (not every tick).
-function Relayout($fams){
+# Reposition model rows + footer + the recent-chats section, and resize the
+# form to fit N model rows and M chat rows. Called only when either count
+# changes (folded into the layout key), not every tick.
+function Relayout($fams,$nSess){
     $n = $fams.Count
     for($k=0;$k -lt 5;$k++){
         if($k -lt $n){
@@ -419,7 +611,32 @@ function Relayout($fams){
     $div2.Top     = $dY
     $lblFoot1.Top = $dY + 8
     $lblFoot2.Top = $dY + 23
-    $newH = $dY + 40
+    $bottom = $dY + 40
+
+    # recent-chats section
+    if($nSess -gt 0){
+        $s0 = $bottom + 2
+        $div3.Top = $s0; $div3.Visible=$true
+        $lblSessHdr.Top = $s0 + 7; $lblSessHdr.Visible=$true
+        $sTop = $s0 + 25
+        for($k=0;$k -lt $MaxSessions;$k++){
+            if($k -lt $nSess){
+                $y = $sTop + $k*$sRowH
+                $sName[$k].Top=$y
+                $sTrack[$k].Top=$y+5
+                $sPct[$k].Top=$y
+                $sName[$k].Visible=$true; $sTrack[$k].Visible=$true; $sPct[$k].Visible=$true
+            } else {
+                $sName[$k].Visible=$false; $sTrack[$k].Visible=$false; $sPct[$k].Visible=$false
+            }
+        }
+        $bottom = $sTop + $nSess*$sRowH + 8
+    } else {
+        $div3.Visible=$false; $lblSessHdr.Visible=$false
+        for($k=0;$k -lt $MaxSessions;$k++){ $sName[$k].Visible=$false; $sTrack[$k].Visible=$false; $sPct[$k].Visible=$false }
+    }
+
+    $newH = $bottom
     if($form.Height -ne $newH){
         $form.Height = $newH
         Set-Region $newH
@@ -443,28 +660,55 @@ function Repaint($d,$fams,$stamp){
     Set-T $lblFoot1 ($arrow + ' ' + (Fmt-Tok $d.out) + ' output   ' + $dot + '   ' + $d.turns + ' turns   ' + $dot + '   ' + $d.sessions + ' ' + $sx)
     Set-T $lblFoot2 (Fmt-Ago $stamp)
 }
+# Paint the per-chat context rows: name (as in the app), a fill bar coloured by
+# how full the context is, the percentage, and a hover tooltip with exact tokens.
+function Repaint-Sessions($sessions){
+    $dot=[string][char]0x00B7
+    $m=[Math]::Min($sessions.Count,$MaxSessions)
+    for($k=0;$k -lt $m;$k++){
+        $s=$sessions[$k]
+        Set-T $sName[$k] $s.title
+        $p=[double]$s.pct; $pc=$p; if($pc -gt 100){ $pc=100 }
+        $w=[int]($sTrackW*$pc/100.0)
+        if($sFill[$k].Width -ne $w){ $sFill[$k].Width=$w }
+        $col=Hue $p
+        $sFill[$k].BackColor=$col
+        Set-T $sPct[$k] (('{0:0}' -f $p) + '%')
+        $sPct[$k].ForeColor=$col
+        $detail = $s.title + "`n" + (Fmt-Tok $s.ctx) + ' / ' + (Fmt-Tok $s.win) + ' context tokens  ' + $dot + '  ' + ('{0:0}' -f $p) + '% used' + "`n" + (Family $s.model) + '  ' + $dot + '  ' + (Fmt-Ago $s.tstamp)
+        $tip.SetToolTip($sName[$k], $detail)
+        $tip.SetToolTip($sTrack[$k], $detail)
+    }
+}
 function Update-Widget {
     $r = Aggregate-Today
     $d = $r.agg
-    if($d.turns -le 0){
+    $sessions=@(); try { $sessions=@(Get-Sessions) } catch {}
+    $nSess = $sessions.Count
+    $hasDaily = ($d.turns -gt 0)
+
+    $fams = if($hasDaily){ Active-Families $d.by } else { @() }
+    $key = ($fams -join ',') + '|' + $nSess
+    if($key -ne $script:layoutKey){ Relayout $fams $nSess; $script:layoutKey=$key }
+
+    if($hasDaily){
+        Repaint $d $fams $r.stamp
+    } else {
         Set-T $lblHero '$0.00'; Set-T $lblRawVal '$0.00'
         if($fillBar.Width -ne 0){ $fillBar.Width = 0 }
         Set-T $lblBarVal ('0 / ' + (Fmt-Tok $DailyBudgetTokens))
-        for($k=0;$k -lt 5;$k++){ $rowName[$k].Visible=$false; $rowCost[$k].Visible=$false; $rowOut[$k].Visible=$false }
         Set-T $lblFoot1 'no Claude usage yet today'
         Set-T $lblFoot2 ''
-        $script:layoutKey = $null
-        return
     }
-    $fams = Active-Families $d.by
-    $key = ($fams -join ',')
-    if($key -ne $script:layoutKey){ Relayout $fams; $script:layoutKey=$key }
-    Repaint $d $fams $r.stamp
+    if($nSess -gt 0){ try { Repaint-Sessions $sessions } catch {} }
+
     # keep today's total in the persistent history store (throttled to ~60s)
-    $script:data = $d
-    $now = [DateTime]::UtcNow
-    if($null -eq $script:lastPersist -or ($now - $script:lastPersist).TotalSeconds -ge 60){
-        Persist-Today $d; $script:lastPersist = $now
+    if($hasDaily){
+        $script:data = $d
+        $now = [DateTime]::UtcNow
+        if($null -eq $script:lastPersist -or ($now - $script:lastPersist).TotalSeconds -ge 60){
+            Persist-Today $d; $script:lastPersist = $now
+        }
     }
 }
 
