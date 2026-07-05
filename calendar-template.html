@@ -100,6 +100,16 @@
   .chip.Other{background:rgba(139,148,158,.16);color:var(--dim)}
 
   /* all-chats zebra list (collapsible) */
+  /* All Chats collapsible header + sort dropdown */
+  .acol{background:none;border:0;color:var(--text);font-weight:700;font-size:16px;letter-spacing:-.2px;cursor:pointer;padding:0;display:flex;align-items:center;gap:9px}
+  .acol .tag{font-weight:400}
+  .acchev{color:var(--dim);font-size:11px;transition:transform .15s;display:inline-block}
+  #allchats-wrap.collapsed .acchev{transform:rotate(-90deg)}
+  #allchats-wrap.collapsed #acbody{display:none}
+  #allchats-wrap.collapsed #acsort{display:none}
+  .acselect{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer;outline:none}
+  .acselect:hover{border-color:var(--cyan)}
+  .acselect:focus{border-color:var(--cyan)}
   .zlist{border:1px solid var(--line);border-radius:12px;overflow:hidden}
   .zrow{border-bottom:1px solid var(--line)}
   .zrow:last-child{border-bottom:0}
@@ -174,11 +184,18 @@
 
     <div class="cal" id="allchats-wrap">
       <div class="bar" style="margin-bottom:10px">
-        <div class="dvsec" style="margin:0">All chats <span class="tag" id="acount"></span></div>
-        <div class="seg" id="acsort"><button data-s="recent" class="on">Recent</button><button data-s="tok">Heaviest</button></div>
+        <button class="acol" id="actoggle"><span class="acchev">&#9660;</span> All Chats <span class="tag" id="acount"></span></button>
+        <select class="acselect" id="acsort" aria-label="Sort chats">
+          <option value="recent">Most recent</option>
+          <option value="name">Name (A&ndash;Z)</option>
+          <option value="tok-desc">Tokens: high &rarr; low</option>
+          <option value="tok-asc">Tokens: low &rarr; high</option>
+        </select>
       </div>
-      <div class="calhint" style="margin:0 0 12px">Every chat we still have logs for. Click a row to expand its token detail.</div>
-      <div class="zlist" id="allchats"></div>
+      <div id="acbody">
+        <div class="calhint" style="margin:0 0 12px">Every chat we still have logs for. Click a row to expand its token detail.</div>
+        <div class="zlist" id="allchats"></div>
+      </div>
     </div>
   </div>
 
@@ -253,9 +270,12 @@ function renderAllChats(){
   const arr=(ALL_SESSIONS||[]).slice();
   if(!arr.length){ wrap.style.display='none'; return; }
   document.getElementById('acount').textContent = '· '+arr.length;
-  arr.sort((a,b)=> acSort==='tok'
-      ? (b.tok-a.tok)
-      : (a.last<b.last?1:a.last>b.last?-1:(b.tok-a.tok)));   // recent: newest last-active first
+  arr.sort((a,b)=>{
+    if(acSort==='name')     return (a.name||'').localeCompare(b.name||'', undefined, {sensitivity:'base'});
+    if(acSort==='tok-asc')  return (a.tok||0)-(b.tok||0);
+    if(acSort==='tok-desc') return (b.tok||0)-(a.tok||0);
+    return a.last<b.last?1:a.last>b.last?-1:(b.tok-a.tok);   // recent: newest last-active first
+  });
   document.getElementById('allchats').innerHTML = arr.map((s,i)=>{
     const models=[].concat(s.byModel||[]).filter(m=>(m.tok||0)>0);
     const mmax=Math.max(1,...models.map(m=>m.tok||0));
@@ -411,8 +431,8 @@ document.getElementById('seg').addEventListener('click', e=>{ const b=e.target.c
 
 // all-chats: expand/collapse a row, and Recent/Heaviest sort
 document.getElementById('allchats').addEventListener('click', e=>{ const h=e.target.closest('.zhead'); if(h) h.parentNode.classList.toggle('open'); });
-document.getElementById('acsort').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
-  acSort=b.dataset.s; [...document.querySelectorAll('#acsort button')].forEach(x=>x.classList.toggle('on',x===b)); renderAllChats(); });
+document.getElementById('acsort').addEventListener('change', e=>{ acSort=e.target.value; renderAllChats(); });
+document.getElementById('actoggle').addEventListener('click', ()=>{ document.getElementById('allchats-wrap').classList.toggle('collapsed'); });
 
 if(!has){
   document.querySelector('.cal').innerHTML='<div class="empty-state">No recorded usage yet. Use Claude Code and reopen history.</div>';

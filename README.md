@@ -29,42 +29,48 @@ everything stays put and just climbs as you work. Shown all at once:
 - **archive** — archiving a chat drops it from the recent-chats list **and** the
   calendar's catalog and day cards, but its tokens **still count in every total**.
   Nothing is deleted; right-click → *Unarchive N chats* restores them
+- **all-time ticker** — a line at the very bottom with your **all-time** total
+  tokens and both cost estimates (cache-aware and per-token), summed from your
+  saved history — the figure that climbs into the millions and billions
 - **history calendar** — click the calendar button for a per-day usage calendar:
   a heat-mapped month grid, all-time summary cards, **rolling-usage cards**
   (last 5h / 7d / Fable), and a Cost/Tokens toggle. **Click any day** for a full
   breakdown — by model, by hour, and **every chat session individually**. Under
-  the grid, an **All chats** catalog lists every chat you still have logs for —
-  a zebra-striped, collapsed-by-default list; expand a row for its tokens, cost,
-  turns, active date range, and a **per-model table** (tokens/cost/turns/output
-  for each model). Sort by Recent or Heaviest
+  the grid, a collapsible **All Chats** catalog lists every chat you still have
+  logs for — a zebra-striped list you can **sort** (Most recent, Name A–Z, Tokens
+  high→low, or low→high); expand a row for its tokens, cost, turns, active date
+  range, and a **per-model table** (tokens/cost/turns/output for each model)
 
 It's a single small PowerShell program. No installer, no dependencies, no
 network, no background service — it just reads the transcript files Claude Code
 already writes to disk.
 
 ```
-┌──────────────────────────────────────────────┐
-│ Claude usage  v1.6.0            🗓   ⟳    ×      │
-│ spent today · cached                           │
-│ $480.44                                        │
-│ if billed per token                $2,256.56   │
-│ ────────────────────────────────────────────── │
-│ Opus       $480.44                    ↓ 1.9M    │
-│ ────────────────────────────────────────────── │
-│ ↓ 1.9M output · 739 turns · 6 sessions          │
-│ updated 1s ago                                 │
-│ ────────────────────────────────────────────── │
-│ rolling usage · cost / tokens                  │
-│ last 5h    $398.11                     532.3M   │
-│ last 7d    $2,098.17                   2.53B    │
-│ Fable 7d   $468.77                     238.8M   │
-│ ────────────────────────────────────────────── │
-│ recent chats · context used                    │
-│ Hearth            ▓▓▓▓░░░░    41%  │   410k     │
-│ United Disease…   ▓▓▓▓▓▓▓▓    95%  │   950k     │
-│ Maestro           ▓▓▓▓▓░░░    58%  │   580k     │
-│ …up to 10 recent chats (right-click to archive) │
-└──────────────────────────────────────────────┘
+┌────────────────────────────────────────────┐
+│ Claude usage  v1.7.0          🗓   ⟳    ×      │
+│ spent today · cached                         │
+│ $480.44                                      │
+│ if billed per token              $2,256.56   │
+│ ──────────────────────────────────────────── │
+│ Opus       $480.44                  ↓ 1.9M    │
+│ ──────────────────────────────────────────── │
+│ ↓ 1.9M output · 739 turns · 6 sessions        │
+│ updated 1s ago                               │
+│ ──────────────────────────────────────────── │
+│ rolling usage · cost / tokens                │
+│ last 5h    $398.11                   532.3M   │
+│ last 7d    $2,098.17                 2.53B    │
+│ Fable 7d   $468.77                   238.8M   │
+│ ──────────────────────────────────────────── │
+│ recent chats · context used                  │
+│ Hearth          ▓▓▓▓░░░░  41% │ 410k          │
+│ United Disease… ▓▓▓▓▓▓▓▓  95% │ 950k          │
+│ Maestro         ▓▓▓▓▓░░░  58% │ 580k          │
+│ …up to 10 recent chats (right-click → archive)│
+│ ──────────────────────────────────────────── │
+│ all time · 6.38B tokens                      │
+│ $5,528.96 cached · $31,343.45 per token      │
+└────────────────────────────────────────────┘
 ```
 
 Only models you've actually used today get a row, so the panel grows or shrinks

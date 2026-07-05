@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.6.0'   # bump on each release; shown next to the title in the widget
+$Version  = '1.7.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -105,6 +105,8 @@ $script:rollSeen   = @{}    # dedup keys currently in the buffer
 $script:rollPrimed = $false # true once every 7d file has been read at least once
 $script:rollPrune  = $null  # last buffer-prune time
 $script:rollData   = $null  # cached @{h5;d7;f7;primed}
+$script:allTime    = $null  # cached all-time totals @{tok;cost;raw}
+$script:allTimeAt  = $null  # last all-time recompute time
 
 # --- palette --------------------------------------------------------------
 $cBg     = [System.Drawing.Color]::FromArgb(22,27,34)
@@ -126,7 +128,7 @@ $FamColor = @{ Opus=$cCyan; Sonnet=$cPurple; Haiku=$cGreen; Fable=$cAmber; Other
 function Hue([double]$p){ if($p -ge 90){$cRed}elseif($p -ge 70){$cAmber}else{$cGreen} }
 
 # --- layout constants -----------------------------------------------------
-$W        = 360            # form width
+$W        = 340            # form width
 $padL     = 12
 $rowH     = 20             # per-model row height
 $heroTagY = 32
@@ -135,11 +137,11 @@ $rawY     = 83             # "if billed per token" line
 $div1Y    = 105
 $rowsTop  = 116            # first model row (right below divider 1)
 $sRowH    = 18             # per-chat context row height
-$sTrackX  = 140            # x of the context bar in a chat row
-$sTrackW  = 84             # width of the context bar track
-$sPctX    = 228            # x of the context % (right-justified in its column)
-$sSepX    = 268            # x of the thin separator between % and tokens
-$sTokX    = 274            # x of the session's context-token count (right-justified)
+$sTrackX  = 114            # x of the context bar in a chat row
+$sTrackW  = 98             # width of the context bar track
+$sPctX    = 218            # x of the context % (right-justified in its column)
+$sSepX    = 256            # x of the thin separator between % and tokens
+$sTokX    = 262            # x of the context tokens (LEFT-aligned, hugs the separator)
 
 # --- form -----------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
@@ -298,10 +300,20 @@ for($k=0;$k -lt $MaxSessions;$k++){
     $sp.Location = New-Object System.Drawing.Point($sSepX,262)
     $form.Controls.Add($sp)
     $tk = New-Lbl $sTokX 260 ($W-$sTokX-$padL) 16 $cDim 8.5 $false
-    $tk.TextAlign = 'MiddleRight'
+    $tk.TextAlign = 'MiddleLeft'
     $nm.Visible=$false; $tr.Visible=$false; $pc.Visible=$false; $sp.Visible=$false; $tk.Visible=$false
     $sName += ,$nm ; $sTrack += ,$tr ; $sFill += ,$fl ; $sPct += ,$pc ; $sSep += ,$sp ; $sTok += ,$tk
 }
+
+# --- all-time ticker (the very bottom line) --------------------------------
+$divT = New-Object System.Windows.Forms.Panel
+$divT.Size = New-Object System.Drawing.Size(($W-2*$padL),1)
+$divT.BackColor = $cTrack
+$divT.Location = New-Object System.Drawing.Point($padL,300)
+$divT.Visible = $false
+$form.Controls.Add($divT)
+$lblTick1 = New-Lbl $padL 308 ($W-2*$padL) 14 $cText 8 $false ; $lblTick1.Visible=$false
+$lblTick2 = New-Lbl $padL 322 ($W-2*$padL) 14 $cDim  8 $false ; $lblTick2.Visible=$false
 
 # --- rolling-usage section (divider + header + up to 3 rows) ---------------
 $divR = New-Object System.Windows.Forms.Panel
@@ -371,7 +383,7 @@ $dragHandler = {
 }
 function Wire-Drag($c){ $c.ContextMenuStrip = $menu; $c.Add_MouseDown($dragHandler) }
 # everything is a drag handle EXCEPT the refresh / close buttons (they click)
-$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1,$lblFoot2,$divR,$lblRollHdr,$div3,$lblSessHdr)
+$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1,$lblFoot2,$divR,$lblRollHdr,$div3,$lblSessHdr,$divT,$lblTick1,$lblTick2)
 $dragCtrls += $rowName + $rowCost + $rowOut
 $dragCtrls += $rollLbl + $rollCost + $rollTok
 $dragCtrls += $sName + $sTrack + $sFill + $sPct + $sSep + $sTok
@@ -847,6 +859,13 @@ function Relayout($fams,$nRoll,$nSess){
         for($k=0;$k -lt $MaxSessions;$k++){ $sName[$k].Visible=$false; $sTrack[$k].Visible=$false; $sPct[$k].Visible=$false; $sSep[$k].Visible=$false; $sTok[$k].Visible=$false }
     }
 
+    # all-time ticker: always the very bottom line
+    $tt = $bottom + 2
+    $divT.Top = $tt; $divT.Visible=$true
+    $lblTick1.Top = $tt + 7;  $lblTick1.Visible=$true
+    $lblTick2.Top = $tt + 21; $lblTick2.Visible=$true
+    $bottom = $tt + 38
+
     $newH = $bottom
     if($form.Height -ne $newH){
         $form.Height = $newH
@@ -908,6 +927,24 @@ function Repaint-Rolling($roll){
         Set-T $rollLbl[2] 'Fable 7d'; $rollLbl[2].ForeColor=$cAmber; Set-T $rollCost[2] (Money $roll.f7.cost); $rollCost[2].ForeColor=$cText; Set-T $rollTok[2] (Fmt-Tok $roll.f7.tok)
     }
 }
+# All-time totals, summed from the persistent per-day history store (cheap; the
+# same store the calendar uses). Throttled - all-time changes slowly. Reflects
+# recorded history (grows as you use it; a calendar open fills in any old days).
+function Get-AllTime {
+    $now=[DateTime]::UtcNow
+    if($script:allTime -and $script:allTimeAt -and ($now-$script:allTimeAt).TotalSeconds -lt 30){ return $script:allTime }
+    $tok=0.0; $cost=0.0; $raw=0.0
+    try { $h=Load-History; foreach($k in $h.Keys){ $x=$h[$k]; $tok+=[double]$x.tok; $cost+=[double]$x.cost; $raw+=[double]$x.raw } } catch {}
+    $script:allTime=@{ tok=$tok; cost=$cost; raw=$raw }; $script:allTimeAt=$now
+    return $script:allTime
+}
+# Paint the all-time ticker at the very bottom (total tokens + both cost estimates).
+function Repaint-Ticker {
+    $dot=[string][char]0x00B7
+    $a=Get-AllTime
+    Set-T $lblTick1 ('all time  ' + $dot + '  ' + (Fmt-Tok $a.tok) + ' tokens')
+    Set-T $lblTick2 ((Money $a.cost) + ' cached  ' + $dot + '  ' + (Money $a.raw) + ' per token')
+}
 function Update-Widget {
     $r = Aggregate-Today
     $d = $r.agg
@@ -936,6 +973,7 @@ function Update-Widget {
     }
     if($nRoll -gt 0){ try { Repaint-Rolling $roll } catch {} }
     if($nSess -gt 0){ try { Repaint-Sessions $sessions } catch {} }
+    try { Repaint-Ticker } catch {}
 
     # keep today's total in the persistent history store (throttled to ~60s)
     if($hasDaily){

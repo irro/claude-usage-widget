@@ -2,6 +2,19 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.7.0 — 2026-07-05
+
+- **All-time ticker.** A new line at the very bottom of the panel shows your
+  **all-time totals**: total tokens used, plus the cache-aware and per-token cost
+  estimates — summed from your saved history. (This is the number that grows into
+  the millions and billions over time.)
+- **Sortable, collapsible "All Chats".** In the history calendar, the **All Chats**
+  catalog can now be **sorted** — Most recent, Name (A–Z), Tokens high→low, or
+  Tokens low→high — and the whole section **collapses** with a click on its header.
+- **A little narrower**, and the per-chat **context-token count now sits tight
+  against the divider** (e.g. `74% │ 743k`) instead of floating with a gap. The
+  number is formatted to stay readable as usage grows.
+
 ## v1.6.0 — 2026-07-05
 
 - **Archive chats.** A new **archive** action puts a chat away: it disappears

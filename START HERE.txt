@@ -44,8 +44,10 @@ USING IT
   ARCHIVE it: it leaves the list (and the calendar's chat lists) but its tokens
   still count in every total. Right-click -> "Unarchive" brings them back.
   Nothing is ever deleted.
+* All-time ticker = the very bottom line shows your all-time total tokens and
+  cost estimates (this is the number that grows into the millions/billions).
 * Calendar icon  = open your usage history (a lovely per-day calendar, with an
-  "All chats" catalog you can expand for each chat's token totals).
+  "All Chats" catalog you can sort, collapse, and expand for each chat's tokens).
 * Refresh icon   = re-scan right now.
 * The  x  (or right-click -> Exit) closes it.
 * Want it to start automatically with Windows? Double-click

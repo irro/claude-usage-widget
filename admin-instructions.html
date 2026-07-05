@@ -75,7 +75,9 @@
   .mock .sbar span{display:block;height:100%}
   .mock .spct{font-weight:700;font-size:11px;width:30px;text-align:right}
   .mock .ssep{width:1px;height:11px;background:#4e565f;flex:0 0 1px}
-  .mock .stok{font-weight:600;font-size:11px;width:42px;text-align:right;color:var(--dim)}
+  .mock .stok{font-weight:600;font-size:11px;color:var(--dim);flex:0 0 46px;text-align:left;padding-left:2px}
+  .mock .tick{color:var(--dim);font-size:11px;margin:4px 0 1px}
+  .mock .tick b{color:var(--text);font-weight:700}
   .legend{color:var(--dim);font-size:13px;max-width:300px}
   .legend b{color:var(--text)}
   .swatch{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:5px}
@@ -90,7 +92,7 @@
 
   <div class="hero">
     <div class="mock">
-      <div class="top"><span class="model">Claude usage <span style="color:var(--dim);font-weight:400;font-size:11px">v1.6.0</span></span><span class="x">&#128197;&nbsp;&#8635;&nbsp;&times;</span></div>
+      <div class="top"><span class="model">Claude usage <span style="color:var(--dim);font-weight:400;font-size:11px">v1.7.0</span></span><span class="x">&#128197;&nbsp;&#8635;&nbsp;&times;</span></div>
       <div style="color:var(--dim);font-size:11px;margin:2px 0 1px">spent today &middot; cached</div>
       <div style="color:var(--cyan);font-weight:700;font-size:27px;line-height:1.1;margin-bottom:4px">$480.44</div>
       <div class="trow"><span class="tlab">if billed per token</span><span class="tval raw">$2,256.56</span></div>
@@ -109,6 +111,9 @@
       <div class="srow"><span class="sname">United Disease&hellip;</span><span class="sbar"><span style="width:95%;background:var(--red)"></span></span><span class="spct" style="color:var(--red)">95%</span><span class="ssep"></span><span class="stok">950k</span></div>
       <div class="srow"><span class="sname">Maestro</span><span class="sbar"><span style="width:58%;background:var(--green)"></span></span><span class="spct" style="color:var(--green)">58%</span><span class="ssep"></span><span class="stok">580k</span></div>
       <div class="srow"><span class="sname">Wildcards Adventure</span><span class="sbar"><span style="width:42%;background:var(--green)"></span></span><span class="spct" style="color:var(--green)">42%</span><span class="ssep"></span><span class="stok">420k</span></div>
+      <div class="div"></div>
+      <div class="tick">all time &middot; <b>6.38B tokens</b></div>
+      <div class="tick">$5,528.96 cached &middot; $31,343.45 per token</div>
     </div>
     <div class="legend">
       <p style="margin-top:0"><b>What you're looking at.</b> Everything you've used <b>today</b>, across all sessions: the big <span style="color:var(--cyan)">spent-today</span> figure, the raw <span style="color:var(--amber)">per-token</span> price, a daily-tokens gauge, and a row for <b>every model used today</b> (cost + tokens it generated). It's a running daily total &mdash; it only grows and resets each morning, so it never jumps between sessions. Drag it anywhere &mdash; many people park it bottom-left.</p>
@@ -146,7 +151,7 @@
   <h2><span class="n">4</span>Move, history &amp; close</h2>
   <ul>
     <li><b>Move:</b> click and drag anywhere on the panel.</li>
-    <li><b>History calendar:</b> click the <b>calendar</b> button in the top-right (or right-click &rarr; <b>History (calendar)</b>). It opens a per-day usage calendar in your browser &mdash; all-time summary cards, <b>rolling usage</b> cards (last 5 hours / 7 days / Fable 7 days), a heat-mapped month grid, and a <b>Cost/Tokens</b> toggle. <b>Click any day</b> to open a full breakdown of that date: by model, by hour, and <b>every chat session individually</b>. Under the grid there's also an <b>All chats</b> catalog &mdash; every chat you still have logs for, as a zebra-striped, collapsed list; <b>click a row</b> to expand its total tokens, cost, turns, active dates, and a <b>per-model table</b> (tokens, cost, turns, and output for each model). Sort by Recent or Heaviest. Your history is saved locally, so it keeps growing even after Claude Code prunes old transcripts.</li>
+    <li><b>History calendar:</b> click the <b>calendar</b> button in the top-right (or right-click &rarr; <b>History (calendar)</b>). It opens a per-day usage calendar in your browser &mdash; all-time summary cards, <b>rolling usage</b> cards (last 5 hours / 7 days / Fable 7 days), a heat-mapped month grid, and a <b>Cost/Tokens</b> toggle. <b>Click any day</b> to open a full breakdown of that date: by model, by hour, and <b>every chat session individually</b>. Under the grid there's also a collapsible <b>All Chats</b> catalog &mdash; every chat you still have logs for, as a zebra-striped list you can <b>sort</b> (Most recent, Name A&ndash;Z, Tokens high&rarr;low, or low&rarr;high) and collapse with a click on its header; <b>click a row</b> to expand its total tokens, cost, turns, active dates, and a <b>per-model table</b> (tokens, cost, turns, and output for each model). Your history is saved locally, so it keeps growing even after Claude Code prunes old transcripts.</li>
     <li><b>Archive a chat:</b> right-click a chat in the <b>recent chats</b> section &rarr; <b>Archive this chat</b>. It leaves the widget's list <i>and</i> the calendar's chat lists, but <b>its tokens still count in every total</b> &mdash; nothing is deleted. Right-click &rarr; <b>Unarchive N chats</b> (also on the main menu) restores them. <i>Note:</i> archiving a chat inside Claude Code itself can't be detected automatically (that state lives in the app's internal database, not a file we can read), so archive here is manual.</li>
     <li><b>Refresh:</b> click the <b>&#8635;</b> button to re-scan right now.</li>
     <li><b>Close:</b> click the <b>&times;</b> in the top-right, or right-click the panel &rarr; <b>Exit</b>.</li>
@@ -164,6 +169,7 @@
       <div class="k">rolling usage</div><div>How much you've used in the <b>last 5 hours</b> and <b>last 7 days</b> (cost + tokens), plus <b>Fable's</b> share of the last 7 days. This is <i>your usage in that rolling window</i>, summed from the transcripts &mdash; it is <b>not</b> your plan's remaining percentage. On first launch these rows briefly say &ldquo;reading&hellip;&rdquo; while the window is computed (longer only if you've had a very heavy week). <b>See the note below about the real 5-hour/weekly meters.</b></div>
       <div class="k">updated &hellip; ago</div><div>How fresh the reading is &mdash; the time since the most recent turn in any of today's sessions.</div>
       <div class="k">recent chats &middot; context used</div><div>Your up to <b>10 most-recent chat sessions</b>, each named exactly as in the Claude app (its custom or AI-generated title). The bar shows <b>how full that chat's context window is</b> right now &mdash; green under 70%, amber to 89%, red at 90%+ (getting close to a compaction) &mdash; with the <b>percentage and the absolute context-token count</b> beside it, split by a thin divider (e.g. <code>67% | 670k</code>). Hover a row for the model and how long ago it was active; <b>right-click a row to archive that chat</b>. Unlike the totals above, this list spans <i>all</i> your recent chats, not just today's.</div>
+      <div class="k">all time</div><div>The very bottom line: your <b>all-time</b> total tokens and both cost estimates (cache-aware and per-token), summed from your saved history. This is the figure that grows into the millions and billions over time. (It reflects recorded history &mdash; opening the calendar once fills in any older days it hasn't seen.)</div>
     </div>
   </div>
   <div class="note">
