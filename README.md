@@ -10,8 +10,6 @@ everything stays put and just climbs as you work. Shown all at once:
   the way a real API bill works with prompt caching (cache reads ~90% off)
 - **if billed per token** — the raw "sticker" price: every token at full list
   rate, no cache discount (always the larger number)
-- **tokens** — today's cumulative tokens (input + output + cache) as a bar
-  against a configurable daily budget — a "how heavy is today" gauge
 - **a row for every model used today** — Opus, Sonnet, Haiku, Fable, … each with
   that model's cache-aware cost and the tokens it generated
 - **output / turns / sessions** — total tokens generated, assistant-turn count,
@@ -23,48 +21,50 @@ everything stays put and just climbs as you work. Shown all at once:
 - **recent chats · context used** — a live list of your up to **10 most-recent
   chat sessions**, each named exactly as in the Claude app (its custom or
   AI-generated title) with a bar for **how full that chat's context window is**
-  right now (green → amber → red as it fills, with the percentage). See every
+  right now (green → amber → red as it fills), the **percentage**, and the
+  **absolute context-token count** beside it (e.g. `67% │ 670k`). See every
   chat's context at a glance instead of one bar that flips as you switch chats;
-  hover a row for exact tokens, model, and last-active time. **Right-click a chat
-  to remove it** from the list (it's only hidden from the panel — never deleted);
-  right-click → *Show hidden chats* brings them back
+  hover a row for model + last-active time. **Right-click a chat → Archive** to
+  put it away (see below)
+- **archive** — archiving a chat drops it from the recent-chats list **and** the
+  calendar's catalog and day cards, but its tokens **still count in every total**.
+  Nothing is deleted; right-click → *Unarchive N chats* restores them
 - **history calendar** — click the calendar button for a per-day usage calendar:
-  a heat-mapped month grid, summary cards (all-time spend, busiest day, averages,
-  total tokens), and a Cost/Tokens toggle. **Click any day** to open a full
-  breakdown of that date — by model, by hour, and **every chat session
-  individually**. Under the grid, an **All chats** catalog lists every chat you
-  still have logs for — a zebra-striped, collapsed-by-default list; click a row
-  to expand its tokens, cost, turns, active date range, and per-model breakdown,
-  sorted by Recent or Heaviest
+  a heat-mapped month grid, all-time summary cards, **rolling-usage cards**
+  (last 5h / 7d / Fable), and a Cost/Tokens toggle. **Click any day** for a full
+  breakdown — by model, by hour, and **every chat session individually**. Under
+  the grid, an **All chats** catalog lists every chat you still have logs for —
+  a zebra-striped, collapsed-by-default list; expand a row for its tokens, cost,
+  turns, active date range, and a **per-model table** (tokens/cost/turns/output
+  for each model). Sort by Recent or Heaviest
 
 It's a single small PowerShell program. No installer, no dependencies, no
 network, no background service — it just reads the transcript files Claude Code
 already writes to disk.
 
 ```
-┌────────────────────────────────────────┐
-│ Claude usage  v1.5.0        🗓  ⟳   ×     │
-│ spent today · cached                     │
-│ $480.44                                  │
-│ if billed per token          $2,256.56   │
-│ ──────────────────────────────────────── │
-│ tokens ▓▓▓░░░░░░░░░   443.6M / 2.00B      │
-│ Opus       $480.44             ↓ 1.9M     │
-│ ──────────────────────────────────────── │
-│ ↓ 1.9M output · 739 turns · 6 sessions    │
-│ updated 1s ago                           │
-│ ──────────────────────────────────────── │
-│ rolling usage · cost / tokens            │
-│ last 5h    $398.11             532.3M     │
-│ last 7d    $2,098.17           2.53B      │
-│ Fable 7d   $468.77             238.8M     │
-│ ──────────────────────────────────────── │
-│ recent chats · context used              │
-│ Hearth              ▓▓▓▓░░░░░░      41%   │
-│ United Disease…     ▓▓▓▓▓▓▓▓▓░      95%   │
-│ Maestro             ▓▓▓▓▓░░░░░      58%   │
-│ …up to 10 recent chats                    │
-└────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│ Claude usage  v1.6.0            🗓   ⟳    ×      │
+│ spent today · cached                           │
+│ $480.44                                        │
+│ if billed per token                $2,256.56   │
+│ ────────────────────────────────────────────── │
+│ Opus       $480.44                    ↓ 1.9M    │
+│ ────────────────────────────────────────────── │
+│ ↓ 1.9M output · 739 turns · 6 sessions          │
+│ updated 1s ago                                 │
+│ ────────────────────────────────────────────── │
+│ rolling usage · cost / tokens                  │
+│ last 5h    $398.11                     532.3M   │
+│ last 7d    $2,098.17                   2.53B    │
+│ Fable 7d   $468.77                     238.8M   │
+│ ────────────────────────────────────────────── │
+│ recent chats · context used                    │
+│ Hearth            ▓▓▓▓░░░░    41%  │   410k     │
+│ United Disease…   ▓▓▓▓▓▓▓▓    95%  │   950k     │
+│ Maestro           ▓▓▓▓▓░░░    58%  │   580k     │
+│ …up to 10 recent chats (right-click to archive) │
+└──────────────────────────────────────────────┘
 ```
 
 Only models you've actually used today get a row, so the panel grows or shrinks
@@ -151,8 +151,8 @@ and a timestamp — to a transcript `.jsonl` under
 today (plus any `subagents\*.jsonl` beside them), and for each one reads **only
 the bytes appended since it last looked**, keeping a per-file running total of
 the turns timestamped *today*. It sums those into one daily figure and buckets
-cost + output **by model family**. From that it paints the headline cost, the
-daily-tokens bar, one row per model used today, the raw cost, and the footer.
+cost + output **by model family**. From that it paints the headline cost, one
+row per model used today, the raw cost, and the footer.
 Because it only re-reads new bytes, even a busy live session refreshes in a few
 milliseconds — it's effectively free to leave running. At local midnight the
 counters reset and the new day begins.
@@ -176,12 +176,6 @@ the calendar from `calendar-template.html` and opens it in your browser.
 
 Open `usage-widget.ps1` in any text editor:
 
-- **`$DailyBudgetTokens`** (default `2000000000` = 2B) — what the **tokens** bar
-  is measured against. A transcript-only widget can't read your real plan
-  rate-limit (that lives only in Claude Code's status-line payload), so this is
-  a tunable "how heavy is today" gauge. The default is set so an ordinary day
-  sits low-to-mid and only a marathon day fills the bar. Lower it if you want
-  the bar more sensitive.
 - **`Get-Price`** — per-model list rates used for the cost estimates. The
   cache-aware figure derives cache rates from the input rate (read 0.1×,
   write-5m 1.25×, write-1h 2×); the per-token figure uses the input rate flat.
@@ -229,8 +223,8 @@ know your plan's remaining percentage.
 
 The widget also writes small files under `%USERPROFILE%\.claude\`:
 `usage-widget-pos.txt` (window position), `usage-widget-history.json` (the
-per-day history store), `usage-widget-hidden.json` (chats you removed from the
-list), and `usage-widget-calendar.html` (the generated calendar).
+per-day history store), `usage-widget-archived.json` (chats you archived), and
+`usage-widget-calendar.html` (the generated calendar).
 
 ## License
 

@@ -39,9 +39,11 @@ right from this folder instead.
 USING IT
 --------------------------------------------------
 * Drag the panel anywhere — it remembers where you put it.
-* Recent chats  = the list at the bottom shows how full each chat's context is.
-  Right-click a chat to remove it from the list (it's only hidden, never
-  deleted); right-click -> "Show hidden chats" brings them back.
+* Recent chats  = the list at the bottom shows how full each chat's context is,
+  as a percent AND a token count (e.g. 67% | 670k). Right-click a chat to
+  ARCHIVE it: it leaves the list (and the calendar's chat lists) but its tokens
+  still count in every total. Right-click -> "Unarchive" brings them back.
+  Nothing is ever deleted.
 * Calendar icon  = open your usage history (a lovely per-day calendar, with an
   "All chats" catalog you can expand for each chat's token totals).
 * Refresh icon   = re-scan right now.

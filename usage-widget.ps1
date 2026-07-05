@@ -36,10 +36,11 @@ $PosPath  = Join-Path $env:USERPROFILE '.claude\usage-widget-pos.txt'
 $HistPath = Join-Path $env:USERPROFILE '.claude\usage-widget-history.json'
 $CalOut   = Join-Path $env:USERPROFILE '.claude\usage-widget-calendar.html'
 $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
-# Chats the user has removed from the widget's recent-chats list (session ids).
-# Hidden from the panel only; their transcripts and history are never touched.
-$HiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'
-$Version  = '1.5.0'   # bump on each release; shown next to the title in the widget
+# Chats the user has archived (session ids). Archived chats drop out of the
+# widget + calendar session lists but still count in every total; never deleted.
+$ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
+$LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
+$Version  = '1.6.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -66,13 +67,6 @@ function Family($m){
         default           { 'Other' }
     }
 }
-
-# The daily-tokens bar measures TODAY's cumulative tokens (input + output +
-# cache read + cache write, summed across every session) against this budget.
-# A transcript-only widget can't read your real plan rate-limit, so this is a
-# tunable "how heavy is today" gauge - set it to a ceiling meaningful to you.
-# Default 2B: an ordinary day sits low-to-mid, only a marathon day fills it.
-$DailyBudgetTokens = 2000000000
 
 # --- recent-chats context list --------------------------------------------
 # The "recent chats" section shows your most-recent chat sessions, each with a
@@ -103,7 +97,7 @@ $script:layoutKey = $null
 $script:data      = $null   # latest today aggregate (for the on-close save)
 $script:lastPersist = $null # last time today's total was written to the history store
 $script:sessCache = @{}     # path -> cached tail read {mtime,ctx,model,tstamp,title}
-$script:hidden    = @{}     # session-id -> 1 for chats removed from the recent list
+$script:archived  = @{}     # session-id -> 1 for archived chats (out of lists, still in totals)
 # rolling-window engine state
 $script:rollFiles  = @{}    # path -> @{off;lw;primed} incremental offsets (7d files)
 $script:rollTurns  = New-Object System.Collections.ArrayList  # {ts;tok;cost;fam;key}
@@ -132,18 +126,20 @@ $FamColor = @{ Opus=$cCyan; Sonnet=$cPurple; Haiku=$cGreen; Fable=$cAmber; Other
 function Hue([double]$p){ if($p -ge 90){$cRed}elseif($p -ge 70){$cAmber}else{$cGreen} }
 
 # --- layout constants -----------------------------------------------------
-$W        = 300            # form width
+$W        = 360            # form width
 $padL     = 12
 $rowH     = 20             # per-model row height
 $heroTagY = 32
 $heroY    = 45             # big "spent today" number
 $rawY     = 83             # "if billed per token" line
 $div1Y    = 105
-$barY     = 112            # daily-tokens bar row
-$rowsTop  = 138            # first model row
+$rowsTop  = 116            # first model row (right below divider 1)
 $sRowH    = 18             # per-chat context row height
-$sTrackX  = 150            # x of the context bar in a chat row
-$sTrackW  = 94             # width of the context bar track (leaves room for "100%")
+$sTrackX  = 140            # x of the context bar in a chat row
+$sTrackW  = 84             # width of the context bar track
+$sPctX    = 228            # x of the context % (right-justified in its column)
+$sSepX    = 268            # x of the thin separator between % and tokens
+$sTokX    = 274            # x of the session's context-token count (right-justified)
 
 # --- form -----------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
@@ -240,21 +236,6 @@ $div1.BackColor = $cTrack
 $div1.Location = New-Object System.Drawing.Point($padL,$div1Y)
 $form.Controls.Add($div1)
 
-# daily-tokens bar
-$lblBarTag = New-Lbl $padL $barY 44 16 $cDim 8.5 $false ; $lblBarTag.Text = 'tokens'
-$trackBar = New-Object System.Windows.Forms.Panel
-$trackBar.Location  = New-Object System.Drawing.Point(56,($barY+3))
-$trackBar.Size      = New-Object System.Drawing.Size(140,9)
-$trackBar.BackColor = $cTrack
-$fillBar  = New-Object System.Windows.Forms.Panel
-$fillBar.Location   = New-Object System.Drawing.Point(0,0)
-$fillBar.Size       = New-Object System.Drawing.Size(0,9)
-$fillBar.BackColor  = $cGreen
-$trackBar.Controls.Add($fillBar)
-$form.Controls.Add($trackBar)
-$lblBarVal = New-Lbl 200 ($barY-1) ($W-200-$padL) 16 $cText 8.5 $true
-$lblBarVal.TextAlign = 'MiddleRight'
-
 # per-model rows: 5 fixed slots (name | cost | output), shown/hidden per usage
 $rowName=@(); $rowCost=@(); $rowOut=@()
 for($k=0;$k -lt 5;$k++){
@@ -292,8 +273,10 @@ $lblSessHdr = New-Lbl $padL 240 ($W-2*$padL) 14 $cDim 8 $false
 $lblSessHdr.Text = 'recent chats  ' + [string][char]0x00B7 + '  context used'
 $lblSessHdr.Visible = $false
 
-# Fixed slots: chat name (ellipsised) | context bar (colour by fill) | percent.
-$sName=@(); $sTrack=@(); $sFill=@(); $sPct=@()
+# Fixed slots: chat name | context bar | percent | separator | context tokens.
+# Percent and tokens are both right-justified, split by a thin vertical barrier.
+$cSep = [System.Drawing.Color]::FromArgb(78,86,95)
+$sName=@(); $sTrack=@(); $sFill=@(); $sPct=@(); $sSep=@(); $sTok=@()
 for($k=0;$k -lt $MaxSessions;$k++){
     $nm = New-Lbl $padL 260 ($sTrackX-$padL-4) 16 $cText 8.5 $false
     $nm.AutoEllipsis = $true
@@ -307,10 +290,17 @@ for($k=0;$k -lt $MaxSessions;$k++){
     $fl.BackColor = $cGreen
     $tr.Controls.Add($fl)
     $form.Controls.Add($tr)
-    $pc = New-Lbl ($sTrackX+$sTrackW+4) 260 ($W-($sTrackX+$sTrackW+4)-$padL) 16 $cDim 8.5 $true
+    $pc = New-Lbl $sPctX 260 ($sSepX-$sPctX-4) 16 $cDim 8.5 $true
     $pc.TextAlign = 'MiddleRight'
-    $nm.Visible=$false; $tr.Visible=$false; $pc.Visible=$false
-    $sName += ,$nm ; $sTrack += ,$tr ; $sFill += ,$fl ; $sPct += ,$pc
+    $sp = New-Object System.Windows.Forms.Panel
+    $sp.Size = New-Object System.Drawing.Size(1,11)
+    $sp.BackColor = $cSep
+    $sp.Location = New-Object System.Drawing.Point($sSepX,262)
+    $form.Controls.Add($sp)
+    $tk = New-Lbl $sTokX 260 ($W-$sTokX-$padL) 16 $cDim 8.5 $false
+    $tk.TextAlign = 'MiddleRight'
+    $nm.Visible=$false; $tr.Visible=$false; $pc.Visible=$false; $sp.Visible=$false; $tk.Visible=$false
+    $sName += ,$nm ; $sTrack += ,$tr ; $sFill += ,$fl ; $sPct += ,$pc ; $sSep += ,$sp ; $sTok += ,$tk
 }
 
 # --- rolling-usage section (divider + header + up to 3 rows) ---------------
@@ -339,25 +329,25 @@ for($k=0;$k -lt 3;$k++){
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 $miC = $menu.Items.Add('History (calendar)') ; $miC.Add_Click({ Open-History })
 $miR = $menu.Items.Add('Refresh now')        ; $miR.Add_Click({ $script:curDay=$null; Update-Widget })
-$miS = $menu.Items.Add('Show hidden chats')  ; $miS.Add_Click({ Unhide-All })
+$miS = $menu.Items.Add('Unarchive all chats'); $miS.Add_Click({ Unarchive-All })
 $miH = $menu.Items.Add('Open instructions')  ; $miH.Add_Click({ try { Start-Process (Join-Path $PSScriptRoot 'admin-instructions.html') } catch {} })
 [void]$menu.Items.Add('-')
 $miX = $menu.Items.Add('Exit')               ; $miX.Add_Click({ $form.Close() })
-# reflect how many chats are hidden; hide the item entirely when none are
-$menu.Add_Opening({ $n=$script:hidden.Count; $miS.Text = "Show $n hidden chat$(if($n-ne 1){'s'})"; $miS.Visible = ($n -gt 0) })
+# reflect how many chats are archived; hide the item entirely when none are
+$menu.Add_Opening({ $n=$script:archived.Count; $miS.Text = "Unarchive $n chat$(if($n-ne 1){'s'})"; $miS.Visible = ($n -gt 0) })
 $form.ContextMenuStrip = $menu
 
-# per-chat menu: right-click a recent-chat row to remove it (or restore hidden).
+# per-chat menu: right-click a recent-chat row to archive it (or unarchive all).
 # The clicked row's session id is captured from the menu's SourceControl.Tag.
 $sessMenu = New-Object System.Windows.Forms.ContextMenuStrip
-$miHide = $sessMenu.Items.Add('Remove this chat from the list') ; $miHide.Add_Click({ Hide-Session $script:sessMenuId })
+$miHide = $sessMenu.Items.Add('Archive this chat')    ; $miHide.Add_Click({ Archive-Session $script:sessMenuId })
 [void]$sessMenu.Items.Add('-')
-$miRestore = $sessMenu.Items.Add('Show hidden chats')           ; $miRestore.Add_Click({ Unhide-All })
-$miCal2   = $sessMenu.Items.Add('History (calendar)')           ; $miCal2.Add_Click({ Open-History })
+$miRestore = $sessMenu.Items.Add('Unarchive all chats') ; $miRestore.Add_Click({ Unarchive-All })
+$miCal2   = $sessMenu.Items.Add('History (calendar)')   ; $miCal2.Add_Click({ Open-History })
 $sessMenu.Add_Opening({
     $src = $sessMenu.SourceControl
     $script:sessMenuId = if($src){ [string]$src.Tag } else { $null }
-    $n=$script:hidden.Count; $miRestore.Text = "Show $n hidden chat$(if($n-ne 1){'s'})"; $miRestore.Visible = ($n -gt 0)
+    $n=$script:archived.Count; $miRestore.Text = "Unarchive $n chat$(if($n-ne 1){'s'})"; $miRestore.Visible = ($n -gt 0)
 })
 
 # --- dragging (hand off to the OS window-move loop: grab anywhere, glides) -
@@ -381,13 +371,13 @@ $dragHandler = {
 }
 function Wire-Drag($c){ $c.ContextMenuStrip = $menu; $c.Add_MouseDown($dragHandler) }
 # everything is a drag handle EXCEPT the refresh / close buttons (they click)
-$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$lblBarTag,$trackBar,$fillBar,$lblBarVal,$div2,$lblFoot1,$lblFoot2,$divR,$lblRollHdr,$div3,$lblSessHdr)
+$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1,$lblFoot2,$divR,$lblRollHdr,$div3,$lblSessHdr)
 $dragCtrls += $rowName + $rowCost + $rowOut
 $dragCtrls += $rollLbl + $rollCost + $rollTok
-$dragCtrls += $sName + $sTrack + $sFill + $sPct
+$dragCtrls += $sName + $sTrack + $sFill + $sPct + $sSep + $sTok
 foreach($c in $dragCtrls){ Wire-Drag $c }
 # recent-chat rows keep drag, but right-click shows the per-chat menu instead
-foreach($c in ($sName + $sTrack + $sFill + $sPct)){ $c.ContextMenuStrip = $sessMenu }
+foreach($c in ($sName + $sTrack + $sFill + $sPct + $sSep + $sTok)){ $c.ContextMenuStrip = $sessMenu }
 
 function Save-Pos { try { "$($form.Left),$($form.Top)" | Set-Content -LiteralPath $PosPath -Encoding ASCII } catch {} }
 $form.Add_FormClosing({ Save-Pos; if($script:data){ Persist-Today $script:data } })
@@ -678,34 +668,38 @@ function Get-HeadPrompt($path){
     return $null
 }
 
-# --- hidden chats (removed from the recent list by the user) ---------------
-# Hides a chat from the panel ONLY; the transcript + history are never touched.
-function Load-Hidden {
+# --- archived chats --------------------------------------------------------
+# Archiving removes a chat from BOTH the widget's recent list AND the calendar's
+# session lists, but its tokens STILL count in every total. Nothing is deleted.
+# (Auto-archiving on Claude Code's own archive action isn't possible: that state
+# lives in the app's internal database, not in any file we can read.)
+function Load-Archived {
     $h=@{}
-    if(Test-Path $HiddenPath){
+    $path = if(Test-Path $ArchivePath){ $ArchivePath } elseif(Test-Path $LegacyHiddenPath){ $LegacyHiddenPath } else { $null }
+    if($path){
         try {
-            $o = Get-Content $HiddenPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $o = Get-Content $path -Raw -Encoding UTF8 | ConvertFrom-Json
             foreach($id in @($o)){ if($id){ $h["$id"]=1 } }
         } catch {}
     }
     return $h
 }
-function Save-Hidden {
+function Save-Archived {
     try {
-        $ids = @($script:hidden.Keys)
+        $ids = @($script:archived.Keys)
         $json = if($ids.Count -eq 0){ '[]' } else { ConvertTo-Json -InputObject $ids }
-        Set-Content -LiteralPath $HiddenPath -Value $json -Encoding UTF8
+        Set-Content -LiteralPath $ArchivePath -Value $json -Encoding UTF8
     } catch {}
 }
-function Hide-Session($id){
+function Archive-Session($id){
     if([string]::IsNullOrWhiteSpace($id)){ return }
-    $script:hidden["$id"]=1; Save-Hidden
+    $script:archived["$id"]=1; Save-Archived
     $script:layoutKey=$null            # row count shrank -> force relayout
     Update-Widget
 }
-function Unhide-All {
-    if($script:hidden.Count -eq 0){ return }
-    $script:hidden=@{}; Save-Hidden
+function Unarchive-All {
+    if($script:archived.Count -eq 0){ return }
+    $script:archived=@{}; Save-Archived
     $script:layoutKey=$null
     Update-Widget
 }
@@ -719,9 +713,9 @@ function Get-Sessions {
     $files=@()
     try { $files=@(Get-ChildItem (Join-Path $ProjRoot '*\*.jsonl') -ErrorAction Stop) } catch {}
     if($files.Count -eq 0){ return @() }
-    # drop chats the user removed from the list (by session id = file base name)
-    if($script:hidden.Count -gt 0){
-        $files = @($files | Where-Object { -not $script:hidden.ContainsKey([System.IO.Path]::GetFileNameWithoutExtension($_.Name)) })
+    # drop archived chats (by session id = file base name)
+    if($script:archived.Count -gt 0){
+        $files = @($files | Where-Object { -not $script:archived.ContainsKey([System.IO.Path]::GetFileNameWithoutExtension($_.Name)) })
     }
     $recent = $files | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First ([Math]::Max($MaxSessions*2,$MaxSessions))
     $out=@()
@@ -779,15 +773,6 @@ function Fmt-Ago($mtimeUtc){
     elseif($s -lt 3600){ 'updated ' + [int]($s/60) + 'm ago' }
     else { 'updated ' + [int]($s/3600) + 'h ago' }
 }
-function Set-Bar($tok){
-    $pct = if($DailyBudgetTokens -gt 0){ 100.0*$tok/$DailyBudgetTokens } else { 0 }
-    $p = $pct; if($p -lt 0){$p=0}; if($p -gt 100){$p=100}
-    $w = [int](140*$p/100)
-    if($fillBar.Width -ne $w){ $fillBar.Width = $w }
-    $fillBar.BackColor = (Hue $pct)
-    Set-T $lblBarVal ((Fmt-Tok $tok) + ' / ' + (Fmt-Tok $DailyBudgetTokens))
-}
-
 # --- render ---------------------------------------------------------------
 # Families with usage, in fixed display order.
 function Active-Families($bm){
@@ -849,15 +834,17 @@ function Relayout($fams,$nRoll,$nSess){
                 $sName[$k].Top=$y
                 $sTrack[$k].Top=$y+5
                 $sPct[$k].Top=$y
-                $sName[$k].Visible=$true; $sTrack[$k].Visible=$true; $sPct[$k].Visible=$true
+                $sSep[$k].Top=$y+3
+                $sTok[$k].Top=$y
+                $sName[$k].Visible=$true; $sTrack[$k].Visible=$true; $sPct[$k].Visible=$true; $sSep[$k].Visible=$true; $sTok[$k].Visible=$true
             } else {
-                $sName[$k].Visible=$false; $sTrack[$k].Visible=$false; $sPct[$k].Visible=$false
+                $sName[$k].Visible=$false; $sTrack[$k].Visible=$false; $sPct[$k].Visible=$false; $sSep[$k].Visible=$false; $sTok[$k].Visible=$false
             }
         }
         $bottom = $sTop + $nSess*$sRowH + 8
     } else {
         $div3.Visible=$false; $lblSessHdr.Visible=$false
-        for($k=0;$k -lt $MaxSessions;$k++){ $sName[$k].Visible=$false; $sTrack[$k].Visible=$false; $sPct[$k].Visible=$false }
+        for($k=0;$k -lt $MaxSessions;$k++){ $sName[$k].Visible=$false; $sTrack[$k].Visible=$false; $sPct[$k].Visible=$false; $sSep[$k].Visible=$false; $sTok[$k].Visible=$false }
     }
 
     $newH = $bottom
@@ -871,7 +858,6 @@ function Relayout($fams,$nRoll,$nSess){
 function Repaint($d,$fams,$stamp){
     Set-T $lblHero (Money $d.cost)
     Set-T $lblRawVal (Money $d.raw)
-    Set-Bar $d.tok
     $bm = $d.by; $arrow = [string][char]0x2193
     for($k=0;$k -lt $fams.Count;$k++){
         $f=$fams[$k]
@@ -899,11 +885,13 @@ function Repaint-Sessions($sessions){
         $sFill[$k].BackColor=$col
         Set-T $sPct[$k] (('{0:0}' -f $p) + '%')
         $sPct[$k].ForeColor=$col
-        $detail = $s.title + "`n" + (Fmt-Tok $s.ctx) + ' / ' + (Fmt-Tok $s.win) + ' context tokens  ' + $dot + '  ' + ('{0:0}' -f $p) + '% used' + "`n" + (Family $s.model) + '  ' + $dot + '  ' + (Fmt-Ago $s.tstamp) + "`n" + 'right-click to remove'
+        Set-T $sTok[$k] (Fmt-Tok $s.ctx)          # absolute context tokens (the number behind the %)
+        $detail = $s.title + "`n" + (Fmt-Tok $s.ctx) + ' / ' + (Fmt-Tok $s.win) + ' context tokens  ' + $dot + '  ' + ('{0:0}' -f $p) + '% used' + "`n" + (Family $s.model) + '  ' + $dot + '  ' + (Fmt-Ago $s.tstamp) + "`n" + 'right-click to archive'
         $tip.SetToolTip($sName[$k], $detail)
         $tip.SetToolTip($sTrack[$k], $detail)
+        $tip.SetToolTip($sTok[$k], $detail)
         # stamp the session id on every control in the row for the per-chat menu
-        $sName[$k].Tag=$s.id; $sTrack[$k].Tag=$s.id; $sFill[$k].Tag=$s.id; $sPct[$k].Tag=$s.id
+        $sName[$k].Tag=$s.id; $sTrack[$k].Tag=$s.id; $sFill[$k].Tag=$s.id; $sPct[$k].Tag=$s.id; $sSep[$k].Tag=$s.id; $sTok[$k].Tag=$s.id
     }
 }
 # Paint the rolling-usage rows: last 5h, last 7d, and (if used) Fable's 7d slice.
@@ -943,8 +931,6 @@ function Update-Widget {
         Repaint $d $fams $r.stamp
     } else {
         Set-T $lblHero '$0.00'; Set-T $lblRawVal '$0.00'
-        if($fillBar.Width -ne 0){ $fillBar.Width = 0 }
-        Set-T $lblBarVal ('0 / ' + (Fmt-Tok $DailyBudgetTokens))
         Set-T $lblFoot1 'no Claude usage yet today'
         Set-T $lblFoot2 ''
     }
@@ -1028,8 +1014,8 @@ function Scan-AllHistory {
                 if(-not $bySession.ContainsKey($sid)){ $bySession[$sid]=@{cost=0.0;raw=0.0;tok=0.0;out=0.0;turns=0;byModel=@{};first=$day;last=$day;days=@{}} }
                 $g=$bySession[$sid]; $g.cost+=$tc; $g.raw+=$tr; $g.tok+=$tkn; $g.out+=$ou; $g.turns++
                 if($day -lt $g.first){ $g.first=$day }; if($day -gt $g.last){ $g.last=$day }; $g.days[$day]=1
-                if(-not $g.byModel.ContainsKey($fam)){ $g.byModel[$fam]=@{cost=0.0;tok=0.0} }
-                $g.byModel[$fam].cost+=$tc; $g.byModel[$fam].tok+=$tkn
+                if(-not $g.byModel.ContainsKey($fam)){ $g.byModel[$fam]=@{cost=0.0;tok=0.0;raw=0.0;out=0.0;turns=0} }
+                $g.byModel[$fam].cost+=$tc; $g.byModel[$fam].tok+=$tkn; $g.byModel[$fam].raw+=$tr; $g.byModel[$fam].out+=$ou; $g.byModel[$fam].turns++
                 # rolling windows (as of scan time)
                 if($dt -ge $rc7){
                     $roll.d7.tok+=$tkn; $roll.d7.cost+=$tc
@@ -1104,6 +1090,7 @@ function Open-History {
                 $entry.hours=@($rich.hours | ForEach-Object { [math]::Round($_) })
                 $sess=@()
                 foreach($sid in ($rich.sessions.Keys | Sort-Object { $rich.sessions[$_].tok } -Descending)){
+                    if($script:archived -and $script:archived.ContainsKey($sid)){ continue }   # archived: keep in totals, drop from the list
                     $s=$rich.sessions[$sid]; $m=$scan.meta[$sid]
                     $topFam=''; $topTok=-1.0; foreach($fam in $s.byModel.Keys){ if($s.byModel[$fam] -gt $topTok){ $topTok=$s.byModel[$fam]; $topFam=$fam } }
                     $lbl = if($m -and $m.custom){ $m.custom } elseif($m -and $m.ai){ $m.ai } elseif($m -and $m.label){ $m.label } else { '(no prompt captured)' }
@@ -1121,11 +1108,15 @@ function Open-History {
         # zebra "All chats" list on the calendar's main view.
         $allSess=@()
         foreach($sid in $scan.bySession.Keys){
+            if($script:archived -and $script:archived.ContainsKey($sid)){ continue }   # archived: keep in totals, drop from the catalog
             $g=$scan.bySession[$sid]; $m=$scan.meta[$sid]
             $name = if($m -and $m.custom){ $m.custom } elseif($m -and $m.ai){ $m.ai } elseif($m -and $m.label){ $m.label } else { '(untitled chat)' }
             $cw   = if($m -and $m.cwd){ $m.cwd } else { '' }
-            $bmodel=[ordered]@{}
-            foreach($fam in ($g.byModel.Keys | Sort-Object { $g.byModel[$_].tok } -Descending)){ $bmodel[$fam]=[ordered]@{ tok=[math]::Round($g.byModel[$fam].tok); cost=[math]::Round($g.byModel[$fam].cost,2) } }
+            $bmodel=@()
+            foreach($fam in ($g.byModel.Keys | Sort-Object { $g.byModel[$_].tok } -Descending)){
+                $x=$g.byModel[$fam]
+                $bmodel += ,([ordered]@{ model=$fam; tok=[math]::Round($x.tok); cost=[math]::Round($x.cost,2); raw=[math]::Round($x.raw,2); out=[math]::Round($x.out); turns=$x.turns })
+            }
             $allSess += ,([ordered]@{ id=$sid.Substring(0,8); name=$name; cwd=$cw; tok=[math]::Round($g.tok); cost=[math]::Round($g.cost,2); raw=[math]::Round($g.raw,2); out=[math]::Round($g.out); turns=$g.turns; first=$g.first; last=$g.last; days=$g.days.Count; byModel=$bmodel })
         }
         $sessJson = if($allSess.Count -eq 0){ '[]' } elseif($allSess.Count -eq 1){ '[' + ($allSess[0] | ConvertTo-Json -Depth 8 -Compress) + ']' } else { $allSess | ConvertTo-Json -Depth 8 -Compress }
@@ -1147,7 +1138,7 @@ function Open-History {
 }
 
 # --- timer + run ----------------------------------------------------------
-$script:hidden = Load-Hidden      # restore chats the user previously removed
+$script:archived = Load-Archived  # restore the user's archived-chats list
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 1000
 $timer.Add_Tick({ Update-Widget })

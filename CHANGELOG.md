@@ -2,6 +2,27 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.6.0 — 2026-07-05
+
+- **Archive chats.** A new **archive** action puts a chat away: it disappears
+  from the widget's recent-chats list **and** the calendar's "All chats" catalog
+  and per-day session cards — but its tokens **still count in every total**
+  (today, rolling, all-time, the heatmap, per-model). Right-click a chat →
+  **Archive this chat**; right-click → **Unarchive N chats** brings them back.
+  Nothing is ever deleted. Stored in `usage-widget-archived.json` (the old
+  `usage-widget-hidden.json` from v1.4 is still honoured). *Note:* Claude Code's
+  own archive action can't be auto-detected — that state lives in the app's
+  internal database, not a readable file — so archiving here is manual.
+- **Context tokens on each recent chat.** Every recent-chat row now shows the
+  chat's current **context token count** to the right of the percentage, split
+  by a thin separator (e.g. `67% │ 670k`) — so you can see both the fraction and
+  the absolute size at a glance. The panel is a little wider to fit.
+- **Removed the daily "tokens" budget bar.** It was an arbitrary gauge with no
+  unique job now that cost, rolling windows, and per-chat context are all shown.
+- **Per-model breakdown per chat, in the calendar.** Expanding a chat in the
+  "All chats" catalog now shows a **Tokens-by-model table** — for each model
+  (Opus/Sonnet/Haiku/Fable): tokens, cost, turns, and output, with a share bar.
+
 ## v1.5.0 — 2026-07-05
 
 - **Rolling usage windows.** A new **rolling usage** section shows how much

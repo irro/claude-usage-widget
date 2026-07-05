@@ -118,6 +118,17 @@
   .zgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px;margin:8px 0 14px}
   .zstat .zk{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px}
   .zstat .zv{font-weight:700;font-size:15px;margin-top:3px}
+  /* per-model breakdown table (inside an expanded chat) */
+  .mtable{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:4px}
+  .mth,.mtr{display:grid;grid-template-columns:1.5fr 1fr 1fr .8fr 1fr;gap:10px;padding:8px 12px;align-items:center}
+  .mth{background:var(--panel2);color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line)}
+  .mth span:not(:first-child),.mtr .mnum{text-align:right}
+  .mtr{position:relative;border-bottom:1px solid var(--line);font-size:12.5px}
+  .mtr:last-child{border-bottom:0}
+  .mtr .share{position:absolute;left:0;top:0;bottom:0;background:currentColor;opacity:.12;z-index:0;border-radius:0 6px 6px 0}
+  .mtr>span:not(.share){position:relative;z-index:1}
+  .mtr .mmodel{font-weight:700}
+  .mtr .mnum{font-weight:600;color:var(--text)}
 
   #tip{position:fixed;pointer-events:none;z-index:50;background:#0b0f15ee;border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:12.5px;min-width:188px;box-shadow:0 12px 34px #000a;opacity:0;transition:opacity .1s}
   #tip.show{opacity:1}
@@ -246,12 +257,20 @@ function renderAllChats(){
       ? (b.tok-a.tok)
       : (a.last<b.last?1:a.last>b.last?-1:(b.tok-a.tok)));   // recent: newest last-active first
   document.getElementById('allchats').innerHTML = arr.map((s,i)=>{
-    const fam=Object.keys(s.byModel||{});
-    const fmx=Math.max(1,...fam.map(f=>s.byModel[f].tok));
-    const mbars=fam.map(f=>{
-      const w=Math.max(3,Math.round(100*s.byModel[f].tok/fmx)), col=FAMCOL[f]||'var(--cyan)';
-      return `<div class="prow"><span class="pn" style="color:${col}">${f}</span><span class="pbar"><span style="width:${w}%;background:${col}"></span></span><span class="pv">${fmtTok(s.byModel[f].tok)}</span></div>`;
+    const models=[].concat(s.byModel||[]).filter(m=>(m.tok||0)>0);
+    const mmax=Math.max(1,...models.map(m=>m.tok||0));
+    const mrows=models.map(m=>{
+      const col=FAMCOL[m.model]||'var(--cyan)', w=Math.max(2,Math.round(100*(m.tok||0)/mmax));
+      return `<div class="mtr" style="color:${col}"><span class="share" style="width:${w}%"></span>`+
+        `<span class="mmodel"><span class="chip ${esc(m.model)}">${esc(m.model)}</span></span>`+
+        `<span class="mnum">${fmtTok(m.tok)}</span>`+
+        `<span class="mnum" style="color:var(--cyan)">${fmtMoney(m.cost)}</span>`+
+        `<span class="mnum" style="color:var(--dim)">${(m.turns||0).toLocaleString()}</span>`+
+        `<span class="mnum" style="color:var(--dim)">${fmtTok(m.out)||'0'}</span></div>`;
     }).join('');
+    const mtable = models.length
+      ? `<div class="mtable"><div class="mth"><span>Model</span><span>Tokens</span><span>Cost</span><span>Turns</span><span>Output</span></div>${mrows}</div>`
+      : '<div class="zsub">no per-model detail (transcript pruned)</div>';
     const range = s.first===s.last ? niceDate(parseDay(s.last)) : (niceDate(parseDay(s.first))+' – '+niceDate(parseDay(s.last)));
     const sub = `${s.cwd?esc(s.cwd)+' · ':''}${s.days} day${s.days!==1?'s':''} active · #${esc(s.id)}`;
     return `<div class="zrow ${i%2?'even':'odd'}">
@@ -268,8 +287,8 @@ function renderAllChats(){
           <div class="zstat"><div class="zk">Generated</div><div class="zv">${fmtTok(s.out)}</div></div>
           <div class="zstat"><div class="zk">Active</div><div class="zv" style="font-size:12.5px">${range}</div></div>
         </div>
-        <div class="dvsec" style="font-size:13px;margin:2px 0 9px">By model</div>
-        <div class="plist">${mbars||'<div class="zsub">no per-model detail (transcript pruned)</div>'}</div>
+        <div class="dvsec" style="font-size:13px;margin:2px 0 9px">Tokens by model</div>
+        ${mtable}
       </div>
     </div>`;
   }).join('');
