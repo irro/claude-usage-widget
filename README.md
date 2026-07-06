@@ -6,13 +6,15 @@ so the numbers only grow through the day and reset each morning. Because it's a
 daily total rather than a single session, it never flips between sessions —
 everything stays put and just climbs as you work. Shown all at once:
 
-- **spent today (cached)** — the big headline number: a cache-aware estimate,
+- **Spent Today · Cached** — the big headline number: a cache-aware estimate,
   the way a real API bill works with prompt caching (cache reads ~90% off)
-- **if billed per token** — the raw "sticker" price: every token at full list
+- **If Billed Per Token:** — the raw "sticker" price: every token at full list
   rate, no cache discount (always the larger number)
 - **a row for every model used today** — up to four (Opus, Sonnet, Haiku, Fable),
   each with that model's cache-aware cost and **the total tokens it used today**
-- **recent chats · context used** — a live list of your up to **10 most-recent
+- **a notice banner** above the chats list — a heads-up that local-AI chats run
+  one at a time and can take up to 5 seconds for an initial reply
+- **Recent Chats · Context Used** — a live list of your up to **10 most-recent
   chat sessions**, each named exactly as in the Claude app (its custom or
   AI-generated title) with a bar for **how full that chat's context window is**
   right now (green → amber → red as it fills), the **percentage**, and the
@@ -31,7 +33,8 @@ everything stays put and just climbs as you work. Shown all at once:
 - **history calendar** — click the calendar button for a per-day usage calendar:
   a heat-mapped month grid, all-time summary cards, **rolling-usage cards**
   (last 5h / 7d / Fable), and a Cost/Tokens toggle. **Click any day** for a full
-  breakdown — by model, by hour, and **every chat session individually**. Under
+  breakdown — by model, by hour, and **every chat session individually**; **click
+  a session card** there to jump straight to that chat's all-time totals. Under
   the grid, a collapsible **All Chats** catalog lists every chat you still have
   logs for — a zebra-striped list you can **sort** (Most recent, Name A–Z, Tokens
   high→low, or low→high); expand a row for its tokens, cost, turns, active date
@@ -43,15 +46,17 @@ already writes to disk.
 
 ```
 ┌──────────────────────────────────────┐
-│ Claude Usage v1.9.0     🗓  ⟳   ×      │
-│ spent today · cached                   │
+│ Claude Usage v1.10.0    🗓  ⟳   ×      │
+│ Spent Today · Cached                   │
 │ $480.44                                │
-│ if billed per token        $2,256.56   │
+│ If Billed Per Token:       $2,256.56   │
 │ ────────────────────────────────────── │
 │ Opus       $480.44           1.04B     │
 │ Fable      $14.83            29.6M      │
 │ ────────────────────────────────────── │
-│ ▾ recent chats · context used          │
+│ ⚠ Local AI can only run one chat at a  │
+│   time; up to 5s for an initial reply. │
+│ ▾ Recent Chats · Context Used          │
 │ Hearth        ▓▓▓▓░░░  41% │ 410k       │
 │ United Dise…  ▓▓▓▓▓▓▓  95% │ 950k       │
 │ …up to 10 (right-click → archive)      │
@@ -63,7 +68,7 @@ already writes to disk.
 └──────────────────────────────────────┘
 ```
 
-Click the **▾ recent chats** header to collapse the list (`▸ recent chats (10)`)
+Click the **▾ Recent Chats** header to collapse the list (`▸ Recent Chats (10)`)
 and again to expand it — your choice is remembered.
 
 Only models you've actually used today get a row, so the panel grows or shrinks
@@ -130,11 +135,11 @@ Both are **estimates at API list prices** — if you're on a Max/Pro plan you pa
 nothing per token, so read them as "what today would cost on the pay-as-you-go
 API," a sense of weight rather than a bill.
 
-- **spent today · cached** is the realistic one. Real API billing charges cache
+- **Spent Today · Cached** is the realistic one. Real API billing charges cache
   *reads* at ~10% of the input rate and cache *writes* at a small premium, and
   Claude Code caches aggressively — so this is what a per-token API bill would
   actually total for today's work.
-- **if billed per token** strips the caching cleverness away: it prices *every*
+- **If Billed Per Token:** strips the caching cleverness away: it prices *every*
   input, cache-read, cache-write and output token at full list rate. It's the
   honest "sticker price" of the raw token volume that flowed — usually several
   times the cached figure, because ~90% of tokens are cache reads.
@@ -183,8 +188,8 @@ Open `usage-widget.ps1` in any text editor:
   Every family in `$FamOrder` with usage today is shown automatically. `Other`
   (unknown model ids) has no row by design, but its tokens still count in the
   totals.
-- **`$MaxSessions`** (default `10`) — how many recent chats the **recent chats ·
-  context used** list shows.
+- **`$MaxSessions`** (default `10`) — how many recent chats the **Recent Chats ·
+  Context Used** list shows.
 - **`$ContextWindowTokens`** (default `0` = auto) — the window each chat's
   context bar is measured against. Auto picks 200K, bumping to 1M if any recent
   chat exceeds 200K (the long-context beta). Set a fixed number (e.g. `200000`

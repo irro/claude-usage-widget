@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.9.0'   # bump on each release; shown next to the title in the widget
+$Version  = '1.10.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -219,11 +219,11 @@ $btnX.Add_MouseEnter({ $btnX.ForeColor = $cRed })
 $btnX.Add_MouseLeave({ $btnX.ForeColor = $cDim })
 
 # hero: today's cache-aware spend
-$lblHeroTag = New-Lbl $padL $heroTagY 200 14 $cDim 8 $false ; $lblHeroTag.Text = 'spent today  ' + [string][char]0x00B7 + '  cached'
+$lblHeroTag = New-Lbl $padL $heroTagY 200 14 $cDim 8 $false ; $lblHeroTag.Text = 'Spent Today  ' + [string][char]0x00B7 + '  Cached'
 $lblHero    = New-Lbl $padL $heroY ($W-2*$padL) 34 $cCyan 20 $true ; $lblHero.Text = '$0.00' ; $lblHero.TextAlign = 'MiddleLeft'
 
 # raw "if billed per token"
-$lblRawTag = New-Lbl $padL $rawY 108 16 $cDim 8.5 $false ; $lblRawTag.Text = 'if billed per token'
+$lblRawTag = New-Lbl $padL $rawY 108 16 $cDim 8.5 $false ; $lblRawTag.Text = 'If Billed Per Token:'
 $lblRawVal = New-Lbl 124 $rawY 108 16 $cAmber 9.5 $true ; $lblRawVal.TextAlign='MiddleRight'   # right edge ~232
 
 # divider 1
@@ -254,6 +254,17 @@ $form.Controls.Add($div2)
 $lblFoot1 = New-Lbl $padL 188 ($W-2*$padL) 15 $cDim 8 $false ; $lblFoot1.Text = 'starting...'   # turns/sessions, left
 $lblFoot2 = New-Lbl $padL 203 ($W-2*$padL) 14 $cDim 8 $false ; $lblFoot2.Text = '' ; $lblFoot2.TextAlign = 'MiddleRight'  # updated Xs ago, right
 
+# notice banner (above the chats list): local-AI chats are single-threaded and slower to start
+$lblBannerBar = New-Object System.Windows.Forms.Panel
+$lblBannerBar.Size = New-Object System.Drawing.Size(3,28)
+$lblBannerBar.Location = New-Object System.Drawing.Point($padL,0)
+$lblBannerBar.BackColor = $cAmber
+$lblBannerBar.Visible = $false
+$form.Controls.Add($lblBannerBar)
+$lblBanner = New-Lbl ($padL+8) 0 ($W-2*$padL-8) 28 $cAmber 7.5 $false
+$lblBanner.Text = 'Local AI can only run one chat at a time and it can take up to 5 seconds for an initial reply.'
+$lblBanner.Visible = $false
+
 # --- recent-chats context section (divider + header + N chat rows) ---------
 # One tooltip serves every chat row (full name + exact token detail on hover).
 $tip = New-Object System.Windows.Forms.ToolTip
@@ -267,7 +278,7 @@ $div3.Visible = $false
 $form.Controls.Add($div3)
 
 $lblSessHdr = New-Lbl $padL 240 ($W-2*$padL) 14 $cDim 8 $false
-$lblSessHdr.Text = 'recent chats  ' + [string][char]0x00B7 + '  context used'
+$lblSessHdr.Text = 'Recent Chats  ' + [string][char]0x00B7 + '  Context Used'
 $lblSessHdr.Visible = $false
 
 # Fixed slots: chat name | context bar | percent | separator | context tokens.
@@ -356,7 +367,7 @@ $dragHandler = {
 }
 function Wire-Drag($c){ $c.ContextMenuStrip = $menu; $c.Add_MouseDown($dragHandler) }
 # everything is a drag handle EXCEPT the refresh / close buttons (they click)
-$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1,$lblFoot2,$div3,$divT,$lblTick1,$lblTick2)
+$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1,$lblFoot2,$div3,$divT,$lblTick1,$lblTick2,$lblBannerBar,$lblBanner)
 $dragCtrls += $rowName + $rowCost + $rowOut
 $dragCtrls += $sName + $sTrack + $sFill + $sPct + $sSep + $sTok
 foreach($c in $dragCtrls){ Wire-Drag $c }
@@ -691,6 +702,15 @@ function Relayout($fams,$nSess){
     $div2.Top = $dY; $div2.Visible=$true          # divider between models and recent chats
     $bottom = $dY + 6
 
+    # notice banner sits directly above the chats list, only when there is one
+    if($nSess -gt 0){
+        $lblBannerBar.Top = $bottom + 2; $lblBannerBar.Visible=$true
+        $lblBanner.Top = $bottom; $lblBanner.Visible=$true
+        $bottom = $bottom + 28 + 6
+    } else {
+        $lblBannerBar.Visible=$false; $lblBanner.Visible=$false
+    }
+
     # recent-chats section (header always shown when there are chats; the rows
     # collapse away when $script:sessCollapsed, leaving just the clickable header)
     if($nSess -gt 0){
@@ -721,12 +741,14 @@ function Relayout($fams,$nSess){
     # -> updated (right, the very bottom line)
     $div3.Top = $bottom + 2; $div3.Visible=$true
     $b0 = $div3.Top + 8
+    # two tight pairs (2px gap each) with a clear 8px gap between the groups,
+    # so "All Time" reads as one block and "today + freshness" as another
     $lblTick1.Top = $b0;       $lblTick1.Visible=$true      # All Time Usage: X tokens
-    $lblTick2.Top = $b0 + 14;  $lblTick2.Visible=$true      # cached / per-token costs
-    $lblFoot1.Top = $b0 + 31;  $lblFoot1.Visible=$true      # output / turns / sessions (left)
-    $lblFoot2.Top = $b0 + 47;  $lblFoot2.Visible=$true      # updated Xs ago (right)
+    $lblTick2.Top = $b0 + 16;  $lblTick2.Visible=$true      # cached / per-token costs
+    $lblFoot1.Top = $b0 + 38;  $lblFoot1.Visible=$true      # output / turns / sessions (left)
+    $lblFoot2.Top = $b0 + 55;  $lblFoot2.Visible=$true      # updated Xs ago (right)
     $divT.Visible=$false                                    # (old ticker divider, unused now)
-    $bottom = $b0 + 47 + 16
+    $bottom = $b0 + 55 + 22
 
     $newH = $bottom
     if($form.Height -ne $newH){
@@ -814,8 +836,8 @@ function Update-Widget {
     if($nSess -gt 0){
         # header doubles as a collapse toggle: chevron + (count when collapsed)
         $chev = if($script:sessCollapsed){ [string][char]0x25B8 } else { [string][char]0x25BE }   # > / v
-        if($script:sessCollapsed){ Set-T $lblSessHdr ($chev + '  recent chats  (' + $nSess + ')') }
-        else { Set-T $lblSessHdr ($chev + '  recent chats  ' + [string][char]0x00B7 + '  context used') }
+        if($script:sessCollapsed){ Set-T $lblSessHdr ($chev + '  Recent Chats  (' + $nSess + ')') }
+        else { Set-T $lblSessHdr ($chev + '  Recent Chats  ' + [string][char]0x00B7 + '  Context Used') }
         if(-not $script:sessCollapsed){ try { Repaint-Sessions $sessions } catch {} }
     }
     try { Repaint-Ticker } catch {}

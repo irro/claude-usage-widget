@@ -2,6 +2,22 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.10.0 — 2026-07-06
+
+- **Capitalized labels** for readability: "Spent Today · Cached", "If Billed Per
+  Token:", "Recent Chats · Context Used" (including the collapsed-header variant).
+- **Cleaner bottom spacing.** The four bottom lines (All Time Usage, its costs,
+  today's output/turns/sessions, and "updated Xs ago") now read as two clear
+  groups with a real gap between them, instead of one cluttered block.
+- **New notice banner** above the chats list — in both the panel and the history
+  calendar — flagging that local-AI chats run one at a time and can take up to
+  5 seconds for an initial reply.
+- **Calendar: click a session in a day's detail view** to jump straight to that
+  chat's all-time totals in the All Chats list (it scrolls to, expands, and
+  briefly highlights the matching row).
+- **Desktop + Start Menu shortcuts** now point at wherever you actually keep the
+  widget (the installer already offered these; this just makes sure they exist).
+
 ## v1.9.0 — 2026-07-05
 
 - **Cleaner layout (a middle/bottom redesign).** The title is now **Claude Usage**,
