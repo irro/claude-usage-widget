@@ -2,6 +2,23 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.15.3 — 2026-07-07
+
+- **The Tokens/Spend/Local Usage/Model detail pages now have real charts**
+  instead of a flat bar-of-divs with no axis or gridlines. Each day-by-day
+  trend is now a line+area chart with gridlines, rounded axis labels, a
+  hover crosshair + tooltip, and a direct end-label — the Tokens page shows
+  Cloud and Local as two distinguishable lines with a legend when you've used
+  a local model; the Spend page gets a spend trend it never had before; the
+  Local Usage page gets a day-by-day local-tokens trend it never had before.
+  All four charts still click through to that day's full detail, same as
+  before.
+- **Every per-day/per-item table and list on those four pages now ends in a
+  bold "Total" row** — the Tokens, Spend, and Model detail tables, and both
+  lists on the Local Usage page (local models and local sessions).
+- Charts measure their own container width at render time (so on-chart text
+  is never stretched) and redraw crisply if the window is resized.
+
 ## v1.15.2 — 2026-07-07
 
 - **Fixed: a stray `<synthetic>` entry could show up as a "local model"** in

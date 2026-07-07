@@ -133,10 +133,25 @@
   .chip.Other{background:rgba(139,148,158,.16);color:var(--dim)}
   [data-fam]:hover{filter:brightness(1.3)}
 
-  /* per-day trend bar chart (Tokens page, Model detail page) */
-  .trend{display:flex;align-items:flex-end;gap:2px;height:120px;overflow-x:auto;padding-bottom:2px}
-  .trend .tb{flex:0 0 auto;width:6px;min-width:6px;border-radius:2px 2px 0 0;background:linear-gradient(180deg,var(--h4),var(--h2));cursor:pointer}
-  .trend .tb:hover{background:var(--cyan)}
+  /* per-day trend chart (Tokens/Spend/Local/Model detail pages) - a small
+     line+area SVG built at render time (see buildTrend()). The container div
+     just needs to fill its parent's width; the SVG's own width/height
+     attributes are measured in JS and set 1:1 with its viewBox, so text
+     inside never gets stretched. */
+  .chart{width:100%;min-height:1px}
+  .trendsvg{display:block}
+  .trendsvg .gridln{stroke:var(--line);stroke-width:1}
+  .trendsvg .axislbl{fill:var(--dim);font-size:9.5px;font-variant-numeric:tabular-nums}
+  .trendsvg .crosshair{stroke:var(--dim);stroke-width:1;pointer-events:none;transition:opacity .08s}
+  .trendsvg .hitlayer{cursor:pointer}
+  .chartlegend{display:flex;gap:16px;margin:0 0 10px;font-size:11.5px;color:var(--dim)}
+  .chartlegend .lgitem{display:flex;align-items:center;gap:6px}
+  .chartlegend .lgitem i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+  /* total/footer rows appended to a table or list */
+  .wtr.total{font-weight:700;background:var(--panel2)!important;border-top:2px solid var(--line);color:var(--text)}
+  .prow.total{border-top:1px solid var(--line);padding-top:9px;margin-top:2px;font-weight:700}
+  .scard.total{background:var(--panel);border-style:dashed;font-weight:700}
 
   /* all-chats zebra list (collapsible) */
   /* All Chats collapsible header + sort dropdown */
@@ -294,9 +309,10 @@
   <div id="tokensview" style="display:none">
     <div class="dvhead"><button id="backFromTokens">&#8249; Back to calendar</button><div class="dvtitle">Tokens</div></div>
     <div class="cards" id="tokCards"></div>
-    <div class="cal" style="overflow-x:auto">
+    <div class="cal">
       <div class="dvsec">Tokens per day</div>
-      <div class="trend" id="tokTrend"></div>
+      <div id="tokLegend"></div>
+      <div class="chart" id="tokTrend"></div>
     </div>
     <div class="cal" style="overflow-x:auto">
       <div class="dvsec">Per day</div>
@@ -310,6 +326,10 @@
   <div id="spendview" style="display:none">
     <div class="dvhead"><button id="backFromSpend">&#8249; Back to calendar</button><div class="dvtitle">Spend</div></div>
     <div class="cards" id="spendCards"></div>
+    <div class="cal">
+      <div class="dvsec">Spend per day</div>
+      <div class="chart" id="spendTrend"></div>
+    </div>
     <div class="cal" style="overflow-x:auto">
       <div class="dvsec">Busiest days, by spend</div>
       <div class="wtable" id="spendTableWrap">
@@ -323,6 +343,10 @@
     <div class="dvhead"><button id="backFromLocal">&#8249; Back to calendar</button><div class="dvtitle">Local usage</div></div>
     <div class="notice-banner"><span class="nicon">&#9888;</span><span>Local (e.g. Ollama) usage is never priced and uses a different tokenizer than Claude's, so it's tracked entirely separately here &mdash; never blended into any Cloud figure.</span></div>
     <div class="cards" id="localCards"></div>
+    <div class="cal" id="localTrendWrap">
+      <div class="dvsec">Local tokens per day</div>
+      <div class="chart" id="localTrend"></div>
+    </div>
     <div class="cal">
       <div class="dvsec">Local models used, all-time</div>
       <div class="plist" id="localModelsList"></div>
@@ -336,9 +360,9 @@
   <div id="modelview" style="display:none">
     <div class="dvhead"><button id="backFromModel">&#8249; Back to calendar</button><div class="dvtitle" id="modelTitle"></div></div>
     <div class="cards" id="modelCards"></div>
-    <div class="cal" style="overflow-x:auto">
+    <div class="cal">
       <div class="dvsec">Tokens per day</div>
-      <div class="trend" id="modelTrend"></div>
+      <div class="chart" id="modelTrend"></div>
     </div>
     <div class="cal" style="overflow-x:auto">
       <div class="dvsec">Per day</div>
@@ -375,7 +399,104 @@ const longDate = dt => DOW[dt.getDay()]+", "+MON[dt.getMonth()]+" "+dt.getDate()
 const FAM=['Opus','Sonnet','Haiku','Fable','Local','Other'];
 const FAMCOL={Opus:'var(--cyan)',Sonnet:'var(--purple)',Haiku:'var(--green)',Fable:'var(--amber)',Local:'var(--blue)',Other:'var(--dim)'};
 
+// ---- shared trend-chart builder (Tokens/Spend/Local/Model detail pages) ----
+// Rounds a max value up to a "clean" gridline top (1/2/5/10 x a power of ten)
+// so axis labels read as round numbers instead of e.g. "83,412".
+function niceMax(v){
+  if(!v || v<=0) return 1;
+  const mag = Math.pow(10, Math.floor(Math.log10(v)));
+  const norm = v/mag;
+  const step = norm<=1 ? 1 : norm<=2 ? 2 : norm<=5 ? 5 : 10;
+  return step*mag;
+}
+function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+
+// keys: chronological array of day-keys (e.g. `days`)
+// series: [{label, color, getVal(k)=>number, area:bool}] - 1 series (single
+// metric) or 2 (e.g. Cloud + Local) sharing one axis, never a second y-axis.
+// opts: {fmt(n)=>str, tooltip(k)=>innerHTML string, onClick(k)=>void, legendId, height}
+function buildTrend(containerId, keys, series, opts){
+  const host = document.getElementById(containerId); if(!host) return;
+  const fmt = opts.fmt || fmtTok;
+  const H = opts.height || 168;
+  const padL = 46, padR = 8, padT = 12, padB = 22;
+  const W = Math.max(280, host.clientWidth || 640);
+  const plotW = W-padL-padR, plotH = H-padT-padB;
+  const n = keys.length;
+  const legendEl = opts.legendId ? document.getElementById(opts.legendId) : null;
+
+  const allVals = [];
+  series.forEach(s=>keys.forEach(k=>allVals.push(s.getVal(k)||0)));
+  const peak = Math.max(0, ...allVals);
+  if(n===0 || peak<=0){
+    host.innerHTML = '<div class="empty-state" style="padding:34px 10px">No usage recorded for this range.</div>';
+    if(legendEl) legendEl.innerHTML='';
+    return;
+  }
+  const mx = niceMax(peak);
+  const xFor = i => n<=1 ? padL+plotW/2 : padL + (i/(n-1))*plotW;
+  const yFor = v => padT + plotH - (Math.max(0,Math.min(v,mx))/mx)*plotH;
+  const baseY = padT+plotH;
+
+  let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" class="trendsvg">`;
+  for(let i=0;i<=3;i++){
+    const gv = mx*i/3, gy = yFor(gv);
+    svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" class="gridln"/>`;
+    svg += `<text x="${padL-8}" y="${(gy+3).toFixed(1)}" class="axislbl" text-anchor="end">${esc(fmt(gv))}</text>`;
+  }
+  const pathFor = s => keys.map((k,i)=>`${i===0?'M':'L'}${xFor(i).toFixed(1)},${yFor(s.getVal(k)||0).toFixed(1)}`).join(' ');
+  series.filter(s=>s.area).forEach(s=>{
+    const d = pathFor(s) + ` L${xFor(n-1).toFixed(1)},${baseY} L${xFor(0).toFixed(1)},${baseY} Z`;
+    svg += `<path d="${d}" fill="${s.color}" fill-opacity=".14" stroke="none"/>`;
+  });
+  series.forEach(s=>{
+    svg += `<path d="${pathFor(s)}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  });
+  const prime = series[0];
+  if(prime){
+    const lx=xFor(n-1), ly=yFor(prime.getVal(keys[n-1])||0);
+    svg += `<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4" fill="${prime.color}" stroke="var(--panel)" stroke-width="2"/>`;
+  }
+  const labelIdx = [...new Set(n<=1?[0]:[0,Math.round((n-1)*0.25),Math.round((n-1)*0.5),Math.round((n-1)*0.75),n-1])];
+  labelIdx.forEach(i=>{
+    if(i<0||i>=n) return;
+    const dt = parseDay(keys[i]);
+    svg += `<text x="${xFor(i).toFixed(1)}" y="${H-6}" class="axislbl" text-anchor="middle">${MON[dt.getMonth()].slice(0,3)} ${dt.getDate()}</text>`;
+  });
+  svg += `<line x1="0" y1="${padT}" x2="0" y2="${baseY}" class="crosshair" id="${containerId}-cx" style="opacity:0"/>`;
+  svg += `<rect x="${padL}" y="${padT}" width="${Math.max(0,plotW)}" height="${Math.max(0,plotH)}" fill="transparent" class="hitlayer" id="${containerId}-hit"/>`;
+  svg += `</svg>`;
+  host.innerHTML = svg;
+
+  if(legendEl){
+    legendEl.innerHTML = series.length>1
+      ? series.map(s=>`<span class="lgitem"><i style="background:${s.color}"></i>${esc(s.label)}</span>`).join('')
+      : '';
+  }
+
+  const svgEl = host.querySelector('svg');
+  const hit = document.getElementById(containerId+'-hit');
+  const cx = document.getElementById(containerId+'-cx');
+  const idxFromEvent = e => {
+    const r = svgEl.getBoundingClientRect();
+    const localX = (e.clientX-r.left) * (W/r.width);
+    const t = (localX-padL)/plotW;
+    return Math.max(0, Math.min(n-1, Math.round(t*(n-1))));
+  };
+  hit.addEventListener('pointermove', e=>{
+    const i = idxFromEvent(e), k = keys[i];
+    cx.setAttribute('x1', xFor(i)); cx.setAttribute('x2', xFor(i)); cx.style.opacity='1';
+    if(opts.tooltip){ tip.innerHTML = opts.tooltip(k); tip.classList.add('show'); placeTip(e); }
+  });
+  hit.addEventListener('pointerleave', ()=>{ cx.style.opacity='0'; tip.classList.remove('show'); });
+  hit.addEventListener('click', e=>{ if(opts.onClick) opts.onClick(keys[idxFromEvent(e)]); });
+}
+
 let metric = "cost";
+// which chart-bearing page (if any) is currently shown - 'tokens'|'spend'|'local'|'model:<fam>'|null.
+// Reset to null in hideAllViews() (called by every show* fn); the 4 chart
+// pages set it right back so a window resize knows what to redraw crisply.
+let activeChartPage = null;
 const maxFor = m => Math.max(1, ...days.map(d => DATA[d][m]||0));
 const levelOf = (v,mx) => { if(!v) return 0; const r=v/mx; if(r<=.12) return 1; if(r<=.30) return 2; if(r<=.55) return 3; if(r<=.80) return 4; return 5; };
 const heat = ['--h0','--h1','--h2','--h3','--h4','--h5'];
@@ -547,6 +668,7 @@ function hideAllViews(){
   ['mainview','dayview','windowsview','tokensview','spendview','localview','modelview'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.style.display='none';
   });
+  activeChartPage = null;   // the 4 chart pages' show* fns set this back right after
 }
 function showCalendar(push=true){
   hideAllViews();
@@ -650,26 +772,36 @@ function renderTokensPage(){
   if(tot.tokLocal>0) cards.push({cls:'local',lbl:'Local tokens',val:fmtTok(tot.tokLocal),sub:'always $0 · separate tokenizer'});
   document.getElementById('tokCards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
 
-  const mx = Math.max(1, ...days.map(d=>DATA[d].tok||0));
-  document.getElementById('tokTrend').innerHTML = days.map(d=>{
-    const v=DATA[d].tok||0, h=Math.max(2,Math.round(100*v/mx));
-    return `<div class="tb" style="height:${h}%" data-k="${d}" title="${niceDate(parseDay(d))} — ${fmtTok(v)} tokens"></div>`;
-  }).join('');
+  buildTrend('tokTrend', days, [
+    {label:'Cloud', color:'var(--cyan)', area:true, getVal:d=>(DATA[d].tok||0)-(DATA[d].tokLocal||0)},
+    ...(tot.tokLocal>0 ? [{label:'Local', color:'var(--blue)', area:false, getVal:d=>DATA[d].tokLocal||0}] : []),
+  ], {
+    fmt: fmtTok, legendId: 'tokLegend', onClick: showDay,
+    tooltip: k=>{ const x=DATA[k], tl=x.tokLocal||0, tc=(x.tok||0)-tl;
+      return `<div class="d">${niceDate(parseDay(k))}</div>
+        <div class="r"><span class="k">Tokens</span><span class="v">${fmtTok(x.tok)}</span></div>
+        <div class="r"><span class="k">Cloud</span><span class="v cy">${fmtTok(tc)}</span></div>
+        ${tl>0?`<div class="r"><span class="k">Local</span><span class="v" style="color:var(--blue)">${fmtTok(tl)}</span></div>`:''}
+        <div class="r" style="margin-top:5px;color:var(--cyan)"><span class="k" style="color:var(--cyan)">click for full detail →</span></div>`; },
+  });
 
-  document.getElementById('tokTable').innerHTML = days.slice().reverse().map((d,i)=>{
+  const revDays = days.slice().reverse();
+  const rowsHtml = revDays.map((d,i)=>{
     const x=DATA[d], tl=x.tokLocal||0, tc=(x.tok||0)-tl;
     return `<div class="wtr ${i%2?'even':'odd'}" style="grid-template-columns:1.2fr 1fr 1fr 1fr;cursor:pointer" data-k="${d}">
       <span>${niceDate(parseDay(d))}</span><span class="wnum">${fmtTok(x.tok)}</span><span class="wnum">${fmtTok(tc)}</span><span class="wnum">${tl>0?fmtTok(tl):'—'}</span></div>`;
   }).join('');
+  const totalRow = `<div class="wtr total" style="grid-template-columns:1.2fr 1fr 1fr 1fr">
+    <span>Total</span><span class="wnum">${fmtTok(tot.tok)}</span><span class="wnum">${fmtTok(tokCloud)}</span><span class="wnum">${tot.tokLocal>0?fmtTok(tot.tokLocal):'—'}</span></div>`;
+  document.getElementById('tokTable').innerHTML = rowsHtml + totalRow;
 }
-function showTokens(push=true){ renderTokensPage(); hideAllViews(); document.getElementById('tokensview').style.display='block'; window.scrollTo(0,0); if(push) history.pushState({view:'tokens'},'','#tokens'); }
+function showTokens(push=true){ hideAllViews(); document.getElementById('tokensview').style.display='block'; activeChartPage='tokens'; renderTokensPage(); window.scrollTo(0,0); if(push) history.pushState({view:'tokens'},'','#tokens'); }
 document.getElementById('backFromTokens').addEventListener('click', ()=>showCalendar());
-document.getElementById('tokTrend').addEventListener('click', e=>{ const b=e.target.closest('.tb[data-k]'); if(b) showDay(b.dataset.k); });
 document.getElementById('tokTable').addEventListener('click', e=>{ const r=e.target.closest('.wtr[data-k]'); if(r) showDay(r.dataset.k); });
 
 // ---- Spend page: consolidates the 4 spend cards + a ranked busiest-days table ----
 function renderSpendPage(){
-  const tot = days.reduce((a,d)=>{ const x=DATA[d]; a.cost+=x.cost||0; a.raw+=x.raw||0; return a; },{cost:0,raw:0});
+  const tot = days.reduce((a,d)=>{ const x=DATA[d]; a.cost+=x.cost||0; a.raw+=x.raw||0; a.tok+=x.tok||0; return a; },{cost:0,raw:0,tok:0});
   let peak={d:null,cost:0}; days.forEach(d=>{ if((DATA[d].cost||0)>peak.cost) peak={d,cost:DATA[d].cost}; });
   const avg = has ? tot.cost/days.length : 0;
   const cards=[
@@ -680,14 +812,27 @@ function renderSpendPage(){
   ];
   document.getElementById('spendCards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
 
+  buildTrend('spendTrend', days, [{label:'Spend', color:'var(--cyan)', area:true, getVal:d=>DATA[d].cost||0}], {
+    fmt: fmtMoney, onClick: showDay,
+    tooltip: k=>{ const x=DATA[k];
+      return `<div class="d">${niceDate(parseDay(k))}</div>
+        <div class="r"><span class="k">Spent (cached)</span><span class="v cy">${fmtMoney(x.cost)}</span></div>
+        <div class="r"><span class="k">If per token</span><span class="v am">${fmtMoney(x.raw)}</span></div>
+        <div class="r"><span class="k">Tokens</span><span class="v">${fmtTok(x.tok)}</span></div>
+        <div class="r" style="margin-top:5px;color:var(--cyan)"><span class="k" style="color:var(--cyan)">click for full detail →</span></div>`; },
+  });
+
   const ranked = days.slice().sort((a,b)=>(DATA[b].cost||0)-(DATA[a].cost||0));
-  document.getElementById('spendTable').innerHTML = ranked.map((d,i)=>{
+  const rowsHtml = ranked.map((d,i)=>{
     const x=DATA[d];
     return `<div class="wtr ${i%2?'even':'odd'}" style="grid-template-columns:1.2fr 1fr 1fr 1fr;cursor:pointer" data-k="${d}">
       <span>${niceDate(parseDay(d))}</span><span class="wnum">${fmtMoney(x.cost)}</span><span class="wnum">${fmtMoney(x.raw)}</span><span class="wnum">${fmtTok(x.tok)}</span></div>`;
   }).join('');
+  const totalRow = `<div class="wtr total" style="grid-template-columns:1.2fr 1fr 1fr 1fr">
+    <span>Total</span><span class="wnum">${fmtMoney(tot.cost)}</span><span class="wnum">${fmtMoney(tot.raw)}</span><span class="wnum">${fmtTok(tot.tok)}</span></div>`;
+  document.getElementById('spendTable').innerHTML = rowsHtml + totalRow;
 }
-function showSpend(push=true){ renderSpendPage(); hideAllViews(); document.getElementById('spendview').style.display='block'; window.scrollTo(0,0); if(push) history.pushState({view:'spend'},'','#spend'); }
+function showSpend(push=true){ hideAllViews(); document.getElementById('spendview').style.display='block'; activeChartPage='spend'; renderSpendPage(); window.scrollTo(0,0); if(push) history.pushState({view:'spend'},'','#spend'); }
 document.getElementById('backFromSpend').addEventListener('click', ()=>showCalendar());
 document.getElementById('spendTable').addEventListener('click', e=>{ const r=e.target.closest('.wtr[data-k]'); if(r) showDay(r.dataset.k); });
 
@@ -702,6 +847,14 @@ function renderLocalPage(){
   if(LOCAL_MODELS.length) cards.push({cls:'avg',lbl:'Distinct models seen',val:String(LOCAL_MODELS.length),sub:'all-time'});
   document.getElementById('localCards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
 
+  document.getElementById('localTrendWrap').style.display = totLocal>0 ? '' : 'none';
+  buildTrend('localTrend', days, [{label:'Local', color:'var(--blue)', area:true, getVal:d=>DATA[d].tokLocal||0}], {
+    fmt: fmtTok, onClick: showDay,
+    tooltip: k=>`<div class="d">${niceDate(parseDay(k))}</div>
+      <div class="r"><span class="k">Local tokens</span><span class="v" style="color:var(--blue)">${fmtTok(DATA[k].tokLocal||0)}</span></div>
+      <div class="r" style="margin-top:5px;color:var(--cyan)"><span class="k" style="color:var(--cyan)">click for full detail →</span></div>`,
+  });
+
   // LOCAL_MODELS/ALL_SESSIONS are rebuilt from transcripts still on disk, but
   // totLocal is a persisted historical rollup that survives pruning - so an
   // old local transcript can vanish from the breakdown/session list while the
@@ -710,23 +863,31 @@ function renderLocalPage(){
   const prunedHint = totLocal > 0 ? ' (older transcripts may have been pruned - see the total above)' : '';
 
   const mmx = Math.max(1, ...LOCAL_MODELS.map(m=>m.tok||0));
-  document.getElementById('localModelsList').innerHTML = LOCAL_MODELS.length ? LOCAL_MODELS.map(m=>{
+  const modelRows = LOCAL_MODELS.map(m=>{
     const w=Math.max(2,Math.round(100*(m.tok||0)/mmx));
     return `<div class="prow"><span class="pn" style="color:var(--blue)">${esc(m.model)}</span><span class="pbar"><span style="width:${w}%;background:var(--blue)"></span></span><span class="pv">${fmtTok(m.tok)}</span></div>`;
-  }).join('') : `<div class="empty-state" style="padding:14px">No local model detail available${prunedHint || ' yet'}.</div>`;
+  }).join('');
+  const listedTotal = LOCAL_MODELS.reduce((a,m)=>a+(m.tok||0),0);
+  const modelTotalRow = LOCAL_MODELS.length ? `<div class="prow total"><span class="pn">Total</span><span class="pbar"></span><span class="pv">${fmtTok(listedTotal)}</span></div>` : '';
+  document.getElementById('localModelsList').innerHTML = LOCAL_MODELS.length ? (modelRows+modelTotalRow) : `<div class="empty-state" style="padding:14px">No local model detail available${prunedHint || ' yet'}.</div>`;
 
   const sess = (ALL_SESSIONS||[]).filter(s=>(s.byModel||[]).some(m=>m.model==='Local' && (m.tok||0)>0));
   document.getElementById('localSessCount').textContent = sess.length ? ('· '+sess.length) : '';
-  document.getElementById('localSessions').innerHTML = sess.length ? sess.map(s=>{
+  const sessTot = sess.reduce((a,s)=>a+((s.byModel||[]).find(m=>m.model==='Local')||{tok:0}).tok,0);
+  const sessRows = sess.map(s=>{
     const lm = (s.byModel||[]).find(m=>m.model==='Local') || {tok:0};
     const proj = s.cwd?(' · '+esc(s.cwd)):'';
     return `<div class="scard" data-sid="${esc(s.id)}" style="cursor:pointer" title="Click for this chat's all-time totals">
       <div class="sbody"><div class="slabel"><span class="chip Local">Local</span> ${esc(s.name)}</div>
       <div class="smeta">${s.days} day${s.days!==1?'s':''} active${proj} · #${esc(s.id)}</div></div>
       <div class="sval"><div class="sc" style="color:var(--blue)">${fmtTok(lm.tok)}</div><div class="st">local tokens</div></div></div>`;
-  }).join('') : `<div class="empty-state">No local chat sessions available${prunedHint || ' yet'}.</div>`;
+  }).join('');
+  const sessTotalRow = sess.length ? `<div class="scard total">
+      <div class="sbody"><div class="slabel">Total across ${sess.length} chat${sess.length!==1?'s':''}</div></div>
+      <div class="sval"><div class="sc" style="color:var(--blue)">${fmtTok(sessTot)}</div><div class="st">local tokens</div></div></div>` : '';
+  document.getElementById('localSessions').innerHTML = sess.length ? (sessRows+sessTotalRow) : `<div class="empty-state">No local chat sessions available${prunedHint || ' yet'}.</div>`;
 }
-function showLocal(push=true){ renderLocalPage(); hideAllViews(); document.getElementById('localview').style.display='block'; window.scrollTo(0,0); if(push) history.pushState({view:'local'},'','#local'); }
+function showLocal(push=true){ hideAllViews(); document.getElementById('localview').style.display='block'; activeChartPage='local'; renderLocalPage(); window.scrollTo(0,0); if(push) history.pushState({view:'local'},'','#local'); }
 document.getElementById('backFromLocal').addEventListener('click', ()=>showCalendar());
 document.getElementById('localSessions').addEventListener('click', e=>{ const c=e.target.closest('.scard[data-sid]'); if(c) showSession(c.dataset.sid); });
 
@@ -752,22 +913,30 @@ function renderModelPage(fam){
   ];
   document.getElementById('modelCards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
 
-  const mx = Math.max(1, ...rows.map(r=>r.tok));
   const col = FAMCOL[fam]||'var(--cyan)';
-  document.getElementById('modelTrend').innerHTML = rows.map(r=>{
-    const h=Math.max(2,Math.round(100*r.tok/mx));
-    return `<div class="tb" style="height:${h}%;background:${r.tok?col:'var(--track)'}" data-k="${r.d}" title="${niceDate(parseDay(r.d))} — ${fmtTok(r.tok)} tokens"></div>`;
-  }).join('');
+  const byD = {}; rows.forEach(r=>byD[r.d]=r);
+  buildTrend('modelTrend', days, [{label:fam, color:col, area:true, getVal:d=>byD[d].tok}], {
+    fmt: fmtTok, onClick: showDay,
+    tooltip: k=>{ const r=byD[k];
+      return `<div class="d">${niceDate(parseDay(k))}</div>
+        <div class="r"><span class="k">Tokens</span><span class="v">${fmtTok(r.tok)}</span></div>
+        <div class="r"><span class="k">Spend</span><span class="v cy">${fmtMoney(r.cost)}</span></div>
+        <div class="r"><span class="k">Turns</span><span class="v">${r.turns.toLocaleString()}</span></div>
+        <div class="r" style="margin-top:5px;color:var(--cyan)"><span class="k" style="color:var(--cyan)">click for full detail →</span></div>`; },
+  });
 
   const activeRows = rows.slice().reverse().filter(r=>r.tok>0);
-  document.getElementById('modelTable').innerHTML = activeRows.length ? activeRows.map((r,i)=>
+  const rowsHtml = activeRows.map((r,i)=>
     `<div class="wtr ${i%2?'even':'odd'}" style="grid-template-columns:1.2fr 1fr 1fr 1fr;cursor:pointer" data-k="${r.d}">
       <span>${niceDate(parseDay(r.d))}</span><span class="wnum">${fmtTok(r.tok)}</span><span class="wnum">${fmtMoney(r.cost)}</span><span class="wnum">${r.turns.toLocaleString()}</span></div>`
-  ).join('') : '<div class="empty-state" style="padding:14px">No usage recorded for this model.</div>';
+  ).join('');
+  document.getElementById('modelTable').innerHTML = activeRows.length
+    ? rowsHtml + `<div class="wtr total" style="grid-template-columns:1.2fr 1fr 1fr 1fr">
+        <span>Total</span><span class="wnum">${fmtTok(tot.tok)}</span><span class="wnum">${fmtMoney(tot.cost)}</span><span class="wnum">${tot.turns.toLocaleString()}</span></div>`
+    : '<div class="empty-state" style="padding:14px">No usage recorded for this model.</div>';
 }
-function showModel(fam, push=true){ renderModelPage(fam); hideAllViews(); document.getElementById('modelview').style.display='block'; window.scrollTo(0,0); if(push) history.pushState({view:'model',fam:fam},'','#model-'+encodeURIComponent(fam)); }
+function showModel(fam, push=true){ hideAllViews(); document.getElementById('modelview').style.display='block'; activeChartPage='model:'+fam; renderModelPage(fam); window.scrollTo(0,0); if(push) history.pushState({view:'model',fam:fam},'','#model-'+encodeURIComponent(fam)); }
 document.getElementById('backFromModel').addEventListener('click', ()=>showCalendar());
-document.getElementById('modelTrend').addEventListener('click', e=>{ const b=e.target.closest('.tb[data-k]'); if(b) showDay(b.dataset.k); });
 document.getElementById('modelTable').addEventListener('click', e=>{ const r=e.target.closest('.wtr[data-k]'); if(r) showDay(r.dataset.k); });
 document.getElementById('dvmodels').addEventListener('click', e=>{ const r=e.target.closest('.prow[data-fam]'); if(r) showModel(r.dataset.fam); });
 document.getElementById('wModelBars').addEventListener('click', e=>{ const r=e.target.closest('.prow[data-fam]'); if(r) showModel(r.dataset.fam); });
@@ -785,8 +954,13 @@ function showSession(id){
   setTimeout(()=>row.classList.remove('flash'), 1600);
 }
 
-// ---- tooltip (calendar hover) ----
+// ---- tooltip (calendar hover + trend charts) ----
 const tip=document.getElementById('tip');
+function placeTip(e){
+  const pad=14,w=tip.offsetWidth,h=tip.offsetHeight; let left=e.clientX+pad, top=e.clientY+pad;
+  if(left+w>innerWidth-8) left=e.clientX-w-pad; if(top+h>innerHeight-8) top=e.clientY-h-pad;
+  tip.style.left=left+'px'; tip.style.top=top+'px';
+}
 function showTip(e,k){
   const x=DATA[k]; if(!x){ tip.classList.remove('show'); return; }
   tip.innerHTML = `<div class="d">${niceDate(parseDay(k))}</div>
@@ -797,9 +971,7 @@ function showTip(e,k){
     <div class="r"><span class="k">Sessions</span><span class="v">${x.sessions?x.sessions.length:0}</span></div>
     <div class="r" style="margin-top:5px;color:var(--cyan)"><span class="k" style="color:var(--cyan)">click for full detail →</span></div>`;
   tip.classList.add('show');
-  const pad=14,w=tip.offsetWidth,h=tip.offsetHeight; let left=e.clientX+pad, top=e.clientY+pad;
-  if(left+w>innerWidth-8) left=e.clientX-w-pad; if(top+h>innerHeight-8) top=e.clientY-h-pad;
-  tip.style.left=left+'px'; tip.style.top=top+'px';
+  placeTip(e);
 }
 const grid=document.getElementById('grid');
 grid.addEventListener('mousemove', e=>{ const c=e.target.closest('.cell.has'); if(c) showTip(e,c.dataset.k); else tip.classList.remove('show'); });
@@ -824,6 +996,15 @@ window.addEventListener('popstate', e=>{
   else if(st && st.view === 'model' && st.fam) showModel(st.fam, false);
   else showCalendar(false);
 });
+// trend charts measure their container's pixel width at render time (so SVG
+// text is never stretched) - redraw the currently-shown chart page crisply
+// after a resize instead of leaving it sized for the old window.
+window.addEventListener('resize', debounce(()=>{
+  if(activeChartPage==='tokens') renderTokensPage();
+  else if(activeChartPage==='spend') renderSpendPage();
+  else if(activeChartPage==='local') renderLocalPage();
+  else if(activeChartPage && activeChartPage.startsWith('model:')) renderModelPage(activeChartPage.slice(6));
+}, 150));
 document.getElementById('seg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
   metric=b.dataset.m; [...document.querySelectorAll('#seg button')].forEach(x=>x.classList.toggle('on',x===b));
   renderMonth(); if(document.getElementById('dayview').style.display!=='none'){ const k=(location.hash||'').slice(1); if(DATA[k]) showDay(k); } });
