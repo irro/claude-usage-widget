@@ -2,6 +2,20 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.14.0 — 2026-07-07
+
+- **Every row now uses the panel's full width, justified edge to edge**
+  instead of being left-aligned with dead space after it: the model rows'
+  cost/tokens, the "All Time Usage:" line, the cached/per-token cost line,
+  and the output/turns/sessions line all now stretch from the left margin to
+  the true right edge.
+- **"Recent Chats" is now "Recent Cloud Chats"**, and swapped places with
+  "Context Used" — "Context Used" is on the left, "Recent Cloud Chats" is
+  right-justified, with the collapse arrow to its right (the very last thing
+  in the row).
+- **Each model's cost now lines up with where the context bar starts** in
+  the recent-chats rows below it, instead of sitting further left.
+
 ## v1.13.0 — 2026-07-06
 
 - **Local and Cloud totals are now kept fully separate.** "All Time Usage:"

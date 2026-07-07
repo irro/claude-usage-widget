@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.13.0'   # bump on each release; shown next to the title in the widget
+$Version  = '1.14.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -252,13 +252,16 @@ $div1.BackColor = $cTrack
 $div1.Location = New-Object System.Drawing.Point($padL,$div1Y)
 $form.Controls.Add($div1)
 
-# per-model rows: 5 fixed slots (name | cost | output), shown/hidden per usage
+# per-model rows: 5 fixed slots (name | cost | output), shown/hidden per usage.
+# Cost starts at $sTrackX (100) so it lines up with the context bar's start
+# in the recent-chats rows below; output is right-justified to the true right
+# edge (288), not the old ~232 boundary that left dead space after it.
 $rowName=@(); $rowCost=@(); $rowOut=@()
 for($k=0;$k -lt 5;$k++){
     $y = $rowsTop + $k*$rowH
     $rn = New-Lbl $padL $y 52 17 $cText 9.5 $true
-    $rc = New-Lbl 66 $y 78 17 $cText 9.5 $false
-    $ro = New-Lbl 148 ($y+1) 84 15 $cDim 8.5 $false ; $ro.TextAlign = 'MiddleRight'   # right edge ~232, aligned with the chat %
+    $rc = New-Lbl $sTrackX $y 96 17 $cText 9.5 $false
+    $ro = New-Lbl 200 ($y+1) ($W-$padL-200) 15 $cDim 8.5 $false ; $ro.TextAlign = 'MiddleRight'   # right edge = true panel edge
     $rn.Visible=$false; $rc.Visible=$false; $ro.Visible=$false
     $rowName += ,$rn ; $rowCost += ,$rc ; $rowOut += ,$ro
 }
@@ -270,7 +273,11 @@ $div2.BackColor = $cTrack
 $div2.Location = New-Object System.Drawing.Point($padL,180)
 $form.Controls.Add($div2)
 
-$lblFoot1 = New-Lbl $padL 188 ($W-2*$padL) 15 $cDim 8 $false ; $lblFoot1.Text = 'starting...'   # turns/sessions, left
+# output / turns / sessions: 3 even columns spanning the full row width (left /
+# center / right), instead of one bunched-up left-aligned string
+$lblFoot1a = New-Lbl $padL 188 92 15 $cDim 8 $false ; $lblFoot1a.Text = 'starting...'   # output, left
+$lblFoot1b = New-Lbl 104 188 92 15 $cDim 8 $false ; $lblFoot1b.TextAlign = 'MiddleCenter'   # turns, center
+$lblFoot1c = New-Lbl 196 188 92 15 $cDim 8 $false ; $lblFoot1c.TextAlign = 'MiddleRight'    # sessions, right
 $lblFoot2 = New-Lbl $padL 203 ($W-2*$padL) 14 $cDim 8 $false ; $lblFoot2.Text = '' ; $lblFoot2.TextAlign = 'MiddleRight'  # updated Xs ago, right
 
 # --- recent-chats context section (divider + header + N chat rows) ---------
@@ -285,9 +292,20 @@ $div3.Location = New-Object System.Drawing.Point($padL,230)
 $div3.Visible = $false
 $form.Controls.Add($div3)
 
-$lblSessHdr = New-Lbl $padL 240 ($W-2*$padL) 14 $cDim 8 $false
-$lblSessHdr.Text = 'Recent Chats  ' + [string][char]0x00B7 + '  Context Used'
-$lblSessHdr.Visible = $false
+# header: "Context Used" left, "Recent Cloud Chats" right-justified, the
+# collapse chevron to ITS right (the very last/rightmost element in the row)
+$lblCtxUsedHdr = New-Lbl $padL 240 110 14 $cDim 8 $false
+$lblCtxUsedHdr.Text = 'Context Used'
+$lblCtxUsedHdr.Visible = $false
+
+$lblRecentChatsHdr = New-Lbl 130 240 144 14 $cDim 8 $false
+$lblRecentChatsHdr.TextAlign = 'MiddleRight'
+$lblRecentChatsHdr.Text = 'Recent Cloud Chats'
+$lblRecentChatsHdr.Visible = $false
+
+$lblChevronHdr = New-Lbl 274 240 14 14 $cDim 8 $false
+$lblChevronHdr.TextAlign = 'MiddleRight'
+$lblChevronHdr.Visible = $false
 
 # Fixed slots: chat name | context bar | percent | separator | context tokens.
 # Percent and tokens are both right-justified, split by a thin vertical barrier.
@@ -326,8 +344,13 @@ $divT.BackColor = $cTrack
 $divT.Location = New-Object System.Drawing.Point($padL,300)
 $divT.Visible = $false
 $form.Controls.Add($divT)
-$lblTick1 = New-Lbl $padL 308 ($W-2*$padL) 14 $cText 8 $false ; $lblTick1.Visible=$false
-$lblTick2 = New-Lbl $padL 322 ($W-2*$padL) 14 $cDim  8 $false ; $lblTick2.Visible=$false
+# row 1: "All Time Usage:" left, the token count right-justified to the true
+# right edge. row 2: cached-cost left, per-token-cost right - same idea, all
+# the row's horizontal space used instead of one bunched-up left-aligned string.
+$lblTick1a = New-Lbl $padL 308 110 14 $cText 8 $false ; $lblTick1a.Visible=$false ; $lblTick1a.Text='All Time Usage:'
+$lblTick1b = New-Lbl 122 308 166 14 $cText 8 $false ; $lblTick1b.TextAlign='MiddleRight' ; $lblTick1b.Visible=$false
+$lblTick2a = New-Lbl $padL 322 120 14 $cDim  8 $false ; $lblTick2a.Visible=$false
+$lblTick2b = New-Lbl 132 322 156 14 $cDim  8 $false ; $lblTick2b.TextAlign='MiddleRight' ; $lblTick2b.Visible=$false
 
 # --- right-click menu -----------------------------------------------------
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
@@ -375,16 +398,20 @@ $dragHandler = {
 }
 function Wire-Drag($c){ $c.ContextMenuStrip = $menu; $c.Add_MouseDown($dragHandler) }
 # everything is a drag handle EXCEPT the refresh / close buttons (they click)
-$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1,$lblFoot2,$div3,$divT,$lblTick1,$lblTick2)
+$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1a,$lblFoot1b,$lblFoot1c,$lblFoot2,$div3,$divT,$lblTick1a,$lblTick1b,$lblTick2a,$lblTick2b)
 $dragCtrls += $rowName + $rowCost + $rowOut
 $dragCtrls += $sName + $sTrack + $sFill + $sPct + $sSep + $sTok
 foreach($c in $dragCtrls){ Wire-Drag $c }
 # recent-chat rows keep drag, but right-click shows the per-chat menu instead
 foreach($c in ($sName + $sTrack + $sFill + $sPct + $sSep + $sTok)){ $c.ContextMenuStrip = $sessMenu }
-# the recent-chats HEADER is a click-to-collapse toggle (not a drag handle)
-$lblSessHdr.ContextMenuStrip = $menu
-$lblSessHdr.Cursor = [System.Windows.Forms.Cursors]::Hand
-$lblSessHdr.Add_Click({ Toggle-Sessions })
+# the recent-chats HEADER is a click-to-collapse toggle (not a drag handle) -
+# now 3 separate controls (Context Used / Recent Cloud Chats / chevron), all
+# wired the same way so the whole header stays clickable as one unit
+foreach($c in @($lblCtxUsedHdr,$lblRecentChatsHdr,$lblChevronHdr)){
+    $c.ContextMenuStrip = $menu
+    $c.Cursor = [System.Windows.Forms.Cursors]::Hand
+    $c.Add_Click({ Toggle-Sessions })
+}
 
 function Save-Pos { try { "$($form.Left),$($form.Top),$([int][bool]$script:sessCollapsed)" | Set-Content -LiteralPath $PosPath -Encoding ASCII } catch {} }
 $form.Add_FormClosing({ Save-Pos; if($script:data){ Persist-Today $script:data }; if($script:settingsListener){ try { $script:settingsListener.Stop() } catch {} } })
@@ -797,7 +824,9 @@ function Relayout($fams,$nSess){
     # collapse away when $script:sessCollapsed, leaving just the clickable header)
     if($nSess -gt 0){
         $s0 = $bottom + 2
-        $lblSessHdr.Top = $s0; $lblSessHdr.Visible=$true
+        $lblCtxUsedHdr.Top = $s0; $lblCtxUsedHdr.Visible=$true
+        $lblRecentChatsHdr.Top = $s0; $lblRecentChatsHdr.Visible=$true
+        $lblChevronHdr.Top = $s0; $lblChevronHdr.Visible=$true
         $rowsShown = if($script:sessCollapsed){ 0 } else { $nSess }
         $sTop = $s0 + 18
         for($k=0;$k -lt $MaxSessionsCap;$k++){
@@ -815,7 +844,7 @@ function Relayout($fams,$nSess){
         }
         $bottom = if($rowsShown -gt 0){ $sTop + $rowsShown*$sRowH + 6 } else { $s0 + 18 }
     } else {
-        $lblSessHdr.Visible=$false
+        $lblCtxUsedHdr.Visible=$false; $lblRecentChatsHdr.Visible=$false; $lblChevronHdr.Visible=$false
         for($k=0;$k -lt $MaxSessionsCap;$k++){ $sName[$k].Visible=$false; $sTrack[$k].Visible=$false; $sPct[$k].Visible=$false; $sSep[$k].Visible=$false; $sTok[$k].Visible=$false }
     }
 
@@ -827,9 +856,13 @@ function Relayout($fams,$nSess){
     # the cost/turns/updated detail lines read as one tight block (2px each) -
     # Jacob's feedback 2026-07-06: rows 1-2 had too little space, rows 2-3 had
     # too much; row 3-4 was already right.
-    $lblTick1.Top = $b0;       $lblTick1.Visible=$true      # All Time Usage: X tokens
-    $lblTick2.Top = $b0 + 20;  $lblTick2.Visible=$true      # cached / per-token costs
-    $lblFoot1.Top = $b0 + 36;  $lblFoot1.Visible=$true      # output / turns / sessions (left)
+    $lblTick1a.Top = $b0;      $lblTick1a.Visible=$true     # All Time Usage: (left)
+    $lblTick1b.Top = $b0;      $lblTick1b.Visible=$true     # X tokens (right)
+    $lblTick2a.Top = $b0 + 20; $lblTick2a.Visible=$true     # $X cached (left)
+    $lblTick2b.Top = $b0 + 20; $lblTick2b.Visible=$true     # $Y per token (right)
+    $lblFoot1a.Top = $b0 + 36; $lblFoot1a.Visible=$true     # output (left)
+    $lblFoot1b.Top = $b0 + 36; $lblFoot1b.Visible=$true     # turns (center)
+    $lblFoot1c.Top = $b0 + 36; $lblFoot1c.Visible=$true     # sessions (right)
     $lblFoot2.Top = $b0 + 53;  $lblFoot2.Visible=$true      # Updated Xs ago (right)
     $divT.Visible=$false                                    # (old ticker divider, unused now)
     $bottom = $b0 + 53 + 22
@@ -852,9 +885,11 @@ function Repaint($d,$fams,$stamp){
         Set-T $rowCost[$k] (Money $bm[$f].cost)
         Set-T $rowOut[$k]  (Fmt-Tok $bm[$f].tok)   # total tokens this model used today
     }
-    $dot = [string][char]0x00B7 ; $arrow = [string][char]0x2193
+    $arrow = [string][char]0x2193
     $sx = if($d.sessions -eq 1){'session'}else{'sessions'}
-    Set-T $lblFoot1 ($arrow + ' ' + (Fmt-Tok $d.out) + ' output   ' + $dot + '   ' + $d.turns + ' turns   ' + $dot + '   ' + $d.sessions + ' ' + $sx)
+    Set-T $lblFoot1a ($arrow + ' ' + (Fmt-Tok $d.out) + ' output')
+    Set-T $lblFoot1b ($d.turns.ToString() + ' turns')
+    Set-T $lblFoot1c ($d.sessions.ToString() + ' ' + $sx)
     Set-T $lblFoot2 (Fmt-Ago $stamp)
 }
 # Paint the per-chat context rows: name (as in the app), a fill bar coloured by
@@ -900,10 +935,10 @@ function Get-AllTime {
 # Paint the bottom "All Time Usage:" lines (Claude/Cloud tokens + both cost
 # estimates - Local/Ollama usage is tracked separately, never mixed in here).
 function Repaint-Ticker {
-    $dot=[string][char]0x00B7
     $a=Get-AllTime
-    Set-T $lblTick1 ('All Time Usage:  ' + (Fmt-Tok $a.tokCloud) + ' tokens')
-    Set-T $lblTick2 ((Money $a.cost) + ' cached  ' + $dot + '  ' + (Money $a.raw) + ' per token')
+    Set-T $lblTick1b ((Fmt-Tok $a.tokCloud) + ' tokens')
+    Set-T $lblTick2a ((Money $a.cost) + ' cached')
+    Set-T $lblTick2b ((Money $a.raw) + ' per token')
 }
 function Update-Widget {
     $r = Aggregate-Today
@@ -920,14 +955,23 @@ function Update-Widget {
         Repaint $d $fams $r.stamp
     } else {
         Set-T $lblHero '$0.00'; Set-T $lblRawVal '$0.00'
-        Set-T $lblFoot1 'no Claude usage yet today'
+        Set-T $lblFoot1a 'no Claude usage yet today'
+        Set-T $lblFoot1b ''; Set-T $lblFoot1c ''
         Set-T $lblFoot2 ''
     }
     if($nSess -gt 0){
-        # header doubles as a collapse toggle: chevron + (count when collapsed)
+        # header doubles as a collapse toggle: chevron + (count when collapsed).
+        # "Context Used" only shows expanded; "Recent Cloud Chats" always shows,
+        # right-justified, with the chevron to ITS right (the last thing in the row).
         $chev = if($script:sessCollapsed){ [string][char]0x25B8 } else { [string][char]0x25BE }   # > / v
-        if($script:sessCollapsed){ Set-T $lblSessHdr ($chev + '  Recent Chats  (' + $nSess + ')') }
-        else { Set-T $lblSessHdr ($chev + '  Recent Chats  ' + [string][char]0x00B7 + '  Context Used') }
+        Set-T $lblChevronHdr $chev
+        if($script:sessCollapsed){
+            Set-T $lblCtxUsedHdr ''
+            Set-T $lblRecentChatsHdr ('Recent Cloud Chats  (' + $nSess + ')')
+        } else {
+            Set-T $lblCtxUsedHdr 'Context Used'
+            Set-T $lblRecentChatsHdr 'Recent Cloud Chats'
+        }
         if(-not $script:sessCollapsed){ try { Repaint-Sessions $sessions } catch {} }
     }
     try { Repaint-Ticker } catch {}

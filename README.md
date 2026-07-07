@@ -12,27 +12,31 @@ everything stays put and just climbs as you work. Shown all at once:
   rate, no cache discount (always the larger number)
 - **a row for every model used today** — up to five (Opus, Sonnet, Haiku, Fable,
   and **Local** if you ever point Claude Code at a local model like Ollama),
-  each with that model's cache-aware cost and **the total tokens it used today**
-  (Local always shows $0 — it's never priced)
-- **Recent Chats · Context Used** — a live list of your up to **10 most-recent
-  chat sessions**, each named exactly as in the Claude app (its custom or
-  AI-generated title) with a bar for **how full that chat's context window is**
-  right now (green → amber → red as it fills), the **percentage**, and the
-  **absolute context-token count** beside it (e.g. `67% │ 670k`). See every
-  chat's context at a glance instead of one bar that flips as you switch chats;
-  hover a row for model + last-active time. **Right-click a chat → Archive** to
-  put it away (see below), or **click the section header to collapse the list**
+  each with that model's cache-aware cost — **lined up with where the context
+  bar starts** in the recent-chats rows below — and **the total tokens it used
+  today** (Local always shows $0 — it's never priced)
+- **Context Used · Recent Cloud Chats** — a live list of your up to **10
+  most-recent chat sessions**, each named exactly as in the Claude app (its
+  custom or AI-generated title) with a bar for **how full that chat's context
+  window is** right now (green → amber → red as it fills), the **percentage**,
+  and the **absolute context-token count** beside it (e.g. `67% │ 670k`). See
+  every chat's context at a glance instead of one bar that flips as you switch
+  chats; hover a row for model + last-active time. **Right-click a chat →
+  Archive** to put it away (see below), or **click the section header to
+  collapse the list** (click anywhere on it — including the collapse arrow at
+  the far right)
 - **archive** — archiving a chat drops it from the recent-chats list **and** the
   calendar's catalog and day cards, but its tokens **still count in every total**.
   Nothing is deleted; right-click → *Unarchive N chats* restores them
 - **All Time Usage** — near the bottom, your **all-time Claude/Cloud** total
-  tokens and both cost estimates (cache-aware and per-token), summed from your
+  tokens (right-justified to the panel's edge) and both cost estimates
+  (cache-aware and per-token, one on each side of the row), summed from your
   saved history — the figure that climbs into the millions and billions.
   **Local (Ollama etc.) tokens are never mixed into this** — a different
   tokenizer, always $0, tracked separately (see the calendar for its own
-  total). Just below it: the day's **output / turns / sessions**, and — right-
-  aligned on the very bottom line — how fresh the reading is (**Updated Xs
-  ago**)
+  total). Just below it: the day's **output / turns / sessions**, spread
+  evenly left/center/right across the row, and — right-aligned on the very
+  bottom line — how fresh the reading is (**Updated Xs ago**)
 - **history calendar** — click the calendar button for a per-day usage calendar:
   a heat-mapped month grid, all-time summary cards, **rolling-usage cards**
   (last 5h / 7d / Fable), and a Cost/Tokens toggle. **Click any day** for a full
@@ -62,28 +66,29 @@ already writes to disk.
 
 ```
 ┌──────────────────────────────────────┐
-│ Claude Usage v1.13.0    🗓  ⟳   ×      │
+│ Claude Usage v1.14.0    🗓  ⟳   ×      │
 │ Spent Today · Cached                   │
 │ $480.44                                │
 │ If Billed Per Token:       $2,256.56   │
 │ ────────────────────────────────────── │
-│ Opus       $480.44           1.04B     │
-│ Fable      $14.83            29.6M      │
+│ Opus              $480.44        1.04B │
+│ Fable               $14.83       29.6M │
 │ ────────────────────────────────────── │
-│ ▾ Recent Chats · Context Used          │
+│ Context Used     Recent Cloud Chats ▾  │
 │ Hearth        ▓▓▓▓░░░  41% │ 410k       │
 │ United Dise…  ▓▓▓▓▓▓▓  95% │ 950k       │
 │ …up to 10 (right-click → archive)      │
 │ ────────────────────────────────────── │
-│ All Time Usage: 6.38B tokens           │
-│ $5,528.96 cached · $31,343.45 per token│
-│ ↓ 1.9M output · 739 turns · 6 sessions  │
-│                        updated 1s ago   │
+│ All Time Usage:         6.38B tokens   │
+│ $5,528.96 cached      $31,343.45/token │
+│ ↓ 1.9M output   739 turns   6 sessions │
+│                        Updated 1s ago  │
 └──────────────────────────────────────┘
 ```
 
-Click the **▾ Recent Chats** header to collapse the list (`▸ Recent Chats (10)`)
-and again to expand it — your choice is remembered.
+Click the **Recent Cloud Chats** header (or the ▾ arrow to its right) to
+collapse the list (`Recent Cloud Chats (10) ▸`) and again to expand it — your
+choice is remembered.
 
 Only models you've actually used today get a row, so the panel grows or shrinks
 to fit — no empty placeholders. The **recent-chats** list shows up to 10 of your

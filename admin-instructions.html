@@ -92,23 +92,23 @@
 
   <div class="hero">
     <div class="mock">
-      <div class="top"><span class="model">Claude Usage <span style="color:var(--dim);font-weight:400;font-size:11px">v1.13.0</span></span><span class="x">&#128197;&nbsp;&#8635;&nbsp;&times;</span></div>
+      <div class="top"><span class="model">Claude Usage <span style="color:var(--dim);font-weight:400;font-size:11px">v1.14.0</span></span><span class="x">&#128197;&nbsp;&#8635;&nbsp;&times;</span></div>
       <div style="color:var(--dim);font-size:11px;margin:2px 0 1px">Spent Today &middot; Cached</div>
       <div style="color:var(--cyan);font-weight:700;font-size:27px;line-height:1.1;margin-bottom:4px">$480.44</div>
       <div class="trow"><span class="tlab">If Billed Per Token:</span><span class="tval raw">$2,256.56</span></div>
       <div class="div"></div>
-      <div class="mrow"><span class="mname opus">Opus</span><span class="cost">$480.44</span><span class="out">1.04B</span></div>
-      <div class="mrow"><span class="mname" style="color:var(--amber)">Fable</span><span class="cost">$14.83</span><span class="out">29.6M</span></div>
+      <div class="mrow"><span class="mname opus">Opus</span><span class="cost" style="margin-left:30px">$480.44</span><span class="out">1.04B</span></div>
+      <div class="mrow"><span class="mname" style="color:var(--amber)">Fable</span><span class="cost" style="margin-left:30px">$14.83</span><span class="out">29.6M</span></div>
       <div class="div"></div>
-      <div class="shdr" style="cursor:pointer">&#9662; Recent Chats &middot; Context Used</div>
+      <div class="shdr" style="cursor:pointer;display:flex;justify-content:space-between"><span>Context Used</span><span>Recent Cloud Chats &#9662;</span></div>
       <div class="srow"><span class="sname">Hearth</span><span class="sbar"><span style="width:41%;background:var(--green)"></span></span><span class="spct" style="color:var(--green)">41%</span><span class="ssep"></span><span class="stok">410k</span></div>
       <div class="srow"><span class="sname">United Disease&hellip;</span><span class="sbar"><span style="width:95%;background:var(--red)"></span></span><span class="spct" style="color:var(--red)">95%</span><span class="ssep"></span><span class="stok">950k</span></div>
       <div class="srow"><span class="sname">Maestro</span><span class="sbar"><span style="width:58%;background:var(--green)"></span></span><span class="spct" style="color:var(--green)">58%</span><span class="ssep"></span><span class="stok">580k</span></div>
       <div class="div"></div>
-      <div class="tick"><b>All Time Usage:</b> 6.38B tokens</div>
-      <div class="tick">$5,528.96 cached &middot; $31,343.45 per token</div>
-      <div class="foot" style="text-align:left">&#8595; 1.9M output &middot; 739 turns &middot; 6 sessions</div>
-      <div class="foot" style="text-align:right;margin-top:2px">updated 1s ago</div>
+      <div class="tick" style="display:flex;justify-content:space-between"><span><b>All Time Usage:</b></span><span>6.38B tokens</span></div>
+      <div class="tick" style="display:flex;justify-content:space-between"><span>$5,528.96 cached</span><span>$31,343.45 per token</span></div>
+      <div class="foot" style="display:flex;justify-content:space-between"><span>&#8595; 1.9M output</span><span>739 turns</span><span>6 sessions</span></div>
+      <div class="foot" style="text-align:right;margin-top:2px">Updated 1s ago</div>
     </div>
     <div class="legend">
       <p style="margin-top:0"><b>What you're looking at.</b> Everything you've used <b>today</b>, across all sessions: the big <span style="color:var(--cyan)">spent-today</span> figure, the raw <span style="color:var(--amber)">per-token</span> price, and a row for <b>every model used today</b> (its cost + the total tokens it used today). It's a running daily total &mdash; it only grows and resets each morning, so it never jumps between sessions. Drag it anywhere &mdash; many people park it bottom-left.</p>
@@ -161,9 +161,9 @@
       <div class="k">title</div><div>The label &ldquo;Claude usage,&rdquo; with a <b>&#8635;</b> refresh button and a <b>&times;</b> close button.</div>
       <div class="k">Spent Today &middot; Cached</div><div>The headline number: today's <b>cache-aware</b> cost, summed across every session since midnight. The realistic API estimate &mdash; <b>see the note below.</b></div>
       <div class="k">If Billed Per Token:</div><div>The raw &ldquo;sticker&rdquo; price for today: <i>every</i> input, cache, and output token at full list rate, no cache discount. Always larger &mdash; usually several times the cached figure.</div>
-      <div class="k">model rows</div><div>Up to five rows &mdash; one per model family you've <b>used today</b> (Opus, Sonnet, Haiku, Fable, and <b>Local</b> if Claude Code was ever pointed at a non-Claude model, e.g. Ollama), summed across all sessions. Each shows that model's cache-aware cost and <b>the total tokens it used today</b> &mdash; Local always shows $0, it's never priced. The panel grows/shrinks to fit &mdash; no empty rows.</div>
-      <div class="k">Recent Chats &middot; Context Used</div><div>Your up to <b>10 most-recent chat sessions</b>, each named exactly as in the Claude app (its custom or AI-generated title). The bar shows <b>how full that chat's context window is</b> right now &mdash; green under 70%, amber to 89%, red at 90%+ (getting close to a compaction) &mdash; with the <b>percentage and the absolute context-token count</b> beside it, split by a thin divider (e.g. <code>67% | 670k</code>). Hover a row for the model and how long ago it was active; <b>right-click a row to archive that chat</b>, or <b>click the section header (&#9662;) to collapse the whole list</b> (it remembers your choice). Unlike the totals above, this list spans <i>all</i> your recent chats, not just today's.</div>
-      <div class="k">All Time Usage:</div><div>Near the bottom: your <b>all-time Claude/Cloud</b> total tokens and both cost estimates (cache-aware and per-token), summed from your saved history &mdash; the figure that grows into the millions and billions. <b>Local (Ollama etc.) tokens are never mixed in here</b> &mdash; different tokenizer, always $0, tracked separately (see the calendar). (It reflects recorded history; opening the calendar once fills in any older days.) Just below it, left-aligned, is the day's <b>output / turns / sessions</b>; and on the very bottom line, right-aligned, <b>Updated &hellip; ago</b> (how fresh the reading is).</div>
+      <div class="k">model rows</div><div>Up to five rows &mdash; one per model family you've <b>used today</b> (Opus, Sonnet, Haiku, Fable, and <b>Local</b> if Claude Code was ever pointed at a non-Claude model, e.g. Ollama), summed across all sessions. Each shows that model's cache-aware cost &mdash; <b>lined up with where the context bar starts</b> in the recent-chats rows below &mdash; and <b>the total tokens it used today</b>, right-justified &mdash; Local always shows $0, it's never priced. The panel grows/shrinks to fit &mdash; no empty rows.</div>
+      <div class="k">Context Used &middot; Recent Cloud Chats</div><div>Your up to <b>10 most-recent chat sessions</b>, each named exactly as in the Claude app (its custom or AI-generated title). The bar shows <b>how full that chat's context window is</b> right now &mdash; green under 70%, amber to 89%, red at 90%+ (getting close to a compaction) &mdash; with the <b>percentage and the absolute context-token count</b> beside it, split by a thin divider (e.g. <code>67% | 670k</code>). Hover a row for the model and how long ago it was active; <b>right-click a row to archive that chat</b>, or <b>click the section header to collapse the whole list</b> (it remembers your choice) &mdash; "Context Used" sits on the left, "Recent Cloud Chats" is right-justified with the collapse arrow (&#9662;/&#9656;) to its right, the very last thing in the row. Unlike the totals above, this list spans <i>all</i> your recent chats, not just today's.</div>
+      <div class="k">All Time Usage:</div><div>Near the bottom: your <b>all-time Claude/Cloud</b> total tokens (right-justified) and both cost estimates (cache-aware left, per-token right), summed from your saved history &mdash; the figure that grows into the millions and billions. <b>Local (Ollama etc.) tokens are never mixed in here</b> &mdash; different tokenizer, always $0, tracked separately (see the calendar). (It reflects recorded history; opening the calendar once fills in any older days.) Just below it is the day's <b>output / turns / sessions</b>, spread evenly left/center/right; and on the very bottom line, right-aligned, <b>Updated &hellip; ago</b> (how fresh the reading is).</div>
     </div>
   </div>
   <div class="note">

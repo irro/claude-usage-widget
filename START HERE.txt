@@ -39,11 +39,12 @@ right from this folder instead.
 USING IT
 --------------------------------------------------
 * Drag the panel anywhere — it remembers where you put it.
-* Recent chats  = the list at the bottom shows how full each chat's context is,
-  as a percent AND a token count (e.g. 67% | 670k). Right-click a chat to
-  ARCHIVE it: it leaves the list (and the calendar's chat lists) but its tokens
-  still count in every total. Right-click -> "Unarchive" brings them back.
-  Nothing is ever deleted. Click the "Recent Chats" header to collapse the list.
+* Recent Cloud Chats  = the list at the bottom shows how full each chat's
+  context is, as a percent AND a token count (e.g. 67% | 670k). Right-click a
+  chat to ARCHIVE it: it leaves the list (and the calendar's chat lists) but
+  its tokens still count in every total. Right-click -> "Unarchive" brings
+  them back. Nothing is ever deleted. Click the "Recent Cloud Chats" header
+  (or the arrow to its right) to collapse the list.
 * All-time ticker = the very bottom line shows your all-time total tokens and
   cost estimates (this is the number that grows into the millions/billions).
 * Calendar icon  = open your usage history (a lovely per-day calendar, with an
