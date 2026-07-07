@@ -25,11 +25,14 @@ everything stays put and just climbs as you work. Shown all at once:
 - **archive** — archiving a chat drops it from the recent-chats list **and** the
   calendar's catalog and day cards, but its tokens **still count in every total**.
   Nothing is deleted; right-click → *Unarchive N chats* restores them
-- **All Time Usage** — near the bottom, your **all-time** total tokens and both
-  cost estimates (cache-aware and per-token), summed from your saved history — the
-  figure that climbs into the millions and billions. Just below it: the day's
-  **output / turns / sessions**, and — right-aligned on the very bottom line —
-  how fresh the reading is (**updated Xs ago**)
+- **All Time Usage** — near the bottom, your **all-time Claude/Cloud** total
+  tokens and both cost estimates (cache-aware and per-token), summed from your
+  saved history — the figure that climbs into the millions and billions.
+  **Local (Ollama etc.) tokens are never mixed into this** — a different
+  tokenizer, always $0, tracked separately (see the calendar for its own
+  total). Just below it: the day's **output / turns / sessions**, and — right-
+  aligned on the very bottom line — how fresh the reading is (**Updated Xs
+  ago**)
 - **history calendar** — click the calendar button for a per-day usage calendar:
   a heat-mapped month grid, all-time summary cards, **rolling-usage cards**
   (last 5h / 7d / Fable), and a Cost/Tokens toggle. **Click any day** for a full
@@ -59,7 +62,7 @@ already writes to disk.
 
 ```
 ┌──────────────────────────────────────┐
-│ Claude Usage v1.12.0    🗓  ⟳   ×      │
+│ Claude Usage v1.13.0    🗓  ⟳   ×      │
 │ Spent Today · Cached                   │
 │ $480.44                                │
 │ If Billed Per Token:       $2,256.56   │

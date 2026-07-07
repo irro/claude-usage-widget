@@ -36,6 +36,7 @@
   .card.peak .val{color:var(--purple)} .card.peak{--accent:var(--purple)}
   .card.avg .val{color:var(--green)} .card.avg{--accent:var(--green)}
   .card.tok .val{color:var(--text)} .card.tok{--accent:var(--dim)}
+  .card.local .val{color:var(--blue)} .card.local{--accent:var(--blue)}
   .rollwrap{margin:2px 0 24px}
   .rolllbl{color:var(--dim);font-size:12.5px;font-weight:600;margin:0 0 9px}
   .rolllbl .tag{font-weight:400}
@@ -262,7 +263,7 @@
 
   <div id="windowsview" style="display:none">
     <div class="dvhead"><button id="backFromWindows">&#8249; Back to calendar</button><div class="dvtitle">Usage windows</div></div>
-    <div class="notice-banner"><span class="nicon">&#9888;</span><span>Anthropic doesn't publish exactly how many tokens a 5-hour / weekly / Fable window gives you, and that could change without notice. This tracks <b>your own observed usage</b> in each window over time so you can spot a pattern &mdash; it is not a plan quota. Reasoning-effort, fast-mode, and Claude Design usage aren't included: none of that is recorded anywhere this tool can read.</span></div>
+    <div class="notice-banner"><span class="nicon">&#9888;</span><span>Anthropic doesn't publish exactly how many tokens a 5-hour / weekly / Fable window gives you, and that could change without notice. This tracks <b>your own observed usage</b> in each window over time so you can spot a pattern &mdash; it is not a plan quota. Reasoning-effort, fast-mode, and Claude Design usage aren't included: none of that is recorded anywhere this tool can read. <b>Day tokens</b> and <b>Trailing 7d tokens</b> below are Claude/Cloud only (Local/Ollama usage is never mixed in, since it's a different tokenizer); <b>Peak 5h tokens</b> is combined across everything, since hourly detail isn't split by model.</span></div>
     <div class="cal">
       <div class="dvsec">Model mix, all-time</div>
       <div class="plist" id="wModelBars"></div>
@@ -308,7 +309,8 @@ const heat = ['--h0','--h1','--h2','--h3','--h4','--h5'];
 
 // ---- summary cards (all-time) ----
 function renderCards(){
-  const tot = days.reduce((a,d)=>{ const x=DATA[d]; a.cost+=x.cost; a.raw+=x.raw; a.tok+=x.tok; a.out+=x.out; a.turns+=x.turns; return a; },{cost:0,raw:0,tok:0,out:0,turns:0});
+  const tot = days.reduce((a,d)=>{ const x=DATA[d]; a.cost+=x.cost; a.raw+=x.raw; a.tok+=x.tok; a.tokLocal+=(x.tokLocal||0); a.out+=x.out; a.turns+=x.turns; return a; },{cost:0,raw:0,tok:0,tokLocal:0,out:0,turns:0});
+  const tokCloud = tot.tok - tot.tokLocal;
   let peak={d:null,cost:0}; days.forEach(d=>{ if(DATA[d].cost>peak.cost) peak={d,cost:DATA[d].cost}; });
   const avg = has ? tot.cost/days.length : 0;
   const cards=[
@@ -316,8 +318,11 @@ function renderCards(){
     {cls:'raw',lbl:'If billed per token',val:fmtMoney(tot.raw),sub:'no cache discount'},
     {cls:'peak',lbl:'Busiest day',val:peak.d?fmtMoney(peak.cost):'—',sub:peak.d?niceDate(parseDay(peak.d)):''},
     {cls:'avg',lbl:'Avg / active day',val:fmtMoney(avg),sub:days.length+' active days'},
-    {cls:'tok',lbl:'Total tokens',val:fmtTok(tot.tok),sub:fmtTok(tot.out)+' generated · '+tot.turns.toLocaleString()+' turns'},
+    {cls:'tok',lbl:'Total tokens',val:fmtTok(tokCloud),sub:fmtTok(tot.out)+' generated · '+tot.turns.toLocaleString()+' turns · Claude/Cloud only'},
   ];
+  // Local (Ollama etc.) is never priced and uses a different tokenizer - kept as its
+  // own card, never blended into the Cloud figures above. Only shown once you've used it.
+  if(tot.tokLocal > 0) cards.push({cls:'local',lbl:'Local (Ollama etc.)',val:fmtTok(tot.tokLocal),sub:'tokens · always $0 · separate tokenizer'});
   document.getElementById('cards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
 }
 
@@ -491,6 +496,8 @@ function renderWindows(){
   const rows = days.map(d=>{
     const x = DATA[d];
     const hrs = x.hours||[];
+    // Peak-5h stays COMBINED (all sources) - hourly buckets aren't split by model,
+    // so there's no way to isolate Local from this figure specifically.
     let peak5 = 0;
     if(hrs.length===24){
       for(let h=0; h<=19; h++){
@@ -498,17 +505,21 @@ function renderWindows(){
         if(sum>peak5) peak5=sum;
       }
     }
+    // Day tokens & the trailing-7d sum ARE cloud-only (day-level detail does
+    // distinguish Local via byModel, so it's subtracted out here) - never mixed
+    // with Local's different, non-comparable tokenizer.
+    const dayTok = (x.tok||0) - (x.tokLocal||0);
     const end = parseDay(d);
     const start = new Date(end); start.setDate(start.getDate()-6);
     let t7tok=0, t7cost=0;
     days.forEach(d2=>{
       const dt=parseDay(d2);
-      if(dt>=start && dt<=end){ t7tok += DATA[d2].tok||0; t7cost += DATA[d2].cost||0; }
+      if(dt>=start && dt<=end){ t7tok += (DATA[d2].tok||0) - (DATA[d2].tokLocal||0); t7cost += DATA[d2].cost||0; }
     });
     const bm=x.byModel||{};
     let topFam=null, topVal=-1;
     Object.keys(bm).forEach(f=>{ const v=bm[f].tok||0; if(v>topVal){ topVal=v; topFam=f; } });
-    return { d, tok:x.tok||0, cost:x.cost||0, peak5, t7tok, t7cost, topFam };
+    return { d, tok:dayTok, cost:x.cost||0, peak5, t7tok, t7cost, topFam };
   }).reverse();
 
   document.getElementById('wtable').innerHTML = rows.map((r,i)=>{

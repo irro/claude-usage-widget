@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.12.0'   # bump on each release; shown next to the title in the widget
+$Version  = '1.13.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -243,7 +243,7 @@ $lblHero    = New-Lbl $padL $heroY ($W-2*$padL) 34 $cCyan 20 $true ; $lblHero.Te
 
 # raw "if billed per token"
 $lblRawTag = New-Lbl $padL $rawY 108 16 $cDim 8.5 $false ; $lblRawTag.Text = 'If Billed Per Token:'
-$lblRawVal = New-Lbl 124 $rawY 108 16 $cAmber 9.5 $true ; $lblRawVal.TextAlign='MiddleRight'   # right edge ~232
+$lblRawVal = New-Lbl 124 $rawY ($W-$padL-124) 16 $cAmber 9.5 $true ; $lblRawVal.TextAlign='MiddleRight'   # right edge = panel's true right margin
 
 # divider 1
 $div1 = New-Object System.Windows.Forms.Panel
@@ -313,7 +313,7 @@ for($k=0;$k -lt $MaxSessionsCap;$k++){
     $sp.BackColor = $cSep
     $sp.Location = New-Object System.Drawing.Point($sSepX,262)
     $form.Controls.Add($sp)
-    $tk = New-Lbl $sTokX 260 ($W-$sTokX-$padL) 16 $cDim 8.5 $false
+    $tk = New-Lbl $sTokX 260 32 16 $cDim 8.5 $false
     $tk.TextAlign = 'MiddleLeft'
     $nm.Visible=$false; $tr.Visible=$false; $pc.Visible=$false; $sp.Visible=$false; $tk.Visible=$false
     $sName += ,$nm ; $sTrack += ,$tr ; $sFill += ,$fl ; $sPct += ,$pc ; $sSep += ,$sp ; $sTok += ,$tk
@@ -760,12 +760,12 @@ function Fmt-Tok($n){
 }
 function Money($n){ '$' + ('{0:N2}' -f [double]$n) }
 function Fmt-Ago($mtimeUtc){
-    if($null -eq $mtimeUtc){ return 'updated just now' }
+    if($null -eq $mtimeUtc){ return 'Updated just now' }
     $s = ([DateTimeOffset]::UtcNow - [DateTimeOffset]$mtimeUtc).TotalSeconds
     if($s -lt 0){ $s = 0 }
-    if($s -lt 60){ 'updated ' + [int]$s + 's ago' }
-    elseif($s -lt 3600){ 'updated ' + [int]($s/60) + 'm ago' }
-    else { 'updated ' + [int]($s/3600) + 'h ago' }
+    if($s -lt 60){ 'Updated ' + [int]$s + 's ago' }
+    elseif($s -lt 3600){ 'Updated ' + [int]($s/60) + 'm ago' }
+    else { 'Updated ' + [int]($s/3600) + 'h ago' }
 }
 # --- render ---------------------------------------------------------------
 # Families with usage, in fixed display order.
@@ -823,14 +823,16 @@ function Relayout($fams,$nSess){
     # -> updated (right, the very bottom line)
     $div3.Top = $bottom + 2; $div3.Visible=$true
     $b0 = $div3.Top + 8
-    # two tight pairs (2px gap each) with a clear 8px gap between the groups,
-    # so "All Time" reads as one block and "today + freshness" as another
+    # "All Time Usage:" headline gets more breathing room below it (6px), then
+    # the cost/turns/updated detail lines read as one tight block (2px each) -
+    # Jacob's feedback 2026-07-06: rows 1-2 had too little space, rows 2-3 had
+    # too much; row 3-4 was already right.
     $lblTick1.Top = $b0;       $lblTick1.Visible=$true      # All Time Usage: X tokens
-    $lblTick2.Top = $b0 + 16;  $lblTick2.Visible=$true      # cached / per-token costs
-    $lblFoot1.Top = $b0 + 38;  $lblFoot1.Visible=$true      # output / turns / sessions (left)
-    $lblFoot2.Top = $b0 + 55;  $lblFoot2.Visible=$true      # updated Xs ago (right)
+    $lblTick2.Top = $b0 + 20;  $lblTick2.Visible=$true      # cached / per-token costs
+    $lblFoot1.Top = $b0 + 36;  $lblFoot1.Visible=$true      # output / turns / sessions (left)
+    $lblFoot2.Top = $b0 + 53;  $lblFoot2.Visible=$true      # Updated Xs ago (right)
     $divT.Visible=$false                                    # (old ticker divider, unused now)
-    $bottom = $b0 + 55 + 22
+    $bottom = $b0 + 53 + 22
 
     $newH = $bottom
     if($form.Height -ne $newH){
@@ -885,16 +887,22 @@ function Repaint-Sessions($sessions){
 function Get-AllTime {
     $now=[DateTime]::UtcNow
     if($script:allTime -and $script:allTimeAt -and ($now-$script:allTimeAt).TotalSeconds -lt 30){ return $script:allTime }
-    $tok=0.0; $cost=0.0; $raw=0.0
-    try { $h=Load-History; foreach($k in $h.Keys){ $x=$h[$k]; $tok+=[double]$x.tok; $cost+=[double]$x.cost; $raw+=[double]$x.raw } } catch {}
-    $script:allTime=@{ tok=$tok; cost=$cost; raw=$raw }; $script:allTimeAt=$now
+    $tok=0.0; $tokLocal=0.0; $cost=0.0; $raw=0.0
+    try { $h=Load-History; foreach($k in $h.Keys){ $x=$h[$k]; $tok+=[double]$x.tok; $tokLocal+=[double]$x.tokLocal; $cost+=[double]$x.cost; $raw+=[double]$x.raw } } catch {}
+    # Local (e.g. Ollama) tokens are never priced (always $0, see Get-Price/Family) and
+    # use a different tokenizer than Claude's, so they're kept OUT of the Cloud/Claude
+    # figures below - never blended into one mixed-unit number. Local's own total is
+    # only shown in the calendar (Usage Windows page), where there's room to do it justice.
+    $tokCloud = $tok - $tokLocal
+    $script:allTime=@{ tok=$tok; tokLocal=$tokLocal; tokCloud=$tokCloud; cost=$cost; raw=$raw }; $script:allTimeAt=$now
     return $script:allTime
 }
-# Paint the bottom "All Time Usage:" lines (total tokens + both cost estimates).
+# Paint the bottom "All Time Usage:" lines (Claude/Cloud tokens + both cost
+# estimates - Local/Ollama usage is tracked separately, never mixed in here).
 function Repaint-Ticker {
     $dot=[string][char]0x00B7
     $a=Get-AllTime
-    Set-T $lblTick1 ('All Time Usage:  ' + (Fmt-Tok $a.tok) + ' tokens')
+    Set-T $lblTick1 ('All Time Usage:  ' + (Fmt-Tok $a.tokCloud) + ' tokens')
     Set-T $lblTick2 ((Money $a.cost) + ' cached  ' + $dot + '  ' + (Money $a.raw) + ' per token')
 }
 function Update-Widget {
@@ -1020,14 +1028,14 @@ function Load-History {
     if(Test-Path $HistPath){
         try {
             $o = Get-Content $HistPath -Raw -Encoding UTF8 | ConvertFrom-Json
-            foreach($p in $o.PSObject.Properties){ $v=$p.Value; $h[$p.Name]=@{cost=[double]$v.cost;raw=[double]$v.raw;tok=[double]$v.tok;out=[double]$v.out;turns=[int]$v.turns} }
+            foreach($p in $o.PSObject.Properties){ $v=$p.Value; $h[$p.Name]=@{cost=[double]$v.cost;raw=[double]$v.raw;tok=[double]$v.tok;tokLocal=[double]$v.tokLocal;out=[double]$v.out;turns=[int]$v.turns} }
         } catch { }
     }
     return $h
 }
 function Save-History($h){
     $clean=[ordered]@{}
-    foreach($k in ($h.Keys | Sort-Object)){ $d=$h[$k]; $clean[$k]=[ordered]@{cost=[math]::Round($d.cost,2);raw=[math]::Round($d.raw,2);tok=[math]::Round($d.tok);out=[math]::Round($d.out);turns=$d.turns} }
+    foreach($k in ($h.Keys | Sort-Object)){ $d=$h[$k]; $tl=if($d.tokLocal){$d.tokLocal}else{0}; $clean[$k]=[ordered]@{cost=[math]::Round($d.cost,2);raw=[math]::Round($d.raw,2);tok=[math]::Round($d.tok);tokLocal=[math]::Round($tl);out=[math]::Round($d.out);turns=$d.turns} }
     try { ($clean | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $HistPath -Encoding UTF8 } catch { }
     return $clean
 }
@@ -1039,8 +1047,9 @@ function Persist-Today($d){
     try {
         $hist  = Load-History
         $today = (Get-Date).ToString('yyyy-MM-dd')
+        $tokLocal = if($d.by.ContainsKey('Local')){ $d.by['Local'].tok } else { 0.0 }
         if(-not $hist.ContainsKey($today) -or $d.turns -ge $hist[$today].turns){
-            $hist[$today] = @{ cost=$d.cost; raw=$d.raw; tok=$d.tok; out=$d.out; turns=$d.turns }
+            $hist[$today] = @{ cost=$d.cost; raw=$d.raw; tok=$d.tok; tokLocal=$tokLocal; out=$d.out; turns=$d.turns }
             [void](Save-History $hist)
         }
     } catch { }
@@ -1057,7 +1066,8 @@ function Open-History {
         foreach($k in $scan.byDay.Keys){
             $sd=$scan.byDay[$k]
             if(-not $hist.ContainsKey($k) -or $sd.turns -ge $hist[$k].turns){
-                $hist[$k]=@{ cost=$sd.cost; raw=$sd.raw; tok=$sd.tok; out=$sd.out; turns=$sd.turns }
+                $tokLocal = if($sd.byModel.ContainsKey('Local')){ $sd.byModel['Local'].tok } else { 0.0 }
+                $hist[$k]=@{ cost=$sd.cost; raw=$sd.raw; tok=$sd.tok; tokLocal=$tokLocal; out=$sd.out; turns=$sd.turns }
             }
         }
         [void](Save-History $hist)
@@ -1068,7 +1078,8 @@ function Open-History {
         $embed=[ordered]@{}
         foreach($day in ($hist.Keys | Sort-Object)){
             $t=$hist[$day]
-            $entry=[ordered]@{ cost=[math]::Round($t.cost,2); raw=[math]::Round($t.raw,2); tok=[math]::Round($t.tok); out=[math]::Round($t.out); turns=$t.turns; byModel=[ordered]@{}; hours=@(); sessions=@() }
+            $tlv = if($t.tokLocal){ $t.tokLocal } else { 0 }
+            $entry=[ordered]@{ cost=[math]::Round($t.cost,2); raw=[math]::Round($t.raw,2); tok=[math]::Round($t.tok); tokLocal=[math]::Round($tlv); out=[math]::Round($t.out); turns=$t.turns; byModel=[ordered]@{}; hours=@(); sessions=@() }
             $rich=$scan.byDay[$day]
             if($rich){
                 foreach($fam in ($rich.byModel.Keys | Sort-Object { $rich.byModel[$_].tok } -Descending)){

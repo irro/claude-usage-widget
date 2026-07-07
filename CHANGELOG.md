@@ -2,6 +2,22 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.13.0 — 2026-07-06
+
+- **Local and Cloud totals are now kept fully separate.** "All Time Usage:"
+  (widget + calendar) is now Claude/Cloud tokens only — Local (Ollama etc.)
+  tokens never get blended in, since it's a different tokenizer. The
+  calendar's home page gets its own "Local (Ollama etc.)" card once you've
+  used one, and the Usage Windows page's Day/Trailing-7d columns are
+  Cloud-only too (Peak-5h stays combined — hourly detail isn't split by
+  model).
+- **Bottom-4-lines spacing fixed** — more room between "All Time Usage:" and
+  the cost line below it, tighter spacing between the cost line and
+  output/turns/sessions, "Updated Xs ago" capitalized.
+- **"If Billed Per Token:" value now sits flush against the panel's true
+  right edge** instead of floating short of it.
+- **Trimmed the trailing whitespace** after each recent chat's token count.
+
 ## v1.12.0 — 2026-07-06
 
 - **Removed the "Local AI can only run one chat..." notice banner** from both

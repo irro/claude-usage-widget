@@ -92,7 +92,7 @@
 
   <div class="hero">
     <div class="mock">
-      <div class="top"><span class="model">Claude Usage <span style="color:var(--dim);font-weight:400;font-size:11px">v1.12.0</span></span><span class="x">&#128197;&nbsp;&#8635;&nbsp;&times;</span></div>
+      <div class="top"><span class="model">Claude Usage <span style="color:var(--dim);font-weight:400;font-size:11px">v1.13.0</span></span><span class="x">&#128197;&nbsp;&#8635;&nbsp;&times;</span></div>
       <div style="color:var(--dim);font-size:11px;margin:2px 0 1px">Spent Today &middot; Cached</div>
       <div style="color:var(--cyan);font-weight:700;font-size:27px;line-height:1.1;margin-bottom:4px">$480.44</div>
       <div class="trow"><span class="tlab">If Billed Per Token:</span><span class="tval raw">$2,256.56</span></div>
@@ -163,7 +163,7 @@
       <div class="k">If Billed Per Token:</div><div>The raw &ldquo;sticker&rdquo; price for today: <i>every</i> input, cache, and output token at full list rate, no cache discount. Always larger &mdash; usually several times the cached figure.</div>
       <div class="k">model rows</div><div>Up to five rows &mdash; one per model family you've <b>used today</b> (Opus, Sonnet, Haiku, Fable, and <b>Local</b> if Claude Code was ever pointed at a non-Claude model, e.g. Ollama), summed across all sessions. Each shows that model's cache-aware cost and <b>the total tokens it used today</b> &mdash; Local always shows $0, it's never priced. The panel grows/shrinks to fit &mdash; no empty rows.</div>
       <div class="k">Recent Chats &middot; Context Used</div><div>Your up to <b>10 most-recent chat sessions</b>, each named exactly as in the Claude app (its custom or AI-generated title). The bar shows <b>how full that chat's context window is</b> right now &mdash; green under 70%, amber to 89%, red at 90%+ (getting close to a compaction) &mdash; with the <b>percentage and the absolute context-token count</b> beside it, split by a thin divider (e.g. <code>67% | 670k</code>). Hover a row for the model and how long ago it was active; <b>right-click a row to archive that chat</b>, or <b>click the section header (&#9662;) to collapse the whole list</b> (it remembers your choice). Unlike the totals above, this list spans <i>all</i> your recent chats, not just today's.</div>
-      <div class="k">All Time Usage:</div><div>Near the bottom: your <b>all-time</b> total tokens and both cost estimates (cache-aware and per-token), summed from your saved history &mdash; the figure that grows into the millions and billions. (It reflects recorded history; opening the calendar once fills in any older days.) Just below it, left-aligned, is the day's <b>output / turns / sessions</b>; and on the very bottom line, right-aligned, <b>updated &hellip; ago</b> (how fresh the reading is).</div>
+      <div class="k">All Time Usage:</div><div>Near the bottom: your <b>all-time Claude/Cloud</b> total tokens and both cost estimates (cache-aware and per-token), summed from your saved history &mdash; the figure that grows into the millions and billions. <b>Local (Ollama etc.) tokens are never mixed in here</b> &mdash; different tokenizer, always $0, tracked separately (see the calendar). (It reflects recorded history; opening the calendar once fills in any older days.) Just below it, left-aligned, is the day's <b>output / turns / sessions</b>; and on the very bottom line, right-aligned, <b>Updated &hellip; ago</b> (how fresh the reading is).</div>
     </div>
   </div>
   <div class="note">
