@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.14.0'   # bump on each release; shown next to the title in the widget
+$Version  = '1.14.1'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -273,11 +273,15 @@ $div2.BackColor = $cTrack
 $div2.Location = New-Object System.Drawing.Point($padL,180)
 $form.Controls.Add($div2)
 
-# output / turns / sessions: 3 even columns spanning the full row width (left /
-# center / right), instead of one bunched-up left-aligned string
-$lblFoot1a = New-Lbl $padL 188 92 15 $cDim 8 $false ; $lblFoot1a.Text = 'starting...'   # output, left
-$lblFoot1b = New-Lbl 104 188 92 15 $cDim 8 $false ; $lblFoot1b.TextAlign = 'MiddleCenter'   # turns, center
-$lblFoot1c = New-Lbl 196 188 92 15 $cDim 8 $false ; $lblFoot1c.TextAlign = 'MiddleRight'    # sessions, right
+# output / turns / sessions: 3 columns spanning the full row width (left /
+# center / right), with a small dot marker carved out between each pair so
+# the split is visible even when the values are short
+$dotChar = [string][char]0x00B7
+$lblFoot1a = New-Lbl $padL 188 84 15 $cDim 8 $false ; $lblFoot1a.Text = 'starting...'   # output, left
+$lblFoot1Sep1 = New-Lbl 96 188 16 15 $cDim 8 $false ; $lblFoot1Sep1.TextAlign = 'MiddleCenter' ; $lblFoot1Sep1.Text = $dotChar
+$lblFoot1b = New-Lbl 112 188 76 15 $cDim 8 $false ; $lblFoot1b.TextAlign = 'MiddleCenter'   # turns, center
+$lblFoot1Sep2 = New-Lbl 188 188 16 15 $cDim 8 $false ; $lblFoot1Sep2.TextAlign = 'MiddleCenter' ; $lblFoot1Sep2.Text = $dotChar
+$lblFoot1c = New-Lbl 204 188 84 15 $cDim 8 $false ; $lblFoot1c.TextAlign = 'MiddleRight'    # sessions, right
 $lblFoot2 = New-Lbl $padL 203 ($W-2*$padL) 14 $cDim 8 $false ; $lblFoot2.Text = '' ; $lblFoot2.TextAlign = 'MiddleRight'  # updated Xs ago, right
 
 # --- recent-chats context section (divider + header + N chat rows) ---------
@@ -349,8 +353,9 @@ $form.Controls.Add($divT)
 # the row's horizontal space used instead of one bunched-up left-aligned string.
 $lblTick1a = New-Lbl $padL 308 110 14 $cText 8 $false ; $lblTick1a.Visible=$false ; $lblTick1a.Text='All Time Usage:'
 $lblTick1b = New-Lbl 122 308 166 14 $cText 8 $false ; $lblTick1b.TextAlign='MiddleRight' ; $lblTick1b.Visible=$false
-$lblTick2a = New-Lbl $padL 322 120 14 $cDim  8 $false ; $lblTick2a.Visible=$false
-$lblTick2b = New-Lbl 132 322 156 14 $cDim  8 $false ; $lblTick2b.TextAlign='MiddleRight' ; $lblTick2b.Visible=$false
+$lblTick2a = New-Lbl $padL 322 112 14 $cDim  8 $false ; $lblTick2a.Visible=$false
+$lblTick2Sep = New-Lbl 124 322 16 14 $cDim 8 $false ; $lblTick2Sep.TextAlign='MiddleCenter' ; $lblTick2Sep.Text=$dotChar ; $lblTick2Sep.Visible=$false
+$lblTick2b = New-Lbl 140 322 148 14 $cDim  8 $false ; $lblTick2b.TextAlign='MiddleRight' ; $lblTick2b.Visible=$false
 
 # --- right-click menu -----------------------------------------------------
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
@@ -398,7 +403,7 @@ $dragHandler = {
 }
 function Wire-Drag($c){ $c.ContextMenuStrip = $menu; $c.Add_MouseDown($dragHandler) }
 # everything is a drag handle EXCEPT the refresh / close buttons (they click)
-$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1a,$lblFoot1b,$lblFoot1c,$lblFoot2,$div3,$divT,$lblTick1a,$lblTick1b,$lblTick2a,$lblTick2b)
+$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1a,$lblFoot1Sep1,$lblFoot1b,$lblFoot1Sep2,$lblFoot1c,$lblFoot2,$div3,$divT,$lblTick1a,$lblTick1b,$lblTick2a,$lblTick2Sep,$lblTick2b)
 $dragCtrls += $rowName + $rowCost + $rowOut
 $dragCtrls += $sName + $sTrack + $sFill + $sPct + $sSep + $sTok
 foreach($c in $dragCtrls){ Wire-Drag $c }
@@ -859,9 +864,12 @@ function Relayout($fams,$nSess){
     $lblTick1a.Top = $b0;      $lblTick1a.Visible=$true     # All Time Usage: (left)
     $lblTick1b.Top = $b0;      $lblTick1b.Visible=$true     # X tokens (right)
     $lblTick2a.Top = $b0 + 20; $lblTick2a.Visible=$true     # $X cached (left)
+    $lblTick2Sep.Top = $b0 + 20; $lblTick2Sep.Visible=$true # · marker
     $lblTick2b.Top = $b0 + 20; $lblTick2b.Visible=$true     # $Y per token (right)
     $lblFoot1a.Top = $b0 + 36; $lblFoot1a.Visible=$true     # output (left)
+    $lblFoot1Sep1.Top = $b0 + 36; $lblFoot1Sep1.Visible=$true  # · marker
     $lblFoot1b.Top = $b0 + 36; $lblFoot1b.Visible=$true     # turns (center)
+    $lblFoot1Sep2.Top = $b0 + 36; $lblFoot1Sep2.Visible=$true  # · marker
     $lblFoot1c.Top = $b0 + 36; $lblFoot1c.Visible=$true     # sessions (right)
     $lblFoot2.Top = $b0 + 53;  $lblFoot2.Visible=$true      # Updated Xs ago (right)
     $divT.Visible=$false                                    # (old ticker divider, unused now)

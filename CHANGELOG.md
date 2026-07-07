@@ -2,6 +2,12 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.14.1 — 2026-07-07
+
+- Added a small **·** marker between the cached/per-token costs, and between
+  output/turns/sessions, so the split is visible even when the values
+  themselves are short.
+
 ## v1.14.0 — 2026-07-07
 
 - **Every row now uses the panel's full width, justified edge to edge**

@@ -66,7 +66,7 @@ already writes to disk.
 
 ```
 ┌──────────────────────────────────────┐
-│ Claude Usage v1.14.0    🗓  ⟳   ×      │
+│ Claude Usage v1.14.1    🗓  ⟳   ×      │
 │ Spent Today · Cached                   │
 │ $480.44                                │
 │ If Billed Per Token:       $2,256.56   │
@@ -80,8 +80,8 @@ already writes to disk.
 │ …up to 10 (right-click → archive)      │
 │ ────────────────────────────────────── │
 │ All Time Usage:         6.38B tokens   │
-│ $5,528.96 cached      $31,343.45/token │
-│ ↓ 1.9M output   739 turns   6 sessions │
+│ $5,528.96 cached    · $31,343.45/token │
+│ ↓ 1.9M output · 739 turns · 6 sessions │
 │                        Updated 1s ago  │
 └──────────────────────────────────────┘
 ```
