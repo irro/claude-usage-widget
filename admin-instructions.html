@@ -92,7 +92,7 @@
 
   <div class="hero">
     <div class="mock">
-      <div class="top"><span class="model">Claude Usage <span style="color:var(--dim);font-weight:400;font-size:11px">v1.11.0</span></span><span class="x">&#128197;&nbsp;&#8635;&nbsp;&times;</span></div>
+      <div class="top"><span class="model">Claude Usage <span style="color:var(--dim);font-weight:400;font-size:11px">v1.12.0</span></span><span class="x">&#128197;&nbsp;&#8635;&nbsp;&times;</span></div>
       <div style="color:var(--dim);font-size:11px;margin:2px 0 1px">Spent Today &middot; Cached</div>
       <div style="color:var(--cyan);font-weight:700;font-size:27px;line-height:1.1;margin-bottom:4px">$480.44</div>
       <div class="trow"><span class="tlab">If Billed Per Token:</span><span class="tval raw">$2,256.56</span></div>
@@ -100,7 +100,6 @@
       <div class="mrow"><span class="mname opus">Opus</span><span class="cost">$480.44</span><span class="out">1.04B</span></div>
       <div class="mrow"><span class="mname" style="color:var(--amber)">Fable</span><span class="cost">$14.83</span><span class="out">29.6M</span></div>
       <div class="div"></div>
-      <div style="display:flex;gap:7px;background:rgba(227,179,65,.08);border-left:3px solid var(--amber);border-radius:0 6px 6px 0;padding:6px 8px;margin:2px 0 6px;color:var(--amber);font-size:10px;line-height:1.35">&#9888;&nbsp;Local AI can only run one chat at a time and it can take up to 5 seconds for an initial reply.</div>
       <div class="shdr" style="cursor:pointer">&#9662; Recent Chats &middot; Context Used</div>
       <div class="srow"><span class="sname">Hearth</span><span class="sbar"><span style="width:41%;background:var(--green)"></span></span><span class="spct" style="color:var(--green)">41%</span><span class="ssep"></span><span class="stok">410k</span></div>
       <div class="srow"><span class="sname">United Disease&hellip;</span><span class="sbar"><span style="width:95%;background:var(--red)"></span></span><span class="spct" style="color:var(--red)">95%</span><span class="ssep"></span><span class="stok">950k</span></div>
@@ -163,7 +162,6 @@
       <div class="k">Spent Today &middot; Cached</div><div>The headline number: today's <b>cache-aware</b> cost, summed across every session since midnight. The realistic API estimate &mdash; <b>see the note below.</b></div>
       <div class="k">If Billed Per Token:</div><div>The raw &ldquo;sticker&rdquo; price for today: <i>every</i> input, cache, and output token at full list rate, no cache discount. Always larger &mdash; usually several times the cached figure.</div>
       <div class="k">model rows</div><div>Up to five rows &mdash; one per model family you've <b>used today</b> (Opus, Sonnet, Haiku, Fable, and <b>Local</b> if Claude Code was ever pointed at a non-Claude model, e.g. Ollama), summed across all sessions. Each shows that model's cache-aware cost and <b>the total tokens it used today</b> &mdash; Local always shows $0, it's never priced. The panel grows/shrinks to fit &mdash; no empty rows.</div>
-      <div class="k">notice banner</div><div>A small amber callout just above the chats list: <i>&ldquo;Local AI can only run one chat at a time and it can take up to 5 seconds for an initial reply.&rdquo;</i> Shown whenever there's a chat list to show.</div>
       <div class="k">Recent Chats &middot; Context Used</div><div>Your up to <b>10 most-recent chat sessions</b>, each named exactly as in the Claude app (its custom or AI-generated title). The bar shows <b>how full that chat's context window is</b> right now &mdash; green under 70%, amber to 89%, red at 90%+ (getting close to a compaction) &mdash; with the <b>percentage and the absolute context-token count</b> beside it, split by a thin divider (e.g. <code>67% | 670k</code>). Hover a row for the model and how long ago it was active; <b>right-click a row to archive that chat</b>, or <b>click the section header (&#9662;) to collapse the whole list</b> (it remembers your choice). Unlike the totals above, this list spans <i>all</i> your recent chats, not just today's.</div>
       <div class="k">All Time Usage:</div><div>Near the bottom: your <b>all-time</b> total tokens and both cost estimates (cache-aware and per-token), summed from your saved history &mdash; the figure that grows into the millions and billions. (It reflects recorded history; opening the calendar once fills in any older days.) Just below it, left-aligned, is the day's <b>output / turns / sessions</b>; and on the very bottom line, right-aligned, <b>updated &hellip; ago</b> (how fresh the reading is).</div>
     </div>
@@ -176,7 +174,10 @@
   </div>
 
   <div class="note">
-    <b>Why not the real 5-hour / weekly / Fable meters?</b> Claude Code shows official plan meters in its <code>/usage</code> view (the 5-hour session limit, the weekly all-models limit, the weekly Fable limit). Those percentages come <b>live from Anthropic's API and are never written to any local file</b> &mdash; so an offline, transcript-only tool like this genuinely can't read them without making network calls, which would break its no-network promise. The history calendar's <b>rolling-usage cards</b> are the honest alternative: they sum <i>your</i> actual token usage in the last 5 hours / 7 days. They tell you how hard you've been working in those windows &mdash; they just can't know your plan's remaining percentage.
+    <b>Why not the real 5-hour / weekly / Fable meters?</b> Claude Code shows official plan meters in its <code>/usage</code> view (the 5-hour session limit, the weekly all-models limit, the weekly Fable limit). Those percentages come <b>live from Anthropic's API and are never written to any local file</b> &mdash; so an offline, transcript-only tool like this genuinely can't read them without making network calls, which would break its no-network promise. The history calendar's <b>rolling-usage cards</b> and <b>Usage Windows page</b> are the honest alternative: they sum <i>your</i> actual token usage in the last 5 hours / day / 7 days. They tell you how hard you've been working in those windows &mdash; they just can't know your plan's remaining percentage.
+  </div>
+  <div class="note">
+    <b>Known limitations.</b> This tool can only read what Claude Code writes locally &mdash; it can't see <b>Claude Design</b> (Anthropic doesn't release token counts for it), <b>claude.ai chat/co-work</b> in the web app (runs entirely on Anthropic's servers, no local footprint), or <b>reasoning effort/fast mode</b> (not recorded in the local transcript format). This same list is at the bottom of the calendar's home page, kept up to date.
   </div>
 
   <h2><span class="n">6</span>How it works (under the hood)</h2>

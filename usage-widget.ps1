@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.11.0'   # bump on each release; shown next to the title in the widget
+$Version  = '1.12.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -273,17 +273,6 @@ $form.Controls.Add($div2)
 $lblFoot1 = New-Lbl $padL 188 ($W-2*$padL) 15 $cDim 8 $false ; $lblFoot1.Text = 'starting...'   # turns/sessions, left
 $lblFoot2 = New-Lbl $padL 203 ($W-2*$padL) 14 $cDim 8 $false ; $lblFoot2.Text = '' ; $lblFoot2.TextAlign = 'MiddleRight'  # updated Xs ago, right
 
-# notice banner (above the chats list): local-AI chats are single-threaded and slower to start
-$lblBannerBar = New-Object System.Windows.Forms.Panel
-$lblBannerBar.Size = New-Object System.Drawing.Size(3,28)
-$lblBannerBar.Location = New-Object System.Drawing.Point($padL,0)
-$lblBannerBar.BackColor = $cAmber
-$lblBannerBar.Visible = $false
-$form.Controls.Add($lblBannerBar)
-$lblBanner = New-Lbl ($padL+8) 0 ($W-2*$padL-8) 28 $cAmber 7.5 $false
-$lblBanner.Text = 'Local AI can only run one chat at a time and it can take up to 5 seconds for an initial reply.'
-$lblBanner.Visible = $false
-
 # --- recent-chats context section (divider + header + N chat rows) ---------
 # One tooltip serves every chat row (full name + exact token detail on hover).
 $tip = New-Object System.Windows.Forms.ToolTip
@@ -386,7 +375,7 @@ $dragHandler = {
 }
 function Wire-Drag($c){ $c.ContextMenuStrip = $menu; $c.Add_MouseDown($dragHandler) }
 # everything is a drag handle EXCEPT the refresh / close buttons (they click)
-$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1,$lblFoot2,$div3,$divT,$lblTick1,$lblTick2,$lblBannerBar,$lblBanner)
+$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1,$lblFoot2,$div3,$divT,$lblTick1,$lblTick2)
 $dragCtrls += $rowName + $rowCost + $rowOut
 $dragCtrls += $sName + $sTrack + $sFill + $sPct + $sSep + $sTok
 foreach($c in $dragCtrls){ Wire-Drag $c }
@@ -803,15 +792,6 @@ function Relayout($fams,$nSess){
     $dY = $rowsTop + $n*$rowH + 6
     $div2.Top = $dY; $div2.Visible=$true          # divider between models and recent chats
     $bottom = $dY + 6
-
-    # notice banner sits directly above the chats list, only when there is one
-    if($nSess -gt 0){
-        $lblBannerBar.Top = $bottom + 2; $lblBannerBar.Visible=$true
-        $lblBanner.Top = $bottom; $lblBanner.Visible=$true
-        $bottom = $bottom + 28 + 6
-    } else {
-        $lblBannerBar.Visible=$false; $lblBanner.Visible=$false
-    }
 
     # recent-chats section (header always shown when there are chats; the rows
     # collapse away when $script:sessCollapsed, leaving just the clickable header)

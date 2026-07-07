@@ -44,8 +44,6 @@ USING IT
   ARCHIVE it: it leaves the list (and the calendar's chat lists) but its tokens
   still count in every total. Right-click -> "Unarchive" brings them back.
   Nothing is ever deleted. Click the "Recent Chats" header to collapse the list.
-  A small notice banner above the list is a heads-up that local-AI chats run
-  one at a time and can take up to 5 seconds for an initial reply.
 * All-time ticker = the very bottom line shows your all-time total tokens and
   cost estimates (this is the number that grows into the millions/billions).
 * Calendar icon  = open your usage history (a lovely per-day calendar, with an
@@ -67,6 +65,13 @@ GOOD TO KNOW
   usage in that window, not your plan's remaining %, which Claude keeps online
   and never saves to a file.
 * It only ever reads local files. No network, nothing leaves your computer.
+* What it CAN'T track (nothing to read, on this PC or anywhere): Claude Design
+  (Anthropic doesn't release token counts for it), claude.ai chat/co-work in
+  the web app (runs entirely on Anthropic's servers), and reasoning-effort /
+  fast-mode (not recorded in the local transcript format). Only Claude Code /
+  Claude CLI usage is tracked — including a local model like Ollama, shown as
+  "Local" and always $0. See the "Known limitations" note at the bottom of
+  the history calendar for the always-current list.
 
 Full guide: open  admin-instructions.html  in your browser.
 Enjoy!  💚

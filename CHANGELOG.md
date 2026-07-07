@@ -2,6 +2,15 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.12.0 — 2026-07-06
+
+- **Removed the "Local AI can only run one chat..." notice banner** from both
+  the widget and the calendar's All Chats section.
+- **New "Known limitations" list** at the bottom of the calendar's home page —
+  what this tool can't track (Claude Design, claude.ai chat/co-work, reasoning
+  effort/fast mode) and why, kept in one place. Also added to `START HERE.txt`
+  so new installs see it upfront.
+
 ## v1.11.0 — 2026-07-06
 
 - **Settings panel in the calendar.** A new panel at the top of the history

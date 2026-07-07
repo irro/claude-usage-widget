@@ -14,8 +14,6 @@ everything stays put and just climbs as you work. Shown all at once:
   and **Local** if you ever point Claude Code at a local model like Ollama),
   each with that model's cache-aware cost and **the total tokens it used today**
   (Local always shows $0 — it's never priced)
-- **a notice banner** above the chats list — a heads-up that local-AI chats run
-  one at a time and can take up to 5 seconds for an initial reply
 - **Recent Chats · Context Used** — a live list of your up to **10 most-recent
   chat sessions**, each named exactly as in the Claude app (its custom or
   AI-generated title) with a bar for **how full that chat's context window is**
@@ -50,6 +48,10 @@ everything stays put and just climbs as you work. Shown all at once:
   observed usage** in each window over time (day totals, the busiest
   5-consecutive-hour stretch each day, and a trailing 7-day sum) so you can
   spot a pattern if it ever changes. Reuses data already saved, no new scanning
+- **a "Known limitations" list** at the bottom of the calendar's home page —
+  what this tool genuinely can't track (Claude Design, claude.ai chat/co-work,
+  reasoning effort/fast mode) and why, kept in one place and shown on first
+  install too
 
 It's a single small PowerShell program. No installer, no dependencies, no
 network, no background service — it just reads the transcript files Claude Code
@@ -57,7 +59,7 @@ already writes to disk.
 
 ```
 ┌──────────────────────────────────────┐
-│ Claude Usage v1.11.0    🗓  ⟳   ×      │
+│ Claude Usage v1.12.0    🗓  ⟳   ×      │
 │ Spent Today · Cached                   │
 │ $480.44                                │
 │ If Billed Per Token:       $2,256.56   │
@@ -65,8 +67,6 @@ already writes to disk.
 │ Opus       $480.44           1.04B     │
 │ Fable      $14.83            29.6M      │
 │ ────────────────────────────────────── │
-│ ⚠ Local AI can only run one chat at a  │
-│   time; up to 5s for an initial reply. │
 │ ▾ Recent Chats · Context Used          │
 │ Hearth        ▓▓▓▓░░░  41% │ 410k       │
 │ United Dise…  ▓▓▓▓▓▓▓  95% │ 950k       │

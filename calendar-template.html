@@ -77,6 +77,11 @@
   .wtr:last-child{border-bottom:0}
   .wtr.odd{background:var(--panel)} .wtr.even{background:#12171f}
   .wtr .wnum{text-align:right;font-variant-numeric:tabular-nums}
+
+  /* known limitations list */
+  .limlist{margin:0;padding-left:20px;color:var(--text);font-size:13px;line-height:1.6}
+  .limlist li{margin-bottom:4px}
+  .limlist b{color:var(--dim)}
   .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:8px}
   .dow div{color:var(--dim);font-size:11.5px;text-align:center;text-transform:uppercase;letter-spacing:.5px}
   .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
@@ -231,10 +236,19 @@
         </select>
       </div>
       <div id="acbody">
-        <div class="notice-banner"><span class="nicon">&#9888;</span><span>Local AI can only run one chat at a time and it can take up to 5 seconds for an initial reply.</span></div>
         <div class="calhint" style="margin:0 0 12px">Every chat we still have logs for. Click a row to expand its token detail.</div>
         <div class="zlist" id="allchats"></div>
       </div>
+    </div>
+
+    <div class="cal">
+      <div class="dvsec">Known limitations &mdash; what this tool can't track</div>
+      <ul class="limlist">
+        <li><b>Claude Design.</b> Anthropic doesn't release token counts for it &mdash; there's nothing to read, on or off your machine.</li>
+        <li><b>claude.ai chat &amp; co-work (the web app).</b> That runs entirely on Anthropic's servers; nothing is ever written to your machine for it.</li>
+        <li><b>Reasoning effort &amp; fast mode.</b> Not recorded in the local transcript format Claude Code writes, so there's no field to read.</li>
+      </ul>
+      <div class="calhint" style="margin:10px 0 0">Only Claude Code / Claude CLI usage is tracked (local transcripts under <code>%USERPROFILE%\.claude\projects\</code>) &mdash; including a local model like Ollama if you ever point Claude Code at one (shown as "Local", always $0).</div>
     </div>
   </div>
 
