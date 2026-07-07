@@ -10,21 +10,26 @@ everything stays put and just climbs as you work. Shown all at once:
   the way a real API bill works with prompt caching (cache reads ~90% off)
 - **If Billed Per Token:** — the raw "sticker" price: every token at full list
   rate, no cache discount (always the larger number)
-- **a row for every model used today** — up to five (Opus, Sonnet, Haiku, Fable,
-  and **Local** if you ever point Claude Code at a local model like Ollama),
-  each with that model's cache-aware cost — **lined up with where the context
-  bar starts** in the recent-chats rows below — and **the total tokens it used
-  today** (Local always shows $0 — it's never priced)
-- **Context Used · Recent Cloud Chats** — a live list of your up to **10
-  most-recent chat sessions**, each named exactly as in the Claude app (its
-  custom or AI-generated title) with a bar for **how full that chat's context
-  window is** right now (green → amber → red as it fills), the **percentage**,
-  and the **absolute context-token count** beside it (e.g. `67% │ 670k`). See
+- **model usage, split into two groups** — **Claude Cloud:** shows a row for
+  every Claude family used today (Opus, Sonnet, Haiku, Fable), each with that
+  model's cache-aware cost — **lined up with where the context bar starts**
+  in the recent-chats rows below — and the total tokens it used today.
+  **Local:** shows the **last 5 distinct local models you used today** (e.g.
+  different Ollama tags) with their own token counts (no cost column — Local
+  is never priced, so a repeated $0.00 would just be noise)
+- **Context Used · Recent Cloud Chats**, and its own **Context Used · Recent
+  Local Chats** section right below it — each a live list of your most-recent
+  chat sessions (10 cloud / 5 local by default, both configurable), named
+  exactly as in the Claude app (its custom or AI-generated title) with a bar
+  for **how full that chat's context window is** right now (green → amber →
+  red as it fills — Local uses its own auto-detected window size, since local
+  model context sizes vary a lot more than Claude's), the **percentage**, and
+  the **absolute context-token count** beside it (e.g. `67% │ 670k`). See
   every chat's context at a glance instead of one bar that flips as you switch
   chats; hover a row for model + last-active time. **Right-click a chat →
-  Archive** to put it away (see below), or **click the section header to
-  collapse the list** (click anywhere on it — including the collapse arrow at
-  the far right)
+  Archive** to put it away (see below), or **click either section's header to
+  collapse it** (click anywhere on the row — including the collapse arrow at
+  the far right) — the two lists collapse independently
 - **archive** — archiving a chat drops it from the recent-chats list **and** the
   calendar's catalog and day cards, but its tokens **still count in every total**.
   Nothing is deleted; right-click → *Unarchive N chats* restores them
@@ -33,8 +38,9 @@ everything stays put and just climbs as you work. Shown all at once:
   (cache-aware and per-token, one on each side of the row), summed from your
   saved history — the figure that climbs into the millions and billions.
   **Local (Ollama etc.) tokens are never mixed into this** — a different
-  tokenizer, always $0, tracked separately (see the calendar for its own
-  total). Just below it: the day's **output / turns / sessions**, spread
+  tokenizer, always $0, tracked separately, and (once you've ever used one) get
+  their own **Local All-Time:** total, right-justified the same way, right
+  below it. Just below that: the day's **output / turns / sessions**, spread
   evenly left/center/right across the row, and — right-aligned on the very
   bottom line — how fresh the reading is (**Updated Xs ago**)
 - **history calendar** — click the calendar button for a per-day usage calendar:
@@ -46,15 +52,26 @@ everything stays put and just climbs as you work. Shown all at once:
   logs for — a zebra-striped list you can **sort** (Most recent, Name A–Z, Tokens
   high→low, or low→high); expand a row for its tokens, cost, turns, active date
   range, and a **per-model table** (tokens/cost/turns/output for each model)
+- **the summary cards and every model chip are clickable** — click **Total
+  tokens** for a day-by-day **Tokens** trend page, **All-time spend / If billed
+  per token / Busiest day / Avg per active day** for a consolidated **Spend**
+  page with a ranked busiest-days table, **Local (Ollama etc.)** for a **Local
+  Usage** page (all-time local models used, ranked by tokens, plus every local
+  chat session), and any model chip — in All Chats, a day's model bars, or
+  Usage Windows' model mix — for that model's own **day-by-day trend + all-time
+  totals** page
 - **a settings panel at the top of the calendar** — change how many recent
-  chats the widget shows, with **Save** and **Update** buttons; applies
-  immediately, no restart (talks to a tiny `127.0.0.1`-only listener the
-  widget runs while it's open — never reachable off your machine)
+  **cloud** chats and how many recent **local** chats the widget shows, with
+  **Save** and **Update** buttons; applies immediately, no restart (talks to a
+  tiny `127.0.0.1`-only listener the widget runs while it's open — never
+  reachable off your machine)
 - **a "Usage Windows" page** — since Anthropic doesn't publish exactly how
   many tokens you get in a 5-hour / weekly window, this tracks **your own
   observed usage** in each window over time (day totals, the busiest
   5-consecutive-hour stretch each day, and a trailing 7-day sum) so you can
-  spot a pattern if it ever changes. Reuses data already saved, no new scanning
+  spot a pattern if it ever changes, plus a **Patterns** section showing your
+  all-time-high day / peak-5h / trailing-7d and how today compares to each.
+  Reuses data already saved, no new scanning
 - **a "Known limitations" list** at the bottom of the calendar's home page —
   what this tool genuinely can't track (Claude Design, claude.ai chat/co-work,
   reasoning effort/fast mode) and why, kept in one place and shown on first
@@ -66,33 +83,43 @@ already writes to disk.
 
 ```
 ┌──────────────────────────────────────┐
-│ Claude Usage v1.14.1    🗓  ⟳   ×      │
+│ Claude Usage v1.15.0    🗓  ⟳   ×      │
 │ Spent Today · Cached                   │
 │ $480.44                                │
 │ If Billed Per Token:       $2,256.56   │
 │ ────────────────────────────────────── │
+│ Claude Cloud:                          │
 │ Opus              $480.44        1.04B │
 │ Fable               $14.83       29.6M │
+│ Local:                                 │
+│ qwen3:8b-32k                     84.2M │
 │ ────────────────────────────────────── │
 │ Context Used     Recent Cloud Chats ▾  │
 │ Hearth        ▓▓▓▓░░░  41% │ 410k       │
 │ United Dise…  ▓▓▓▓▓▓▓  95% │ 950k       │
 │ …up to 10 (right-click → archive)      │
 │ ────────────────────────────────────── │
+│ Context Used     Recent Local Chats ▾  │
+│ local test    ▓▓░░░░░  22% │ 7.2k       │
+│ …up to 5 (right-click → archive)       │
+│ ────────────────────────────────────── │
 │ All Time Usage:         6.38B tokens   │
 │ $5,528.96 cached    · $31,343.45/token │
+│ Local All-Time:           842.1M tokens│
 │ ↓ 1.9M output · 739 turns · 6 sessions │
 │                        Updated 1s ago  │
 └──────────────────────────────────────┘
 ```
 
-Click the **Recent Cloud Chats** header (or the ▾ arrow to its right) to
-collapse the list (`Recent Cloud Chats (10) ▸`) and again to expand it — your
+Click the **Recent Cloud Chats** or **Recent Local Chats** header (or the ▾
+arrow to its right) to collapse either list independently
+(`Recent Cloud Chats (10) ▸`) and again to expand it — your
 choice is remembered.
 
 Only models you've actually used today get a row, so the panel grows or shrinks
-to fit — no empty placeholders. The **recent-chats** list shows up to 10 of your
-latest sessions (cap it with `$MaxSessions`).
+to fit — no empty placeholders. The **recent-chats** lists show up to 10 cloud
+(`$MaxSessions`) and 5 local (`$MaxLocalSessions`) of your latest sessions by
+default, both changeable from the calendar's settings panel.
 
 ## Why a floating window instead of a real sidebar item?
 
@@ -203,21 +230,32 @@ Open `usage-widget.ps1` in any text editor:
   cache-aware figure derives cache rates from the input rate (read 0.1×,
   write-5m 1.25×, write-1h 2×); the per-token figure uses the input rate flat.
   Edit if prices change.
-- **`$FamColor` / `$FamOrder`** — the colour and ordering of the per-model rows.
-  Every family in `$FamOrder` with usage today is shown automatically. `Other`
-  (unknown model ids) has no row by design, but its tokens still count in the
-  totals.
-- **`$MaxSessionsDefault`** (default `10`) — how many recent chats the **Recent
-  Chats · Context Used** list shows, until you change it from the calendar's
-  settings panel (which writes `usage-widget-settings.json` and takes effect
-  immediately — no restart). `$MaxSessionsCap` (`50`) is the hard ceiling.
+- **`$FamColor` / `$FamOrder`** — the colour and ordering of the Claude Cloud
+  model rows. Every Cloud family in `$FamOrder` with usage today is shown
+  automatically. `Other` (unknown model ids) has no row by design, but its
+  tokens still count in the totals. The **Local:** group is separate — see
+  `$MaxLocalModelRows` below.
+- **`$MaxSessionsDefault`** (default `10`) — how many recent **cloud** chats
+  the **Recent Cloud Chats · Context Used** list shows, until you change it
+  from the calendar's settings panel (which writes
+  `usage-widget-settings.json` and takes effect immediately — no restart).
+  `$MaxSessionsCap` (`50`) is the hard ceiling.
+- **`$MaxLocalSessionsDefault`** (default `5`) — the same, for **Recent Local
+  Chats**. `$MaxLocalSessionsCap` (`50`) is its ceiling. Both counts are saved
+  together in `usage-widget-settings.json` (`maxSessions`/`maxLocalSessions`).
+- **`$MaxLocalModelRows`** (default `5`) — how many distinct local models the
+  **Local:** model-row group shows, ranked by most-recently-used.
+  `$MaxCloudFamilyRows` (`4`) is the equivalent cap for **Claude Cloud:**.
 - **`$SettingsPort`** (default `8907`) — the `127.0.0.1`-only port the
   settings panel talks to. Change it if something else on your machine
   already uses that port.
-- **`$ContextWindowTokens`** (default `0` = auto) — the window each chat's
-  context bar is measured against. Auto picks 200K, bumping to 1M if any recent
-  chat exceeds 200K (the long-context beta). Set a fixed number (e.g. `200000`
-  or `1000000`) to force it. Tiers live in `$CtxWindowTiers`.
+- **`$ContextWindowTokens`** (default `0` = auto) — the window each **cloud**
+  chat's context bar is measured against. Auto picks 200K, bumping to 1M if
+  any recent chat exceeds 200K (the long-context beta). Set a fixed number
+  (e.g. `200000` or `1000000`) to force it. Tiers live in `$CtxWindowTiers`.
+  `$LocalContextWindowTokens` / `$LocalCtxWindowTiers` (default tiers `8192`
+  through `262144`) is the equivalent for **local** chats, kept separate since
+  local model context sizes don't line up with Claude's.
 - **`$Roll5hHours` / `$Roll7dDays`** (default `5` / `7`) — the two rolling
   windows shown as cards in the **history calendar** (the panel itself no longer
   has a rolling section).

@@ -37,6 +37,8 @@
   .card.avg .val{color:var(--green)} .card.avg{--accent:var(--green)}
   .card.tok .val{color:var(--text)} .card.tok{--accent:var(--dim)}
   .card.local .val{color:var(--blue)} .card.local{--accent:var(--blue)}
+  .card[data-view]{cursor:pointer;transition:transform .12s,box-shadow .12s}
+  .card[data-view]:hover{transform:translateY(-2px);box-shadow:0 8px 22px #0008}
   .rollwrap{margin:2px 0 24px}
   .rolllbl{color:var(--dim);font-size:12.5px;font-weight:600;margin:0 0 9px}
   .rolllbl .tag{font-weight:400}
@@ -129,6 +131,12 @@
   .chip.Fable{background:rgba(227,179,65,.16);color:var(--amber)}
   .chip.Local{background:rgba(88,166,255,.16);color:var(--blue)}
   .chip.Other{background:rgba(139,148,158,.16);color:var(--dim)}
+  [data-fam]:hover{filter:brightness(1.3)}
+
+  /* per-day trend bar chart (Tokens page, Model detail page) */
+  .trend{display:flex;align-items:flex-end;gap:2px;height:120px;overflow-x:auto;padding-bottom:2px}
+  .trend .tb{flex:0 0 auto;width:6px;min-width:6px;border-radius:2px 2px 0 0;background:linear-gradient(180deg,var(--h4),var(--h2));cursor:pointer}
+  .trend .tb:hover{background:var(--cyan)}
 
   /* all-chats zebra list (collapsible) */
   /* All Chats collapsible header + sort dropdown */
@@ -196,8 +204,10 @@
       <div class="settings-title">Widget settings</div>
       <div class="settings-sub">Changes apply immediately to the running widget &mdash; no restart needed.</div>
       <div class="settings-row">
-        <label for="setMaxSessions">Recent chats shown on the widget</label>
+        <label for="setMaxSessions">Recent cloud chats shown on the widget</label>
         <input type="number" id="setMaxSessions" min="1" max="50" step="1" placeholder="10">
+        <label for="setMaxLocalSessions" style="margin-left:8px">Recent local chats shown</label>
+        <input type="number" id="setMaxLocalSessions" min="1" max="50" step="1" placeholder="5">
         <button class="settings-btn" id="setSave">Save</button>
         <button class="settings-btn ghost" id="setUpdate">Update</button>
         <span class="settings-status" id="setStatus"></span>
@@ -265,6 +275,10 @@
     <div class="dvhead"><button id="backFromWindows">&#8249; Back to calendar</button><div class="dvtitle">Usage windows</div></div>
     <div class="notice-banner"><span class="nicon">&#9888;</span><span>Anthropic doesn't publish exactly how many tokens a 5-hour / weekly / Fable window gives you, and that could change without notice. This tracks <b>your own observed usage</b> in each window over time so you can spot a pattern &mdash; it is not a plan quota. Reasoning-effort, fast-mode, and Claude Design usage aren't included: none of that is recorded anywhere this tool can read. <b>Day tokens</b> and <b>Trailing 7d tokens</b> below are Claude/Cloud only (Local/Ollama usage is never mixed in, since it's a different tokenizer); <b>Peak 5h tokens</b> is combined across everything, since hourly detail isn't split by model.</span></div>
     <div class="cal">
+      <div class="dvsec">Patterns <span class="tag">&mdash; all-time highs, computed over your full recorded history, for comparison only</span></div>
+      <div class="cards" id="patternCards"></div>
+    </div>
+    <div class="cal">
       <div class="dvsec">Model mix, all-time</div>
       <div class="plist" id="wModelBars"></div>
     </div>
@@ -277,6 +291,64 @@
     </div>
   </div>
 
+  <div id="tokensview" style="display:none">
+    <div class="dvhead"><button id="backFromTokens">&#8249; Back to calendar</button><div class="dvtitle">Tokens</div></div>
+    <div class="cards" id="tokCards"></div>
+    <div class="cal" style="overflow-x:auto">
+      <div class="dvsec">Tokens per day</div>
+      <div class="trend" id="tokTrend"></div>
+    </div>
+    <div class="cal" style="overflow-x:auto">
+      <div class="dvsec">Per day</div>
+      <div class="wtable" id="tokTableWrap">
+        <div class="wth" style="grid-template-columns:1.2fr 1fr 1fr 1fr"><span>Date</span><span class="wnum">Tokens</span><span class="wnum">Cloud</span><span class="wnum">Local</span></div>
+        <div id="tokTable"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="spendview" style="display:none">
+    <div class="dvhead"><button id="backFromSpend">&#8249; Back to calendar</button><div class="dvtitle">Spend</div></div>
+    <div class="cards" id="spendCards"></div>
+    <div class="cal" style="overflow-x:auto">
+      <div class="dvsec">Busiest days, by spend</div>
+      <div class="wtable" id="spendTableWrap">
+        <div class="wth" style="grid-template-columns:1.2fr 1fr 1fr 1fr"><span>Date</span><span class="wnum">Spend</span><span class="wnum">If per token</span><span class="wnum">Tokens</span></div>
+        <div id="spendTable"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="localview" style="display:none">
+    <div class="dvhead"><button id="backFromLocal">&#8249; Back to calendar</button><div class="dvtitle">Local usage</div></div>
+    <div class="notice-banner"><span class="nicon">&#9888;</span><span>Local (e.g. Ollama) usage is never priced and uses a different tokenizer than Claude's, so it's tracked entirely separately here &mdash; never blended into any Cloud figure.</span></div>
+    <div class="cards" id="localCards"></div>
+    <div class="cal">
+      <div class="dvsec">Local models used, all-time</div>
+      <div class="plist" id="localModelsList"></div>
+    </div>
+    <div class="cal">
+      <div class="dvsec">Local chat sessions <span class="tag" id="localSessCount"></span></div>
+      <div class="slist" id="localSessions"></div>
+    </div>
+  </div>
+
+  <div id="modelview" style="display:none">
+    <div class="dvhead"><button id="backFromModel">&#8249; Back to calendar</button><div class="dvtitle" id="modelTitle"></div></div>
+    <div class="cards" id="modelCards"></div>
+    <div class="cal" style="overflow-x:auto">
+      <div class="dvsec">Tokens per day</div>
+      <div class="trend" id="modelTrend"></div>
+    </div>
+    <div class="cal" style="overflow-x:auto">
+      <div class="dvsec">Per day</div>
+      <div class="wtable" id="modelTableWrap">
+        <div class="wth" style="grid-template-columns:1.2fr 1fr 1fr 1fr"><span>Date</span><span class="wnum">Tokens</span><span class="wnum">Spend</span><span class="wnum">Turns</span></div>
+        <div id="modelTable"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="foot">Estimates at API list prices — a sense of weight, not a bill. Cache-aware unless noted. Self-contained, offline, transcript-driven.</div>
 </div>
 <div id="tip"></div>
@@ -285,6 +357,7 @@
 const DATA = __USAGE_DATA__;
 const ALL_SESSIONS = __ALL_SESSIONS__;
 const ROLLING = __ROLLING__;
+const LOCAL_MODELS = __LOCAL_MODELS__;
 const GENERATED = "__GENERATED__";
 const days = Object.keys(DATA).sort();
 const has = days.length > 0;
@@ -314,16 +387,16 @@ function renderCards(){
   let peak={d:null,cost:0}; days.forEach(d=>{ if(DATA[d].cost>peak.cost) peak={d,cost:DATA[d].cost}; });
   const avg = has ? tot.cost/days.length : 0;
   const cards=[
-    {cls:'cost',lbl:'All-time spend',val:fmtMoney(tot.cost),sub:'cache-aware estimate'},
-    {cls:'raw',lbl:'If billed per token',val:fmtMoney(tot.raw),sub:'no cache discount'},
-    {cls:'peak',lbl:'Busiest day',val:peak.d?fmtMoney(peak.cost):'—',sub:peak.d?niceDate(parseDay(peak.d)):''},
-    {cls:'avg',lbl:'Avg / active day',val:fmtMoney(avg),sub:days.length+' active days'},
-    {cls:'tok',lbl:'Total tokens',val:fmtTok(tokCloud),sub:fmtTok(tot.out)+' generated · '+tot.turns.toLocaleString()+' turns · Claude/Cloud only'},
+    {cls:'cost',lbl:'All-time spend',val:fmtMoney(tot.cost),sub:'cache-aware estimate',view:'spend'},
+    {cls:'raw',lbl:'If billed per token',val:fmtMoney(tot.raw),sub:'no cache discount',view:'spend'},
+    {cls:'peak',lbl:'Busiest day',val:peak.d?fmtMoney(peak.cost):'—',sub:peak.d?niceDate(parseDay(peak.d)):'',view:'spend'},
+    {cls:'avg',lbl:'Avg / active day',val:fmtMoney(avg),sub:days.length+' active days',view:'spend'},
+    {cls:'tok',lbl:'Total tokens',val:fmtTok(tokCloud),sub:fmtTok(tot.out)+' generated · '+tot.turns.toLocaleString()+' turns · Claude/Cloud only',view:'tokens'},
   ];
   // Local (Ollama etc.) is never priced and uses a different tokenizer - kept as its
   // own card, never blended into the Cloud figures above. Only shown once you've used it.
-  if(tot.tokLocal > 0) cards.push({cls:'local',lbl:'Local (Ollama etc.)',val:fmtTok(tot.tokLocal),sub:'tokens · always $0 · separate tokenizer'});
-  document.getElementById('cards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
+  if(tot.tokLocal > 0) cards.push({cls:'local',lbl:'Local (Ollama etc.)',val:fmtTok(tot.tokLocal),sub:'tokens · always $0 · separate tokenizer',view:'local'});
+  document.getElementById('cards').innerHTML = cards.map(c=>`<div class="card ${c.cls}" data-view="${c.view}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
 }
 
 // ---- rolling usage windows ----
@@ -355,7 +428,7 @@ function renderAllChats(){
     const mmax=Math.max(1,...models.map(m=>m.tok||0));
     const mrows=models.map(m=>{
       const col=FAMCOL[m.model]||'var(--cyan)', w=Math.max(2,Math.round(100*(m.tok||0)/mmax));
-      return `<div class="mtr" style="color:${col}"><span class="share" style="width:${w}%"></span>`+
+      return `<div class="mtr" data-fam="${esc(m.model)}" style="color:${col};cursor:pointer"><span class="share" style="width:${w}%"></span>`+
         `<span class="mmodel"><span class="chip ${esc(m.model)}">${esc(m.model)}</span></span>`+
         `<span class="mnum">${fmtTok(m.tok)}</span>`+
         `<span class="mnum" style="color:var(--cyan)">${fmtMoney(m.cost)}</span>`+
@@ -424,7 +497,7 @@ function bars(map, order, mx, colorFn){
     const v = metric==='cost'?(map[n].cost||0):(map[n].tok||0);
     const w = Math.max(2, Math.round(100*v/mx));
     const disp = metric==='cost'?fmtMoney(map[n].cost):fmtTok(map[n].tok);
-    return `<div class="prow"><span class="pn" style="color:${colorFn(n)}">${esc(n)}</span><span class="pbar"><span style="width:${w}%;background:${colorFn(n)}"></span></span><span class="pv">${disp}</span></div>`;
+    return `<div class="prow" data-fam="${esc(n)}" style="cursor:pointer"><span class="pn" style="color:${colorFn(n)}">${esc(n)}</span><span class="pbar"><span style="width:${w}%;background:${colorFn(n)}"></span></span><span class="pv">${disp}</span></div>`;
   }).join('');
 }
 function showDay(k){
@@ -461,24 +534,29 @@ function showDay(k){
       `<div class="sval"><div class="sc">${fmtMoney(s.cost)}</div><div class="st">${fmtTok(s.tok)}</div></div></div>`;
   }).join('') : '<div class="empty-state">No per-session detail for this day (transcripts pruned). Totals above are from the saved history.</div>';
   // switch views
-  document.getElementById('mainview').style.display='none';
-  document.getElementById('windowsview').style.display='none';
+  hideAllViews();
   document.getElementById('dayview').style.display='block';
   document.getElementById('tip').classList.remove('show');
   window.scrollTo(0,0);
   history.pushState({day:k},'','#'+k);
 }
+// every show* function hides every OTHER view first, so navigating straight
+// from one detail page to another (e.g. a model chip clicked while already
+// on the Tokens page) never leaves two views visible at once.
+function hideAllViews(){
+  ['mainview','dayview','windowsview','tokensview','spendview','localview','modelview'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.style.display='none';
+  });
+}
 function showCalendar(){
-  document.getElementById('dayview').style.display='none';
-  document.getElementById('windowsview').style.display='none';
+  hideAllViews();
   document.getElementById('mainview').style.display='block';
   window.scrollTo(0,0);
 }
 // ---- usage windows (5h peak / day / trailing 7d), from data already saved ----
 function showWindows(){
   renderWindows();
-  document.getElementById('mainview').style.display='none';
-  document.getElementById('dayview').style.display='none';
+  hideAllViews();
   document.getElementById('windowsview').style.display='block';
   window.scrollTo(0,0);
 }
@@ -520,9 +598,31 @@ function renderWindows(){
     let topFam=null, topVal=-1;
     Object.keys(bm).forEach(f=>{ const v=bm[f].tok||0; if(v>topVal){ topVal=v; topFam=f; } });
     return { d, tok:dayTok, cost:x.cost||0, peak5, t7tok, t7cost, topFam };
-  }).reverse();
+  });
 
-  document.getElementById('wtable').innerHTML = rows.map((r,i)=>{
+  // Patterns: all-time-high reference points, over the FULL history above (not
+  // a recent slice) - a "today vs. your own high-water mark" comparison, not a
+  // plan quota (Anthropic doesn't publish real window sizes - see banner above).
+  let maxDay={tok:0,d:null}, maxPeak5={tok:0,d:null}, maxT7={tok:0,d:null};
+  rows.forEach(r=>{
+    if(r.tok>maxDay.tok) maxDay={tok:r.tok,d:r.d};
+    if(r.peak5>maxPeak5.tok) maxPeak5={tok:r.peak5,d:r.d};
+    if(r.t7tok>maxT7.tok) maxT7={tok:r.t7tok,d:r.d};
+  });
+  const todayRow = rows.find(r=>r.d===keyOf(new Date()));
+  const patternCards=[
+    {cls:'tok',lbl:'Highest day, ever',val:maxDay.d?fmtTok(maxDay.tok):'—',sub:maxDay.d?(niceDate(parseDay(maxDay.d))+' · Cloud tokens'):''},
+    {cls:'peak',lbl:'Highest peak-5h, ever',val:maxPeak5.d?fmtTok(maxPeak5.tok):'—',sub:maxPeak5.d?niceDate(parseDay(maxPeak5.d)):''},
+    {cls:'avg',lbl:'Highest trailing-7d, ever',val:maxT7.d?fmtTok(maxT7.tok):'—',sub:maxT7.d?('week ending '+niceDate(parseDay(maxT7.d))):''},
+  ];
+  if(todayRow && maxDay.tok>0){
+    const pct=Math.round(100*todayRow.tok/maxDay.tok);
+    patternCards.push({cls:'cost',lbl:'Today vs. all-time high',val:pct+'%',sub:fmtTok(todayRow.tok)+' of '+fmtTok(maxDay.tok)+' today'});
+  }
+  document.getElementById('patternCards').innerHTML = patternCards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
+
+  const rowsRev = rows.slice().reverse();
+  document.getElementById('wtable').innerHTML = rowsRev.map((r,i)=>{
     const chip = r.topFam ? `<span class="chip ${esc(r.topFam)}">${esc(r.topFam)}</span>` : '<span class="tag">&mdash;</span>';
     return `<div class="wtr ${i%2?'even':'odd'}">
       <span>${niceDate(parseDay(r.d))}</span>
@@ -536,6 +636,133 @@ function renderWindows(){
 }
 document.getElementById('openWindows').addEventListener('click', showWindows);
 document.getElementById('backFromWindows').addEventListener('click', showCalendar);
+
+// ---- Tokens page: day-by-day token trend (the "Total tokens" card's detail) ----
+function renderTokensPage(){
+  const tot = days.reduce((a,d)=>{ const x=DATA[d]; a.tok+=x.tok||0; a.tokLocal+=(x.tokLocal||0); a.out+=x.out||0; return a; },{tok:0,tokLocal:0,out:0});
+  const tokCloud = tot.tok - tot.tokLocal;
+  const cards=[
+    {cls:'tok',lbl:'Total tokens (all)',val:fmtTok(tot.tok),sub:fmtTok(tot.out)+' generated'},
+    {cls:'cost',lbl:'Cloud tokens',val:fmtTok(tokCloud),sub:'Claude/Cloud only'},
+  ];
+  if(tot.tokLocal>0) cards.push({cls:'local',lbl:'Local tokens',val:fmtTok(tot.tokLocal),sub:'always $0 · separate tokenizer'});
+  document.getElementById('tokCards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
+
+  const mx = Math.max(1, ...days.map(d=>DATA[d].tok||0));
+  document.getElementById('tokTrend').innerHTML = days.map(d=>{
+    const v=DATA[d].tok||0, h=Math.max(2,Math.round(100*v/mx));
+    return `<div class="tb" style="height:${h}%" data-k="${d}" title="${niceDate(parseDay(d))} — ${fmtTok(v)} tokens"></div>`;
+  }).join('');
+
+  document.getElementById('tokTable').innerHTML = days.slice().reverse().map((d,i)=>{
+    const x=DATA[d], tl=x.tokLocal||0, tc=(x.tok||0)-tl;
+    return `<div class="wtr ${i%2?'even':'odd'}" style="grid-template-columns:1.2fr 1fr 1fr 1fr;cursor:pointer" data-k="${d}">
+      <span>${niceDate(parseDay(d))}</span><span class="wnum">${fmtTok(x.tok)}</span><span class="wnum">${fmtTok(tc)}</span><span class="wnum">${tl>0?fmtTok(tl):'—'}</span></div>`;
+  }).join('');
+}
+function showTokens(){ renderTokensPage(); hideAllViews(); document.getElementById('tokensview').style.display='block'; window.scrollTo(0,0); }
+document.getElementById('backFromTokens').addEventListener('click', showCalendar);
+document.getElementById('tokTrend').addEventListener('click', e=>{ const b=e.target.closest('.tb[data-k]'); if(b) showDay(b.dataset.k); });
+document.getElementById('tokTable').addEventListener('click', e=>{ const r=e.target.closest('.wtr[data-k]'); if(r) showDay(r.dataset.k); });
+
+// ---- Spend page: consolidates the 4 spend cards + a ranked busiest-days table ----
+function renderSpendPage(){
+  const tot = days.reduce((a,d)=>{ const x=DATA[d]; a.cost+=x.cost||0; a.raw+=x.raw||0; return a; },{cost:0,raw:0});
+  let peak={d:null,cost:0}; days.forEach(d=>{ if((DATA[d].cost||0)>peak.cost) peak={d,cost:DATA[d].cost}; });
+  const avg = has ? tot.cost/days.length : 0;
+  const cards=[
+    {cls:'cost',lbl:'All-time spend',val:fmtMoney(tot.cost),sub:'cache-aware estimate'},
+    {cls:'raw',lbl:'If billed per token',val:fmtMoney(tot.raw),sub:'no cache discount'},
+    {cls:'peak',lbl:'Busiest day',val:peak.d?fmtMoney(peak.cost):'—',sub:peak.d?niceDate(parseDay(peak.d)):''},
+    {cls:'avg',lbl:'Avg / active day',val:fmtMoney(avg),sub:days.length+' active days'},
+  ];
+  document.getElementById('spendCards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
+
+  const ranked = days.slice().sort((a,b)=>(DATA[b].cost||0)-(DATA[a].cost||0));
+  document.getElementById('spendTable').innerHTML = ranked.map((d,i)=>{
+    const x=DATA[d];
+    return `<div class="wtr ${i%2?'even':'odd'}" style="grid-template-columns:1.2fr 1fr 1fr 1fr;cursor:pointer" data-k="${d}">
+      <span>${niceDate(parseDay(d))}</span><span class="wnum">${fmtMoney(x.cost)}</span><span class="wnum">${fmtMoney(x.raw)}</span><span class="wnum">${fmtTok(x.tok)}</span></div>`;
+  }).join('');
+}
+function showSpend(){ renderSpendPage(); hideAllViews(); document.getElementById('spendview').style.display='block'; window.scrollTo(0,0); }
+document.getElementById('backFromSpend').addEventListener('click', showCalendar);
+document.getElementById('spendTable').addEventListener('click', e=>{ const r=e.target.closest('.wtr[data-k]'); if(r) showDay(r.dataset.k); });
+
+// ---- Local Usage page: the 'Local' card's detail - all-time models + sessions ----
+function renderLocalPage(){
+  const totLocal = days.reduce((a,d)=>a+(DATA[d].tokLocal||0),0);
+  const activeDays = days.filter(d=>(DATA[d].tokLocal||0)>0);
+  const cards=[
+    {cls:'local',lbl:'Local tokens, all-time',val:fmtTok(totLocal),sub:'always $0 · separate tokenizer'},
+    {cls:'tok',lbl:'Active days',val:String(activeDays.length),sub:'days with any local usage'},
+  ];
+  if(LOCAL_MODELS.length) cards.push({cls:'avg',lbl:'Distinct models seen',val:String(LOCAL_MODELS.length),sub:'all-time'});
+  document.getElementById('localCards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
+
+  const mmx = Math.max(1, ...LOCAL_MODELS.map(m=>m.tok||0));
+  document.getElementById('localModelsList').innerHTML = LOCAL_MODELS.length ? LOCAL_MODELS.map(m=>{
+    const w=Math.max(2,Math.round(100*(m.tok||0)/mmx));
+    return `<div class="prow"><span class="pn" style="color:var(--blue)">${esc(m.model)}</span><span class="pbar"><span style="width:${w}%;background:var(--blue)"></span></span><span class="pv">${fmtTok(m.tok)}</span></div>`;
+  }).join('') : '<div class="empty-state" style="padding:14px">No local model usage recorded yet.</div>';
+
+  const sess = (ALL_SESSIONS||[]).filter(s=>(s.byModel||[]).some(m=>m.model==='Local' && (m.tok||0)>0));
+  document.getElementById('localSessCount').textContent = sess.length ? ('· '+sess.length) : '';
+  document.getElementById('localSessions').innerHTML = sess.length ? sess.map(s=>{
+    const lm = (s.byModel||[]).find(m=>m.model==='Local') || {tok:0};
+    const proj = s.cwd?(' · '+esc(s.cwd)):'';
+    return `<div class="scard" data-sid="${esc(s.id)}" style="cursor:pointer" title="Click for this chat's all-time totals">
+      <div class="sbody"><div class="slabel"><span class="chip Local">Local</span> ${esc(s.name)}</div>
+      <div class="smeta">${s.days} day${s.days!==1?'s':''} active${proj} · #${esc(s.id)}</div></div>
+      <div class="sval"><div class="sc" style="color:var(--blue)">${fmtTok(lm.tok)}</div><div class="st">local tokens</div></div></div>`;
+  }).join('') : '<div class="empty-state">No local chat sessions recorded yet.</div>';
+}
+function showLocal(){ renderLocalPage(); hideAllViews(); document.getElementById('localview').style.display='block'; window.scrollTo(0,0); }
+document.getElementById('backFromLocal').addEventListener('click', showCalendar);
+document.getElementById('localSessions').addEventListener('click', e=>{ const c=e.target.closest('.scard[data-sid]'); if(c) showSession(c.dataset.sid); });
+
+document.getElementById('cards').addEventListener('click', e=>{
+  const c=e.target.closest('.card[data-view]'); if(!c) return;
+  const v=c.dataset.view;
+  if(v==='tokens') showTokens(); else if(v==='spend') showSpend(); else if(v==='local') showLocal();
+});
+
+// ---- Model detail page: one family's day-by-day trend + all-time totals,
+// reached by clicking any model chip/bar (All Chats table, day-view bars,
+// Usage Windows model-mix bars) - all computed client-side from DATA, already
+// embedded, no extra PowerShell-side scanning needed. ----
+function renderModelPage(fam){
+  document.getElementById('modelTitle').innerHTML = `<span class="chip ${esc(fam)}" style="font-size:14px;padding:3px 10px">${esc(fam)}</span>`;
+  const rows = days.map(d=>{ const bm=DATA[d].byModel||{}; const x=bm[fam]; return { d, tok:x?(x.tok||0):0, cost:x?(x.cost||0):0, turns:x?(x.turns||0):0 }; });
+  const tot = rows.reduce((a,r)=>{ a.tok+=r.tok; a.cost+=r.cost; a.turns+=r.turns; return a; },{tok:0,cost:0,turns:0});
+  const activeDays = rows.filter(r=>r.tok>0).length;
+  const cards=[
+    {cls:'tok',lbl:'Total tokens',val:fmtTok(tot.tok),sub:activeDays+' active day'+(activeDays!==1?'s':'')},
+    {cls:'cost',lbl:'Total spend',val:fmtMoney(tot.cost),sub:'cache-aware estimate'},
+    {cls:'avg',lbl:'Turns',val:tot.turns.toLocaleString(),sub:'all-time'},
+  ];
+  document.getElementById('modelCards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
+
+  const mx = Math.max(1, ...rows.map(r=>r.tok));
+  const col = FAMCOL[fam]||'var(--cyan)';
+  document.getElementById('modelTrend').innerHTML = rows.map(r=>{
+    const h=Math.max(2,Math.round(100*r.tok/mx));
+    return `<div class="tb" style="height:${h}%;background:${r.tok?col:'var(--track)'}" data-k="${r.d}" title="${niceDate(parseDay(r.d))} — ${fmtTok(r.tok)} tokens"></div>`;
+  }).join('');
+
+  const activeRows = rows.slice().reverse().filter(r=>r.tok>0);
+  document.getElementById('modelTable').innerHTML = activeRows.length ? activeRows.map((r,i)=>
+    `<div class="wtr ${i%2?'even':'odd'}" style="grid-template-columns:1.2fr 1fr 1fr 1fr;cursor:pointer" data-k="${r.d}">
+      <span>${niceDate(parseDay(r.d))}</span><span class="wnum">${fmtTok(r.tok)}</span><span class="wnum">${fmtMoney(r.cost)}</span><span class="wnum">${r.turns.toLocaleString()}</span></div>`
+  ).join('') : '<div class="empty-state" style="padding:14px">No usage recorded for this model.</div>';
+}
+function showModel(fam){ renderModelPage(fam); hideAllViews(); document.getElementById('modelview').style.display='block'; window.scrollTo(0,0); }
+document.getElementById('backFromModel').addEventListener('click', showCalendar);
+document.getElementById('modelTrend').addEventListener('click', e=>{ const b=e.target.closest('.tb[data-k]'); if(b) showDay(b.dataset.k); });
+document.getElementById('modelTable').addEventListener('click', e=>{ const r=e.target.closest('.wtr[data-k]'); if(r) showDay(r.dataset.k); });
+document.getElementById('dvmodels').addEventListener('click', e=>{ const r=e.target.closest('.prow[data-fam]'); if(r) showModel(r.dataset.fam); });
+document.getElementById('wModelBars').addEventListener('click', e=>{ const r=e.target.closest('.prow[data-fam]'); if(r) showModel(r.dataset.fam); });
+
 // jump from a day's session card to that chat's all-time row in All Chats
 function showSession(id){
   showCalendar();
@@ -595,6 +822,8 @@ async function loadSettings(){
     const j = await r.json();
     document.getElementById('setMaxSessions').value = j.maxSessions;
     if(j.cap) document.getElementById('setMaxSessions').max = j.cap;
+    document.getElementById('setMaxLocalSessions').value = j.maxLocalSessions;
+    if(j.localCap) document.getElementById('setMaxLocalSessions').max = j.localCap;
     setStatus('Loaded from the running widget.', false);
   } catch(e) {
     setStatus('Widget not reachable — make sure it’s running, then click Update.', true);
@@ -603,11 +832,14 @@ async function loadSettings(){
 async function saveSettings(){
   const n = parseInt(document.getElementById('setMaxSessions').value, 10);
   if(!n || n < 1){ setStatus('Enter a number of 1 or more.', true); return; }
+  const nl = parseInt(document.getElementById('setMaxLocalSessions').value, 10);
+  if(!nl || nl < 1){ setStatus('Enter a local-chats number of 1 or more.', true); return; }
   try {
-    const r = await fetch(SETTINGS_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ maxSessions: n }) });
+    const r = await fetch(SETTINGS_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ maxSessions: n, maxLocalSessions: nl }) });
     if(!r.ok) throw new Error('bad status');
     const j = await r.json();
     document.getElementById('setMaxSessions').value = j.maxSessions;
+    document.getElementById('setMaxLocalSessions').value = j.maxLocalSessions;
     setStatus('Saved — applied immediately.', false);
   } catch(e) {
     setStatus('Could not save — is the widget running?', true);
@@ -618,7 +850,10 @@ document.getElementById('setUpdate').addEventListener('click', loadSettings);
 loadSettings();
 
 // all-chats: expand/collapse a row, and Recent/Heaviest sort
-document.getElementById('allchats').addEventListener('click', e=>{ const h=e.target.closest('.zhead'); if(h) h.parentNode.classList.toggle('open'); });
+document.getElementById('allchats').addEventListener('click', e=>{
+  const m=e.target.closest('.mtr[data-fam]'); if(m){ showModel(m.dataset.fam); return; }
+  const h=e.target.closest('.zhead'); if(h) h.parentNode.classList.toggle('open');
+});
 document.getElementById('acsort').addEventListener('change', e=>{ acSort=e.target.value; renderAllChats(); });
 document.getElementById('actoggle').addEventListener('click', ()=>{ document.getElementById('allchats-wrap').classList.toggle('collapsed'); });
 

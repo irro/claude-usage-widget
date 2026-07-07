@@ -2,6 +2,32 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.15.0 — 2026-07-07
+
+- **Recent Local Chats is now its own collapsible section**, laid out exactly
+  like Recent Cloud Chats (its own "Context Used" header, its own collapse
+  arrow, its own context-fill bars) — Local chats had previously been mixed
+  into the same list as Cloud chats. Local's context-fill bars auto-detect a
+  local-model-appropriate window (8K–256K) instead of Claude's 200K/1K
+  windows, since local model sizes vary a lot.
+- **Model rows are now split into "Claude Cloud:" and "Local:" groups.** The
+  Local group shows the **last 5 distinct local models used today** (e.g.
+  different Ollama tags), each with its own token count — not just one
+  aggregate "Local" row.
+- **A "Local All-Time:" total** now shows in the widget itself, right-justified
+  like the Cloud "All Time Usage:" line (previously this was calendar-only).
+- **New settings row**: "Recent local chats shown" alongside the existing
+  cloud setting, in the calendar's Widget Settings panel.
+- **Four new calendar pages**, reached by clicking a summary card or any
+  model chip: **Tokens** (day-by-day token trend), **Spend** (all-time spend
+  cards + a ranked busiest-days table), **Local Usage** (all-time local
+  models + local chat sessions), and a **per-model detail page** (day-by-day
+  trend + all-time totals for one model family — reached from any model chip
+  in All Chats, a day's model bars, or Usage Windows' model mix).
+- **"Patterns" section on the Usage Windows page** — your all-time-high
+  reference points (highest day, highest peak-5h, highest trailing-7d) and a
+  "today vs. your own high" comparison, computed over your full history.
+
 ## v1.14.1 — 2026-07-07
 
 - Added a small **·** marker between the cached/per-token costs, and between
