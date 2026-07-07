@@ -8,7 +8,7 @@
   :root{
     --bg:#0d1117; --bg2:#11161f; --panel:#161b22; --panel2:#1c2330;
     --line:#30363d; --track:#21262d; --text:#e6edf3; --dim:#8b949e;
-    --cyan:#39c5cf; --green:#3fb950; --amber:#e3b341; --red:#e5534b; --purple:#a855f7;
+    --cyan:#39c5cf; --green:#3fb950; --amber:#e3b341; --red:#e5534b; --purple:#a855f7; --blue:#58a6ff;
     --h0:#191f27; --h1:#0e3a44; --h2:#11616e; --h3:#1f97a6; --h4:#39c5cf; --h5:#e3b341;
   }
   *{box-sizing:border-box}
@@ -55,6 +55,28 @@
   .calhint{color:var(--dim);font-size:12px;margin:-4px 0 12px}
   .notice-banner{display:flex;align-items:flex-start;gap:9px;background:rgba(227,179,65,.08);border-left:3px solid var(--amber);border-radius:0 8px 8px 0;padding:9px 12px;margin:0 0 14px;color:var(--amber);font-size:12.5px;line-height:1.4}
   .notice-banner .nicon{flex:none;font-size:14px}
+
+  /* settings panel (top of page) */
+  .settings-panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0 0 20px}
+  .settings-title{font-size:13px;font-weight:700;margin-bottom:2px}
+  .settings-sub{color:var(--dim);font-size:11.5px;margin-bottom:10px}
+  .settings-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .settings-row label{font-size:12.5px;color:var(--text)}
+  .settings-row input[type=number]{width:64px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px}
+  .settings-row input[type=number]:focus{outline:none;border-color:var(--cyan)}
+  .settings-btn{background:var(--cyan);color:#04252a;border:0;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer}
+  .settings-btn:hover{filter:brightness(1.08)}
+  .settings-btn.ghost{background:none;border:1px solid var(--line);color:var(--text)}
+  .settings-status{font-size:12px;margin-left:2px}
+
+  /* usage-windows table */
+  .wtable{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:4px;min-width:640px}
+  .wth,.wtr{display:grid;grid-template-columns:1.1fr .9fr .8fr 1fr 1fr .9fr .9fr;gap:8px;padding:8px 12px;align-items:center;font-size:12.5px}
+  .wth{background:var(--panel2);color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line)}
+  .wtr{border-bottom:1px solid var(--line)}
+  .wtr:last-child{border-bottom:0}
+  .wtr.odd{background:var(--panel)} .wtr.even{background:#12171f}
+  .wtr .wnum{text-align:right;font-variant-numeric:tabular-nums}
   .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:8px}
   .dow div{color:var(--dim);font-size:11.5px;text-align:center;text-transform:uppercase;letter-spacing:.5px}
   .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
@@ -99,6 +121,7 @@
   .chip.Sonnet{background:rgba(168,85,247,.16);color:var(--purple)}
   .chip.Haiku{background:rgba(63,185,80,.16);color:var(--green)}
   .chip.Fable{background:rgba(227,179,65,.16);color:var(--amber)}
+  .chip.Local{background:rgba(88,166,255,.16);color:var(--blue)}
   .chip.Other{background:rgba(139,148,158,.16);color:var(--dim)}
 
   /* all-chats zebra list (collapsible) */
@@ -160,8 +183,20 @@
     <header>
       <h1>Claude usage <span class="c">history</span></h1>
       <span class="tag">click any day for a full breakdown</span>
+      <button class="settings-btn ghost" id="openWindows" style="margin-left:10px">Usage Windows &rarr;</button>
       <span class="gen" id="gen"></span>
     </header>
+    <div class="settings-panel">
+      <div class="settings-title">Widget settings</div>
+      <div class="settings-sub">Changes apply immediately to the running widget &mdash; no restart needed.</div>
+      <div class="settings-row">
+        <label for="setMaxSessions">Recent chats shown on the widget</label>
+        <input type="number" id="setMaxSessions" min="1" max="50" step="1" placeholder="10">
+        <button class="settings-btn" id="setSave">Save</button>
+        <button class="settings-btn ghost" id="setUpdate">Update</button>
+        <span class="settings-status" id="setStatus"></span>
+      </div>
+    </div>
     <div class="cards" id="cards"></div>
     <div class="rollwrap" id="rollwrap">
       <div class="rolllbl">Rolling usage <span class="tag">&mdash; your usage in these windows (as of this scan), not a plan limit</span></div>
@@ -211,6 +246,22 @@
     <div class="cal"><div class="dvsec">Sessions <span class="tag" id="dvsesscount"></span></div><div class="slist" id="dvsessions"></div></div>
   </div>
 
+  <div id="windowsview" style="display:none">
+    <div class="dvhead"><button id="backFromWindows">&#8249; Back to calendar</button><div class="dvtitle">Usage windows</div></div>
+    <div class="notice-banner"><span class="nicon">&#9888;</span><span>Anthropic doesn't publish exactly how many tokens a 5-hour / weekly / Fable window gives you, and that could change without notice. This tracks <b>your own observed usage</b> in each window over time so you can spot a pattern &mdash; it is not a plan quota. Reasoning-effort, fast-mode, and Claude Design usage aren't included: none of that is recorded anywhere this tool can read.</span></div>
+    <div class="cal">
+      <div class="dvsec">Model mix, all-time</div>
+      <div class="plist" id="wModelBars"></div>
+    </div>
+    <div class="cal" style="overflow-x:auto">
+      <div class="dvsec">Per day &mdash; day total, busiest 5-consecutive-hour window that day (peak, an approximation of the real rolling window), and the trailing 7-day sum</div>
+      <div class="wtable">
+        <div class="wth"><span>Date</span><span class="wnum">Day tokens</span><span class="wnum">Day cost</span><span class="wnum">Peak 5h tokens</span><span class="wnum">Trailing 7d tokens</span><span class="wnum">Trailing 7d cost</span><span>Top model</span></div>
+        <div id="wtable"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="foot">Estimates at API list prices — a sense of weight, not a bill. Cache-aware unless noted. Self-contained, offline, transcript-driven.</div>
 </div>
 <div id="tip"></div>
@@ -233,8 +284,8 @@ const parseDay = s => { const [y,m,d]=s.split('-').map(Number); return new Date(
 const keyOf = dt => dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,'0')+"-"+String(dt.getDate()).padStart(2,'0');
 const niceDate = dt => MON[dt.getMonth()].slice(0,3)+" "+dt.getDate()+", "+dt.getFullYear();
 const longDate = dt => DOW[dt.getDay()]+", "+MON[dt.getMonth()]+" "+dt.getDate()+", "+dt.getFullYear();
-const FAM=['Opus','Sonnet','Haiku','Fable','Other'];
-const FAMCOL={Opus:'var(--cyan)',Sonnet:'var(--purple)',Haiku:'var(--green)',Fable:'var(--amber)',Other:'var(--dim)'};
+const FAM=['Opus','Sonnet','Haiku','Fable','Local','Other'];
+const FAMCOL={Opus:'var(--cyan)',Sonnet:'var(--purple)',Haiku:'var(--green)',Fable:'var(--amber)',Local:'var(--blue)',Other:'var(--dim)'};
 
 let metric = "cost";
 const maxFor = m => Math.max(1, ...days.map(d => DATA[d][m]||0));
@@ -392,6 +443,7 @@ function showDay(k){
   }).join('') : '<div class="empty-state">No per-session detail for this day (transcripts pruned). Totals above are from the saved history.</div>';
   // switch views
   document.getElementById('mainview').style.display='none';
+  document.getElementById('windowsview').style.display='none';
   document.getElementById('dayview').style.display='block';
   document.getElementById('tip').classList.remove('show');
   window.scrollTo(0,0);
@@ -399,9 +451,66 @@ function showDay(k){
 }
 function showCalendar(){
   document.getElementById('dayview').style.display='none';
+  document.getElementById('windowsview').style.display='none';
   document.getElementById('mainview').style.display='block';
   window.scrollTo(0,0);
 }
+// ---- usage windows (5h peak / day / trailing 7d), from data already saved ----
+function showWindows(){
+  renderWindows();
+  document.getElementById('mainview').style.display='none';
+  document.getElementById('dayview').style.display='none';
+  document.getElementById('windowsview').style.display='block';
+  window.scrollTo(0,0);
+}
+function renderWindows(){
+  if(!has){ document.getElementById('wtable').innerHTML='<div class="empty-state">No recorded usage yet.</div>'; return; }
+  const allModel = {};
+  days.forEach(d=>{ const bm=DATA[d].byModel||{}; Object.keys(bm).forEach(f=>{
+    if(!allModel[f]) allModel[f]={tok:0,cost:0};
+    allModel[f].tok += bm[f].tok||0; allModel[f].cost += bm[f].cost||0;
+  }); });
+  const amax = Math.max(1, ...Object.values(allModel).map(v=>metric==='cost'?v.cost:v.tok));
+  document.getElementById('wModelBars').innerHTML = bars(allModel, FAM, amax, n=>FAMCOL[n]||'var(--cyan)')
+    || '<div class="empty-state" style="padding:14px">No per-model detail available.</div>';
+
+  const rows = days.map(d=>{
+    const x = DATA[d];
+    const hrs = x.hours||[];
+    let peak5 = 0;
+    if(hrs.length===24){
+      for(let h=0; h<=19; h++){
+        let sum=0; for(let k=0;k<5;k++) sum += hrs[h+k]||0;
+        if(sum>peak5) peak5=sum;
+      }
+    }
+    const end = parseDay(d);
+    const start = new Date(end); start.setDate(start.getDate()-6);
+    let t7tok=0, t7cost=0;
+    days.forEach(d2=>{
+      const dt=parseDay(d2);
+      if(dt>=start && dt<=end){ t7tok += DATA[d2].tok||0; t7cost += DATA[d2].cost||0; }
+    });
+    const bm=x.byModel||{};
+    let topFam=null, topVal=-1;
+    Object.keys(bm).forEach(f=>{ const v=bm[f].tok||0; if(v>topVal){ topVal=v; topFam=f; } });
+    return { d, tok:x.tok||0, cost:x.cost||0, peak5, t7tok, t7cost, topFam };
+  }).reverse();
+
+  document.getElementById('wtable').innerHTML = rows.map((r,i)=>{
+    const chip = r.topFam ? `<span class="chip ${esc(r.topFam)}">${esc(r.topFam)}</span>` : '<span class="tag">&mdash;</span>';
+    return `<div class="wtr ${i%2?'even':'odd'}">
+      <span>${niceDate(parseDay(r.d))}</span>
+      <span class="wnum">${fmtTok(r.tok)}</span>
+      <span class="wnum">${fmtMoney(r.cost)}</span>
+      <span class="wnum">${fmtTok(r.peak5)}</span>
+      <span class="wnum">${fmtTok(r.t7tok)}</span>
+      <span class="wnum">${fmtMoney(r.t7cost)}</span>
+      <span>${chip}</span></div>`;
+  }).join('');
+}
+document.getElementById('openWindows').addEventListener('click', showWindows);
+document.getElementById('backFromWindows').addEventListener('click', showCalendar);
 // jump from a day's session card to that chat's all-time row in All Chats
 function showSession(id){
   showCalendar();
@@ -446,6 +555,42 @@ document.getElementById('seg').addEventListener('click', e=>{ const b=e.target.c
   renderMonth(); if(document.getElementById('dayview').style.display!=='none'){ const k=(location.hash||'').slice(1); if(DATA[k]) showDay(k); } });
 
 document.getElementById('dvsessions').addEventListener('click', e=>{ const c=e.target.closest('.scard[data-sid]'); if(c) showSession(c.dataset.sid); });
+
+// ---- widget settings (talks to the widget's own 127.0.0.1-only listener) ----
+const SETTINGS_URL = 'http://127.0.0.1:8907/settings';
+function setStatus(msg, isError){
+  const el = document.getElementById('setStatus');
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--red)' : 'var(--green)';
+}
+async function loadSettings(){
+  try {
+    const r = await fetch(SETTINGS_URL, { method:'GET' });
+    if(!r.ok) throw new Error('bad status');
+    const j = await r.json();
+    document.getElementById('setMaxSessions').value = j.maxSessions;
+    if(j.cap) document.getElementById('setMaxSessions').max = j.cap;
+    setStatus('Loaded from the running widget.', false);
+  } catch(e) {
+    setStatus('Widget not reachable — make sure it’s running, then click Update.', true);
+  }
+}
+async function saveSettings(){
+  const n = parseInt(document.getElementById('setMaxSessions').value, 10);
+  if(!n || n < 1){ setStatus('Enter a number of 1 or more.', true); return; }
+  try {
+    const r = await fetch(SETTINGS_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ maxSessions: n }) });
+    if(!r.ok) throw new Error('bad status');
+    const j = await r.json();
+    document.getElementById('setMaxSessions').value = j.maxSessions;
+    setStatus('Saved — applied immediately.', false);
+  } catch(e) {
+    setStatus('Could not save — is the widget running?', true);
+  }
+}
+document.getElementById('setSave').addEventListener('click', saveSettings);
+document.getElementById('setUpdate').addEventListener('click', loadSettings);
+loadSettings();
 
 // all-chats: expand/collapse a row, and Recent/Heaviest sort
 document.getElementById('allchats').addEventListener('click', e=>{ const h=e.target.closest('.zhead'); if(h) h.parentNode.classList.toggle('open'); });

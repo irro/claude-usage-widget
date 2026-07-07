@@ -10,8 +10,10 @@ everything stays put and just climbs as you work. Shown all at once:
   the way a real API bill works with prompt caching (cache reads ~90% off)
 - **If Billed Per Token:** — the raw "sticker" price: every token at full list
   rate, no cache discount (always the larger number)
-- **a row for every model used today** — up to four (Opus, Sonnet, Haiku, Fable),
+- **a row for every model used today** — up to five (Opus, Sonnet, Haiku, Fable,
+  and **Local** if you ever point Claude Code at a local model like Ollama),
   each with that model's cache-aware cost and **the total tokens it used today**
+  (Local always shows $0 — it's never priced)
 - **a notice banner** above the chats list — a heads-up that local-AI chats run
   one at a time and can take up to 5 seconds for an initial reply
 - **Recent Chats · Context Used** — a live list of your up to **10 most-recent
@@ -39,6 +41,15 @@ everything stays put and just climbs as you work. Shown all at once:
   logs for — a zebra-striped list you can **sort** (Most recent, Name A–Z, Tokens
   high→low, or low→high); expand a row for its tokens, cost, turns, active date
   range, and a **per-model table** (tokens/cost/turns/output for each model)
+- **a settings panel at the top of the calendar** — change how many recent
+  chats the widget shows, with **Save** and **Update** buttons; applies
+  immediately, no restart (talks to a tiny `127.0.0.1`-only listener the
+  widget runs while it's open — never reachable off your machine)
+- **a "Usage Windows" page** — since Anthropic doesn't publish exactly how
+  many tokens you get in a 5-hour / weekly window, this tracks **your own
+  observed usage** in each window over time (day totals, the busiest
+  5-consecutive-hour stretch each day, and a trailing 7-day sum) so you can
+  spot a pattern if it ever changes. Reuses data already saved, no new scanning
 
 It's a single small PowerShell program. No installer, no dependencies, no
 network, no background service — it just reads the transcript files Claude Code
@@ -46,7 +57,7 @@ already writes to disk.
 
 ```
 ┌──────────────────────────────────────┐
-│ Claude Usage v1.10.0    🗓  ⟳   ×      │
+│ Claude Usage v1.11.0    🗓  ⟳   ×      │
 │ Spent Today · Cached                   │
 │ $480.44                                │
 │ If Billed Per Token:       $2,256.56   │
@@ -188,8 +199,13 @@ Open `usage-widget.ps1` in any text editor:
   Every family in `$FamOrder` with usage today is shown automatically. `Other`
   (unknown model ids) has no row by design, but its tokens still count in the
   totals.
-- **`$MaxSessions`** (default `10`) — how many recent chats the **Recent Chats ·
-  Context Used** list shows.
+- **`$MaxSessionsDefault`** (default `10`) — how many recent chats the **Recent
+  Chats · Context Used** list shows, until you change it from the calendar's
+  settings panel (which writes `usage-widget-settings.json` and takes effect
+  immediately — no restart). `$MaxSessionsCap` (`50`) is the hard ceiling.
+- **`$SettingsPort`** (default `8907`) — the `127.0.0.1`-only port the
+  settings panel talks to. Change it if something else on your machine
+  already uses that port.
 - **`$ContextWindowTokens`** (default `0` = auto) — the window each chat's
   context bar is measured against. Auto picks 200K, bumping to 1M if any recent
   chat exceeds 200K (the long-context beta). Set a fixed number (e.g. `200000`

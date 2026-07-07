@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.10.0'   # bump on each release; shown next to the title in the widget
+$Version  = '1.11.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -52,26 +52,39 @@ function Get-Price($m){
         'claude-opus-*'   { return @{ In=5.0;  Out=25.0 } }
         'claude-sonnet-*' { return @{ In=3.0;  Out=15.0 } }
         'claude-haiku-*'  { return @{ In=1.0;  Out=5.0  } }
-        default           { return @{ In=5.0;  Out=25.0 } }   # unknown -> Opus-tier
+        'claude-*'        { return @{ In=5.0;  Out=25.0 } }   # unrecognized Claude model -> Opus-tier guess
+        default           { return @{ In=0.0;  Out=0.0  } }   # not a Claude model at all (e.g. Claude Code pointed
+                                                                # at a local Ollama model via ANTHROPIC_BASE_URL) ->
+                                                                # always free, never priced - see Family() below
     }
 }
 
 # Group a model id into a display family for the per-model usage rows.
 function Family($m){
+    # NOTE: PowerShell's switch runs EVERY matching clause, not just the first
+    # (no implicit break, unlike C/JS) - each clause needs an explicit break or
+    # a broader later pattern (like 'claude-*') would ALSO fire after a more
+    # specific one already matched, returning a 2-element array instead of one.
     switch -Wildcard ($m){
-        'claude-opus-*'   { 'Opus' }
-        'claude-sonnet-*' { 'Sonnet' }
-        'claude-haiku-*'  { 'Haiku' }
-        'claude-fable-*'  { 'Fable' }
-        'claude-mythos-*' { 'Fable' }
-        default           { 'Other' }
+        'claude-opus-*'   { 'Opus';   break }
+        'claude-sonnet-*' { 'Sonnet'; break }
+        'claude-haiku-*'  { 'Haiku';  break }
+        'claude-fable-*'  { 'Fable';  break }
+        'claude-mythos-*' { 'Fable';  break }
+        'claude-*'        { 'Other';  break }   # unrecognized Claude model
+        default           { 'Local' }            # not a Claude model - a locally-run model (e.g. qwen via Ollama), always $0
     }
 }
 
 # --- recent-chats context list --------------------------------------------
 # The "recent chats" section shows your most-recent chat sessions, each with a
 # bar for how full its context window is (last turn's input + cache tokens).
-$MaxSessions = 10          # cap the list at this many most-recent chats
+$MaxSessionsDefault = 10   # fallback if no settings file exists yet; edit here to change the built-in default
+$MaxSessionsCap = 50       # hard upper bound - how many chat-row controls the widget ever creates
+$script:MaxSessions = $MaxSessionsDefault   # LIVE value; loaded from the settings file at startup, and
+                                            # changeable at runtime from the calendar's settings panel
+$SettingsPath = Join-Path $env:USERPROFILE '.claude\usage-widget-settings.json'
+$SettingsPort = 8907       # 127.0.0.1-only local listener the calendar's settings panel talks to
 # Context window each chat's fill is measured against. 0 = auto-detect: 200K
 # normally, bumping to 1M if any recent chat exceeds 200K (i.e. the long-context
 # beta is on). Set a fixed number (e.g. 200000 or 1000000) to override.
@@ -98,6 +111,8 @@ $script:archived  = @{}     # session-id -> 1 for archived chats (out of lists, 
 $script:sessCollapsed = $false  # recent-chats list collapsed? (persisted in the pos file)
 $script:allTime    = $null  # cached all-time totals @{tok;cost;raw}
 $script:allTimeAt  = $null  # last all-time recompute time
+$script:settingsListener = $null  # the 127.0.0.1 HttpListener (Start-SettingsServer)
+$script:settingsAsync    = $null  # pending IAsyncResult, polled each timer tick (Poll-SettingsServer)
 
 # --- palette --------------------------------------------------------------
 $cBg     = [System.Drawing.Color]::FromArgb(22,27,34)
@@ -109,12 +124,16 @@ $cRed    = [System.Drawing.Color]::FromArgb(229,83,75)
 $cText   = [System.Drawing.Color]::FromArgb(230,237,243)
 $cTrack  = [System.Drawing.Color]::FromArgb(48,54,61)
 $cPurple = [System.Drawing.Color]::FromArgb(168,85,247)
+$cBlue   = [System.Drawing.Color]::FromArgb(88,166,255)   # 'Local' family (a local model, e.g. qwen via Ollama)
 
 # Fixed family order + colour for the per-model rows. Only families with usage
-# are shown, in this order. 'Other' (unknown model ids) is intentionally NOT in
-# the order, so it gets no row - but its tokens/cost still count in the totals.
-$FamOrder = @('Opus','Sonnet','Haiku','Fable')
-$FamColor = @{ Opus=$cCyan; Sonnet=$cPurple; Haiku=$cGreen; Fable=$cAmber; Other=$cDim }
+# are shown, in this order. 'Other' (unrecognized Claude model ids) is
+# intentionally NOT in the order, so it gets no row - but its tokens/cost still
+# count in the totals. 'Local' (Claude Code pointed at a non-Claude model, e.g.
+# a local Ollama model) IS in the order - it's always $0 (see Get-Price), so it
+# never affects the cost totals, but its own tokens are worth seeing.
+$FamOrder = @('Opus','Sonnet','Haiku','Fable','Local')
+$FamColor = @{ Opus=$cCyan; Sonnet=$cPurple; Haiku=$cGreen; Fable=$cAmber; Local=$cBlue; Other=$cDim }
 
 function Hue([double]$p){ if($p -ge 90){$cRed}elseif($p -ge 70){$cAmber}else{$cGreen} }
 
@@ -285,7 +304,7 @@ $lblSessHdr.Visible = $false
 # Percent and tokens are both right-justified, split by a thin vertical barrier.
 $cSep = [System.Drawing.Color]::FromArgb(78,86,95)
 $sName=@(); $sTrack=@(); $sFill=@(); $sPct=@(); $sSep=@(); $sTok=@()
-for($k=0;$k -lt $MaxSessions;$k++){
+for($k=0;$k -lt $MaxSessionsCap;$k++){
     $nm = New-Lbl $padL 260 ($sTrackX-$padL-4) 16 $cText 8.5 $false
     $nm.AutoEllipsis = $true
     $tr = New-Object System.Windows.Forms.Panel
@@ -379,7 +398,7 @@ $lblSessHdr.Cursor = [System.Windows.Forms.Cursors]::Hand
 $lblSessHdr.Add_Click({ Toggle-Sessions })
 
 function Save-Pos { try { "$($form.Left),$($form.Top),$([int][bool]$script:sessCollapsed)" | Set-Content -LiteralPath $PosPath -Encoding ASCII } catch {} }
-$form.Add_FormClosing({ Save-Pos; if($script:data){ Persist-Today $script:data } })
+$form.Add_FormClosing({ Save-Pos; if($script:data){ Persist-Today $script:data }; if($script:settingsListener){ try { $script:settingsListener.Stop() } catch {} } })
 
 # --- data: today's aggregate across all sessions --------------------------
 function New-FileState { @{ off=[long]0; lw=$null; turns=0; out=0.0; tok=0.0; cost=0.0; raw=0.0; by=@{} } }
@@ -599,6 +618,89 @@ function Unarchive-All {
     $script:layoutKey=$null
     Update-Widget
 }
+
+# --- settings (recent-chats count, editable from the calendar) ------------
+function Load-Settings {
+    if(Test-Path $SettingsPath){
+        try {
+            $o = Get-Content $SettingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $n = [int]$o.maxSessions
+            if($n -ge 1 -and $n -le $MaxSessionsCap){ $script:MaxSessions = $n }
+        } catch {}
+    }
+}
+function Save-Settings {
+    try {
+        (@{ maxSessions = $script:MaxSessions } | ConvertTo-Json -Compress) | Set-Content -LiteralPath $SettingsPath -Encoding UTF8
+    } catch {}
+}
+# Tiny 127.0.0.1-only HTTP listener so the calendar page (a static file with no
+# other write-back path) can read/change the recent-chats count while the
+# widget is running. Never reachable off this machine; no auth needed.
+# POLLED from the existing 1s timer tick (UI thread only) rather than reacting
+# to HttpListener's async callback on a ThreadPool thread - a PowerShell
+# runspace can only run one thing at a time, and the main thread spends the
+# whole app lifetime inside the blocking $form.ShowDialog() call, so a
+# background-thread callback trying to run PowerShell (touching $script:
+# state, calling Update-Widget) would race the UI thread for the same
+# runspace. Polling IsCompleted from the timer keeps everything single-threaded.
+function Handle-SettingsRequest($ctx){
+    $req=$ctx.Request; $res=$ctx.Response
+    try {
+        $res.Headers.Add('Access-Control-Allow-Origin','*')
+        $res.Headers.Add('Access-Control-Allow-Methods','GET, POST, OPTIONS')
+        $res.Headers.Add('Access-Control-Allow-Headers','Content-Type')
+        if($req.HttpMethod -eq 'OPTIONS'){ $res.StatusCode=204; $res.Close(); return }
+        if($req.Url.AbsolutePath -ne '/settings'){ $res.StatusCode=404; $res.Close(); return }
+        $body=$null
+        if($req.HttpMethod -eq 'GET'){
+            $body = @{ maxSessions=$script:MaxSessions; cap=$MaxSessionsCap } | ConvertTo-Json -Compress
+        } elseif($req.HttpMethod -eq 'POST'){
+            $reader=New-Object System.IO.StreamReader($req.InputStream,$req.ContentEncoding)
+            $raw=$reader.ReadToEnd(); $reader.Close()
+            $obj=$null; try { $obj = $raw | ConvertFrom-Json } catch {}
+            $n = $script:MaxSessions
+            if($obj -and ($null -ne $obj.maxSessions)){ $n=[int]$obj.maxSessions }   # -ne null, not truthy: a literal 0 must still clamp to 1 below, not be silently ignored
+            if($n -lt 1){ $n=1 }; if($n -gt $MaxSessionsCap){ $n=$MaxSessionsCap }
+            $script:MaxSessions = $n
+            Save-Settings
+            $script:layoutKey=$null   # row count may have changed -> force relayout
+            Update-Widget
+            $body = @{ maxSessions=$script:MaxSessions; cap=$MaxSessionsCap; ok=$true } | ConvertTo-Json -Compress
+        } else {
+            $res.StatusCode=405; $res.Close(); return
+        }
+        $buf=[System.Text.Encoding]::UTF8.GetBytes($body)
+        $res.ContentType='application/json'
+        $res.ContentLength64=$buf.Length
+        $res.OutputStream.Write($buf,0,$buf.Length)
+        $res.Close()
+    } catch { try { $res.Close() } catch {} }
+}
+function Start-SettingsServer {
+    try {
+        $l = New-Object System.Net.HttpListener
+        $l.Prefixes.Add("http://127.0.0.1:$SettingsPort/")
+        $l.Start()
+        $script:settingsListener = $l
+        $script:settingsAsync = $l.BeginGetContext($null,$null)
+    } catch {}   # port already taken (e.g. another instance, or a test harness) -> settings just won't be reachable
+}
+# Called every 1s timer tick (UI thread). Cheap no-op when no request is
+# pending; only does real work (parse/respond/maybe Update-Widget) once a
+# request has actually arrived.
+function Poll-SettingsServer {
+    if(-not $script:settingsListener -or -not $script:settingsAsync){ return }
+    if(-not $script:settingsAsync.IsCompleted){ return }
+    try {
+        $ctx = $script:settingsListener.EndGetContext($script:settingsAsync)
+        Handle-SettingsRequest $ctx
+    } catch {}
+    finally {
+        try { $script:settingsAsync = $script:settingsListener.BeginGetContext($null,$null) }
+        catch { $script:settingsAsync = $null }
+    }
+}
 # Collapse/expand the recent-chats list (clicking its header). Persisted.
 function Toggle-Sessions {
     $script:sessCollapsed = -not $script:sessCollapsed
@@ -718,7 +820,7 @@ function Relayout($fams,$nSess){
         $lblSessHdr.Top = $s0; $lblSessHdr.Visible=$true
         $rowsShown = if($script:sessCollapsed){ 0 } else { $nSess }
         $sTop = $s0 + 18
-        for($k=0;$k -lt $MaxSessions;$k++){
+        for($k=0;$k -lt $MaxSessionsCap;$k++){
             if($k -lt $rowsShown){
                 $y = $sTop + $k*$sRowH
                 $sName[$k].Top=$y
@@ -734,7 +836,7 @@ function Relayout($fams,$nSess){
         $bottom = if($rowsShown -gt 0){ $sTop + $rowsShown*$sRowH + 6 } else { $s0 + 18 }
     } else {
         $lblSessHdr.Visible=$false
-        for($k=0;$k -lt $MaxSessions;$k++){ $sName[$k].Visible=$false; $sTrack[$k].Visible=$false; $sPct[$k].Visible=$false; $sSep[$k].Visible=$false; $sTok[$k].Visible=$false }
+        for($k=0;$k -lt $MaxSessionsCap;$k++){ $sName[$k].Visible=$false; $sTrack[$k].Visible=$false; $sPct[$k].Visible=$false; $sSep[$k].Visible=$false; $sTok[$k].Visible=$false }
     }
 
     # bottom block: divider -> All Time Usage (2 lines) -> turns/sessions (left)
@@ -1044,9 +1146,11 @@ function Open-History {
 
 # --- timer + run ----------------------------------------------------------
 $script:archived = Load-Archived  # restore the user's archived-chats list
+Load-Settings                     # restore the recent-chats count (if changed from the calendar before)
+Start-SettingsServer              # start listening for the calendar's settings panel
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 1000
-$timer.Add_Tick({ Update-Widget })
+$timer.Add_Tick({ Update-Widget; Poll-SettingsServer })
 # Paint the placeholder layout first (DoEvents), THEN run the first scan - which
 # can take a few seconds when it reads the whole day from cold - so the window
 # appears immediately instead of as a frozen blank rectangle.

@@ -2,6 +2,27 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.11.0 — 2026-07-06
+
+- **Settings panel in the calendar.** A new panel at the top of the history
+  calendar lets you change how many recent chats the widget shows, with
+  **Save** and **Update** buttons — it applies immediately, no restart. (The
+  widget runs a tiny `127.0.0.1`-only listener to make this possible; it's
+  never reachable off your machine.)
+- **New "Usage Windows" page** in the calendar. Since Anthropic doesn't
+  publish exactly how many tokens you get in a 5-hour / weekly window, this
+  tracks **your own observed usage** in each window over time — day totals,
+  the busiest 5-consecutive-hour stretch each day, and a trailing 7-day sum —
+  so you can spot a pattern if that changes. Reuses data already saved; no
+  extra scanning.
+- **Local models (e.g. Claude Code pointed at Ollama) are now tracked
+  correctly.** Previously a non-Claude model would silently get priced as if
+  it were Opus and hidden from the model rows. Now it gets its own **Local**
+  row/color, always $0 (never priced), clearly separated from your Claude
+  totals.
+- Internal: moved maintainer-only docs (`HANDOFF.md`, `PUBLISH.md`) into a
+  `Non Deployed Files` folder so they can never accidentally ship.
+
 ## v1.10.0 — 2026-07-06
 
 - **Capitalized labels** for readability: "Spent Today · Cached", "If Billed Per
