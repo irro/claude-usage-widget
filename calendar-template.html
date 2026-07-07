@@ -500,7 +500,7 @@ function bars(map, order, mx, colorFn){
     return `<div class="prow" data-fam="${esc(n)}" style="cursor:pointer"><span class="pn" style="color:${colorFn(n)}">${esc(n)}</span><span class="pbar"><span style="width:${w}%;background:${colorFn(n)}"></span></span><span class="pv">${disp}</span></div>`;
   }).join('');
 }
-function showDay(k){
+function showDay(k, push=true){
   const x=DATA[k]; if(!x) return;
   document.getElementById('dvtitle').textContent = longDate(parseDay(k));
   const sx = x.turns===1?'':'s';
@@ -526,7 +526,7 @@ function showDay(k){
   const smx=Math.max(1,...ss.map(s=>metric==='cost'?s.cost:s.tok));
   document.getElementById('dvsessions').innerHTML = ss.length ? ss.map(s=>{
     const v=metric==='cost'?s.cost:s.tok, w=Math.max(3,Math.round(100*v/smx));
-    const chip = s.model?`<span class="chip ${s.model}">${s.model}</span> `:'';
+    const chip = s.model?`<span class="chip ${esc(s.model)}">${esc(s.model)}</span> `:'';
     const proj = s.cwd?(' · '+esc(s.cwd)):'';
     return `<div class="scard" data-sid="${esc(s.id)}" style="cursor:pointer" title="Click for this chat's all-time totals"><div class="sbody"><div class="slabel">${chip}${esc(s.label)}</div>`+
       `<div class="smeta">${s.start}–${s.end}${proj} · ${s.turns.toLocaleString()} turns · ${fmtTok(s.tok)} tokens · #${s.id}</div>`+
@@ -538,7 +538,7 @@ function showDay(k){
   document.getElementById('dayview').style.display='block';
   document.getElementById('tip').classList.remove('show');
   window.scrollTo(0,0);
-  history.pushState({day:k},'','#'+k);
+  if(push) history.pushState({day:k},'','#'+k);
 }
 // every show* function hides every OTHER view first, so navigating straight
 // from one detail page to another (e.g. a model chip clicked while already
@@ -548,17 +548,19 @@ function hideAllViews(){
     const el=document.getElementById(id); if(el) el.style.display='none';
   });
 }
-function showCalendar(){
+function showCalendar(push=true){
   hideAllViews();
   document.getElementById('mainview').style.display='block';
   window.scrollTo(0,0);
+  if(push) history.pushState({},'','#');
 }
 // ---- usage windows (5h peak / day / trailing 7d), from data already saved ----
-function showWindows(){
+function showWindows(push=true){
   renderWindows();
   hideAllViews();
   document.getElementById('windowsview').style.display='block';
   window.scrollTo(0,0);
+  if(push) history.pushState({view:'windows'},'','#windows');
 }
 function renderWindows(){
   if(!has){ document.getElementById('wtable').innerHTML='<div class="empty-state">No recorded usage yet.</div>'; return; }
@@ -634,7 +636,7 @@ function renderWindows(){
       <span>${chip}</span></div>`;
   }).join('');
 }
-document.getElementById('openWindows').addEventListener('click', showWindows);
+document.getElementById('openWindows').addEventListener('click', ()=>showWindows());
 document.getElementById('backFromWindows').addEventListener('click', showCalendar);
 
 // ---- Tokens page: day-by-day token trend (the "Total tokens" card's detail) ----
@@ -660,8 +662,8 @@ function renderTokensPage(){
       <span>${niceDate(parseDay(d))}</span><span class="wnum">${fmtTok(x.tok)}</span><span class="wnum">${fmtTok(tc)}</span><span class="wnum">${tl>0?fmtTok(tl):'—'}</span></div>`;
   }).join('');
 }
-function showTokens(){ renderTokensPage(); hideAllViews(); document.getElementById('tokensview').style.display='block'; window.scrollTo(0,0); }
-document.getElementById('backFromTokens').addEventListener('click', showCalendar);
+function showTokens(push=true){ renderTokensPage(); hideAllViews(); document.getElementById('tokensview').style.display='block'; window.scrollTo(0,0); if(push) history.pushState({view:'tokens'},'','#tokens'); }
+document.getElementById('backFromTokens').addEventListener('click', ()=>showCalendar());
 document.getElementById('tokTrend').addEventListener('click', e=>{ const b=e.target.closest('.tb[data-k]'); if(b) showDay(b.dataset.k); });
 document.getElementById('tokTable').addEventListener('click', e=>{ const r=e.target.closest('.wtr[data-k]'); if(r) showDay(r.dataset.k); });
 
@@ -685,8 +687,8 @@ function renderSpendPage(){
       <span>${niceDate(parseDay(d))}</span><span class="wnum">${fmtMoney(x.cost)}</span><span class="wnum">${fmtMoney(x.raw)}</span><span class="wnum">${fmtTok(x.tok)}</span></div>`;
   }).join('');
 }
-function showSpend(){ renderSpendPage(); hideAllViews(); document.getElementById('spendview').style.display='block'; window.scrollTo(0,0); }
-document.getElementById('backFromSpend').addEventListener('click', showCalendar);
+function showSpend(push=true){ renderSpendPage(); hideAllViews(); document.getElementById('spendview').style.display='block'; window.scrollTo(0,0); if(push) history.pushState({view:'spend'},'','#spend'); }
+document.getElementById('backFromSpend').addEventListener('click', ()=>showCalendar());
 document.getElementById('spendTable').addEventListener('click', e=>{ const r=e.target.closest('.wtr[data-k]'); if(r) showDay(r.dataset.k); });
 
 // ---- Local Usage page: the 'Local' card's detail - all-time models + sessions ----
@@ -700,11 +702,18 @@ function renderLocalPage(){
   if(LOCAL_MODELS.length) cards.push({cls:'avg',lbl:'Distinct models seen',val:String(LOCAL_MODELS.length),sub:'all-time'});
   document.getElementById('localCards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
 
+  // LOCAL_MODELS/ALL_SESSIONS are rebuilt from transcripts still on disk, but
+  // totLocal is a persisted historical rollup that survives pruning - so an
+  // old local transcript can vanish from the breakdown/session list while the
+  // total above stays > 0. Say so explicitly (matching the day-view's own
+  // "(transcripts pruned)" pattern) instead of reading as "no local usage."
+  const prunedHint = totLocal > 0 ? ' (older transcripts may have been pruned - see the total above)' : '';
+
   const mmx = Math.max(1, ...LOCAL_MODELS.map(m=>m.tok||0));
   document.getElementById('localModelsList').innerHTML = LOCAL_MODELS.length ? LOCAL_MODELS.map(m=>{
     const w=Math.max(2,Math.round(100*(m.tok||0)/mmx));
     return `<div class="prow"><span class="pn" style="color:var(--blue)">${esc(m.model)}</span><span class="pbar"><span style="width:${w}%;background:var(--blue)"></span></span><span class="pv">${fmtTok(m.tok)}</span></div>`;
-  }).join('') : '<div class="empty-state" style="padding:14px">No local model usage recorded yet.</div>';
+  }).join('') : `<div class="empty-state" style="padding:14px">No local model detail available${prunedHint || ' yet'}.</div>`;
 
   const sess = (ALL_SESSIONS||[]).filter(s=>(s.byModel||[]).some(m=>m.model==='Local' && (m.tok||0)>0));
   document.getElementById('localSessCount').textContent = sess.length ? ('· '+sess.length) : '';
@@ -715,10 +724,10 @@ function renderLocalPage(){
       <div class="sbody"><div class="slabel"><span class="chip Local">Local</span> ${esc(s.name)}</div>
       <div class="smeta">${s.days} day${s.days!==1?'s':''} active${proj} · #${esc(s.id)}</div></div>
       <div class="sval"><div class="sc" style="color:var(--blue)">${fmtTok(lm.tok)}</div><div class="st">local tokens</div></div></div>`;
-  }).join('') : '<div class="empty-state">No local chat sessions recorded yet.</div>';
+  }).join('') : `<div class="empty-state">No local chat sessions available${prunedHint || ' yet'}.</div>`;
 }
-function showLocal(){ renderLocalPage(); hideAllViews(); document.getElementById('localview').style.display='block'; window.scrollTo(0,0); }
-document.getElementById('backFromLocal').addEventListener('click', showCalendar);
+function showLocal(push=true){ renderLocalPage(); hideAllViews(); document.getElementById('localview').style.display='block'; window.scrollTo(0,0); if(push) history.pushState({view:'local'},'','#local'); }
+document.getElementById('backFromLocal').addEventListener('click', ()=>showCalendar());
 document.getElementById('localSessions').addEventListener('click', e=>{ const c=e.target.closest('.scard[data-sid]'); if(c) showSession(c.dataset.sid); });
 
 document.getElementById('cards').addEventListener('click', e=>{
@@ -756,8 +765,8 @@ function renderModelPage(fam){
       <span>${niceDate(parseDay(r.d))}</span><span class="wnum">${fmtTok(r.tok)}</span><span class="wnum">${fmtMoney(r.cost)}</span><span class="wnum">${r.turns.toLocaleString()}</span></div>`
   ).join('') : '<div class="empty-state" style="padding:14px">No usage recorded for this model.</div>';
 }
-function showModel(fam){ renderModelPage(fam); hideAllViews(); document.getElementById('modelview').style.display='block'; window.scrollTo(0,0); }
-document.getElementById('backFromModel').addEventListener('click', showCalendar);
+function showModel(fam, push=true){ renderModelPage(fam); hideAllViews(); document.getElementById('modelview').style.display='block'; window.scrollTo(0,0); if(push) history.pushState({view:'model',fam:fam},'','#model-'+encodeURIComponent(fam)); }
+document.getElementById('backFromModel').addEventListener('click', ()=>showCalendar());
 document.getElementById('modelTrend').addEventListener('click', e=>{ const b=e.target.closest('.tb[data-k]'); if(b) showDay(b.dataset.k); });
 document.getElementById('modelTable').addEventListener('click', e=>{ const r=e.target.closest('.wtr[data-k]'); if(r) showDay(r.dataset.k); });
 document.getElementById('dvmodels').addEventListener('click', e=>{ const r=e.target.closest('.prow[data-fam]'); if(r) showModel(r.dataset.fam); });
@@ -800,8 +809,21 @@ grid.addEventListener('click', e=>{ const c=e.target.closest('.cell.has'); if(c)
 // ---- wiring ----
 document.getElementById('prev').onclick=()=>{ cur=new Date(cur.getFullYear(),cur.getMonth()-1,1); renderMonth(); };
 document.getElementById('next').onclick=()=>{ cur=new Date(cur.getFullYear(),cur.getMonth()+1,1); renderMonth(); };
-document.getElementById('back').onclick=()=>{ history.pushState({},'','#'); showCalendar(); };
-window.addEventListener('popstate', e=>{ if(e.state&&e.state.day&&DATA[e.state.day]) showDay(e.state.day); else showCalendar(); });
+document.getElementById('back').onclick=()=>showCalendar();
+// Every show* function owns its own history.pushState call now (day, windows,
+// tokens, spend, local, model each get a distinct hash/state); popstate routes
+// by state shape and re-displays with push=false so popping never re-pushes a
+// duplicate entry at the same stack position.
+window.addEventListener('popstate', e=>{
+  const st = e.state;
+  if(st && st.day && DATA[st.day]) showDay(st.day, false);
+  else if(st && st.view === 'windows') showWindows(false);
+  else if(st && st.view === 'tokens') showTokens(false);
+  else if(st && st.view === 'spend') showSpend(false);
+  else if(st && st.view === 'local') showLocal(false);
+  else if(st && st.view === 'model' && st.fam) showModel(st.fam, false);
+  else showCalendar(false);
+});
 document.getElementById('seg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
   metric=b.dataset.m; [...document.querySelectorAll('#seg button')].forEach(x=>x.classList.toggle('on',x===b));
   renderMonth(); if(document.getElementById('dayview').style.display!=='none'){ const k=(location.hash||'').slice(1); if(DATA[k]) showDay(k); } });

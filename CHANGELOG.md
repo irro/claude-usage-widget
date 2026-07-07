@@ -2,6 +2,26 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.15.1 — 2026-07-07
+
+Bug fixes found by an adversarial review of the v1.15.0 changes.
+
+- **Fixed: Recent Local Chats could show empty even with qualifying local
+  chats on disk.** The candidate pool `Get-Sessions` scans was previously
+  shared between Cloud and Local and capped at a fixed size sorted by overall
+  recency — a heavy Cloud day could crowd every Local candidate out of that
+  pool entirely. It now keeps walking further back in history until both
+  lists are satisfied (still bounded, so it can't scan forever).
+- **Fixed: the calendar's browser Back button could skip a level** — going
+  Calendar → Day → a model/Tokens/Spend/Local page, then pressing Back, used
+  to jump straight to the Calendar instead of back to the Day you came from.
+  Every page now tracks its own place in browser history correctly.
+- Local Usage page now says explicitly when older local transcripts have been
+  pruned (matching the wording already used elsewhere), instead of reading as
+  "no local usage" while the all-time total above it is still nonzero.
+- Minor hardening: a model name is now HTML-escaped everywhere it's
+  displayed, including one spot inside a day's session list that was missed.
+
 ## v1.15.0 — 2026-07-07
 
 - **Recent Local Chats is now its own collapsible section**, laid out exactly

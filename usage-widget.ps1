@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.15.0'   # bump on each release; shown next to the title in the widget
+$Version  = '1.15.1'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -899,11 +899,21 @@ function Get-Sessions {
         $files = @($files | Where-Object { -not $script:archived.ContainsKey([System.IO.Path]::GetFileNameWithoutExtension($_.Name)) })
     }
     $wantCloud = $MaxSessions; $wantLocal = $script:MaxLocalSessions
-    $poolSize = [Math]::Max(($wantCloud + $wantLocal) * 2, 20)
-    $recent = $files | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First $poolSize
-    $outCloud=@(); $outLocal=@()
+    # Walk ALL files newest-first (cheap - just sorted file metadata) rather
+    # than a fixed-size pool shared between both buckets: a shared pool
+    # silently starves whichever bucket is less recent - e.g. one Local test
+    # from last week gets crowded out of the pool entirely by 200 same-day
+    # Cloud sessions, showing an empty Local list even though a qualifying
+    # file exists on disk. Only cap total files WALKED (not tail-reads alone),
+    # to bound worst-case cost for a user with thousands of transcripts and no
+    # matching Local files at all.
+    $maxScan = [Math]::Max(($wantCloud + $wantLocal) * 10, 150)
+    $recent = $files | Sort-Object LastWriteTimeUtc -Descending
+    $outCloud=@(); $outLocal=@(); $scanned=0
     foreach($f in $recent){
         if($outCloud.Count -ge $wantCloud -and $outLocal.Count -ge $wantLocal){ break }
+        if($scanned -ge $maxScan){ break }
+        $scanned++
         $path=$f.FullName
         $sid=[System.IO.Path]::GetFileNameWithoutExtension($f.Name)
         $c=$script:sessCache[$path]
