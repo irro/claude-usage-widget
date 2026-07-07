@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.15.1'   # bump on each release; shown next to the title in the widget
+$Version  = '1.15.2'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -560,6 +560,7 @@ function Read-Today($path,$st,$todayDate){
             if($line.IndexOf('output_tokens') -lt 0){ continue }
             try { $o = $line | ConvertFrom-Json } catch { continue }
             if($o.type -ne 'assistant'){ continue }
+            if($o.message.model -eq '<synthetic>'){ continue }   # client-rendered API-error placeholder, not a real model turn
             $u = $o.message.usage; if($null -eq $u){ continue }
             $tsOff = $null
             try { $tsOff = [datetimeoffset]::Parse([string]$o.timestamp) } catch { continue }
@@ -671,7 +672,7 @@ function Read-SessionTail($path){
             # malformed line just gets skipped instead of aborting this file's scan.
             try {
                 $o=$ln|ConvertFrom-Json
-                if($o -and $o.type -eq 'assistant' -and $o.message.usage){
+                if($o -and $o.type -eq 'assistant' -and $o.message.usage -and $o.message.model -ne '<synthetic>'){
                     $u=$o.message.usage
                     # context at rest after this turn = the whole prompt that was sent
                     # (input + cache read + cache write) plus the response just produced
@@ -1317,6 +1318,7 @@ function Scan-AllHistory {
                 if($line.IndexOf('output_tokens') -lt 0){ continue }
                 try { $o=$line|ConvertFrom-Json } catch { continue }
                 if($o.type -ne 'assistant'){ continue }
+                if($o.message.model -eq '<synthetic>'){ continue }   # client-rendered API-error placeholder, not a real model turn
                 $u=$o.message.usage; if($null -eq $u){ continue }
                 $k="$($o.message.id)|$($o.requestId)"; if($k -eq '|'){ $k=$o.uuid }
                 if($seen.ContainsKey($k)){ continue }; $seen[$k]=1

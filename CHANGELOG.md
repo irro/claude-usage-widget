@@ -2,6 +2,16 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.15.2 — 2026-07-07
+
+- **Fixed: a stray `<synthetic>` entry could show up as a "local model"** in
+  the Local model rows / Local Usage page. Claude Code writes this literal
+  placeholder as the model id for a client-rendered API-error message (e.g. a
+  529 overload) — it's not a real model turn and always carries zero tokens.
+  These entries are now skipped everywhere turns are counted (today's totals,
+  the all-time scan, and the per-session "last model used" lookup), so they
+  can never appear as a fake local model or inflate a turn count.
+
 ## v1.15.1 — 2026-07-07
 
 Bug fixes found by an adversarial review of the v1.15.0 changes.
