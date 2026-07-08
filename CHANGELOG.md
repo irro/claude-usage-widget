@@ -2,6 +2,18 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.16.1 — 2026-07-08
+
+- **Day view now has prev/next arrows** (top-right, next to "Back to calendar")
+  so you can step through consecutive days without returning to the month
+  grid each time. Disabled at the earliest/latest day you have data for.
+- **Calendar month-grid cells now show both cost and tokens**, not just
+  whichever the Cost/Tokens toggle is set to — the toggled metric stays the
+  bigger, heat-colored primary line, and the other one shows underneath it,
+  smaller and dimmer, using space in the cell that was previously empty.
+- Cell contents (day number, cost, tokens) are now horizontally centered
+  instead of left/edge-aligned.
+
 ## v1.16.0 — 2026-07-07
 
 - **Minimize to system tray.** A new button in the top-right corner (next to
