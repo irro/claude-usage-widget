@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.15.3'   # bump on each release; shown next to the title in the widget
+$Version  = '1.16.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -225,6 +225,15 @@ function Set-T($l,$t){ if($l.Text -ne $t){ $l.Text = $t } }
 $lblTitle = New-Lbl $padL 9 92 18 $cCyan 9.5 $true ; $lblTitle.Text = 'Claude Usage'
 $lblVer   = New-Lbl 95 12 70 14 $cDim 8 $false ; $lblVer.Text = 'v' + $Version
 
+# minimize-to-tray button - hides the widget and parks it in the system tray
+$btnTray = New-Lbl ($W-94) 7 20 18 $cDim 10 $false
+try { $btnTray.Font = New-Object System.Drawing.Font('Segoe MDL2 Assets',10) } catch {}
+$btnTray.Text = [string][char]0xE921                  # minimize glyph (Segoe MDL2 Assets)
+$btnTray.TextAlign = 'MiddleCenter'
+$btnTray.Add_Click({ Minimize-ToTray })
+$btnTray.Add_MouseEnter({ $btnTray.ForeColor = $cCyan })
+$btnTray.Add_MouseLeave({ $btnTray.ForeColor = $cDim })
+
 # history (calendar) button - opens a beautiful per-day usage calendar
 $btnHist = New-Lbl ($W-70) 7 20 18 $cDim 10 $false
 try { $btnHist.Font = New-Object System.Drawing.Font('Segoe MDL2 Assets',10) } catch {}
@@ -247,6 +256,41 @@ $btnX.TextAlign = 'MiddleCenter'
 $btnX.Add_Click({ $form.Close() })
 $btnX.Add_MouseEnter({ $btnX.ForeColor = $cRed })
 $btnX.Add_MouseLeave({ $btnX.ForeColor = $cDim })
+
+# --- system tray -----------------------------------------------------------
+# Minimizing hides the borderless form entirely and parks a NotifyIcon in the
+# tray instead - there's no taskbar button to fall back to (ShowInTaskbar is
+# already $false), so the tray icon IS the only way back once minimized.
+$trayIcon = New-Object System.Windows.Forms.NotifyIcon
+try { $trayIcon.Icon = New-Object System.Drawing.Icon((Join-Path $PSScriptRoot 'widget.ico')) }
+catch { $trayIcon.Icon = [System.Drawing.SystemIcons]::Application }
+$trayIcon.Text = 'Claude Usage'
+$trayIcon.Visible = $false
+
+$trayMenu = New-Object System.Windows.Forms.ContextMenuStrip
+$miTrayRestore = $trayMenu.Items.Add('Restore') ; $miTrayRestore.Add_Click({ Restore-FromTray })
+[void]$trayMenu.Items.Add('-')
+$miTrayExit = $trayMenu.Items.Add('Exit') ; $miTrayExit.Add_Click({ $trayIcon.Visible=$false; $form.Close() })
+$trayIcon.ContextMenuStrip = $trayMenu
+
+# Windows can silently reposition a hidden/re-shown TopMost borderless form
+# (this app has no DPI-awareness manifest, and per-monitor-DPI virtualization
+# is the likely cause) - remember where it was and snap back explicitly on
+# restore rather than trusting Show() to leave it in place.
+function Minimize-ToTray {
+    $script:trayLeft = $form.Left; $script:trayTop = $form.Top
+    $trayIcon.Visible = $true
+    $form.Hide()
+}
+function Restore-FromTray {
+    $form.Show()
+    if($null -ne $script:trayLeft){ $form.Left = $script:trayLeft; $form.Top = $script:trayTop }
+    $form.Activate()
+    $trayIcon.Visible = $false
+}
+# left-click activates it back to the desktop; right-click still gets the
+# Restore/Exit menu above (ContextMenuStrip handles that half on its own)
+$trayIcon.Add_MouseClick({ param($s,$e) if($e.Button -eq [System.Windows.Forms.MouseButtons]::Left){ Restore-FromTray } })
 
 # hero: today's cache-aware spend
 $lblHeroTag = New-Lbl $padL $heroTagY 200 14 $cDim 8 $false ; $lblHeroTag.Text = 'Spent Today  ' + [string][char]0x00B7 + '  Cached'
@@ -452,6 +496,7 @@ $lblTickLb = New-Lbl 122 336 166 14 $cBlue 8 $false ; $lblTickLb.TextAlign='Midd
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 $miC = $menu.Items.Add('History (calendar)') ; $miC.Add_Click({ Open-History })
 $miR = $menu.Items.Add('Refresh now')        ; $miR.Add_Click({ $script:curDay=$null; Update-Widget })
+$miT = $menu.Items.Add('Minimize to tray')   ; $miT.Add_Click({ Minimize-ToTray })
 $miS = $menu.Items.Add('Unarchive all chats'); $miS.Add_Click({ Unarchive-All })
 $miH = $menu.Items.Add('Open instructions')  ; $miH.Add_Click({ try { Start-Process (Join-Path $PSScriptRoot 'admin-instructions.html') } catch {} })
 [void]$menu.Items.Add('-')
@@ -522,7 +567,7 @@ foreach($c in @($lblLocalCtxUsedHdr,$lblLocalRecentChatsHdr,$lblLocalChevronHdr)
 }
 
 function Save-Pos { try { "$($form.Left),$($form.Top),$([int][bool]$script:sessCollapsed),$([int][bool]$script:sessCollapsedLocal)" | Set-Content -LiteralPath $PosPath -Encoding ASCII } catch {} }
-$form.Add_FormClosing({ Save-Pos; if($script:data){ Persist-Today $script:data }; if($script:settingsListener){ try { $script:settingsListener.Stop() } catch {} } })
+$form.Add_FormClosing({ Save-Pos; if($script:data){ Persist-Today $script:data }; if($script:settingsListener){ try { $script:settingsListener.Stop() } catch {} }; $trayIcon.Visible=$false; $trayIcon.Dispose() })
 
 # --- data: today's aggregate across all sessions --------------------------
 # byLocalModel tracks EXACT local model strings (e.g. 'qwen3:8b-32k'), separate
@@ -791,6 +836,8 @@ function Save-Settings {
 # background-thread callback trying to run PowerShell (touching $script:
 # state, calling Update-Widget) would race the UI thread for the same
 # runspace. Polling IsCompleted from the timer keeps everything single-threaded.
+# (blocking call is Application.Run($form) below, not ShowDialog() - see its
+# own comment for why that distinction matters for minimize-to-tray.)
 function Handle-SettingsRequest($ctx){
     $req=$ctx.Request; $res=$ctx.Response
     try {
@@ -1135,6 +1182,13 @@ function Relayout($cloudFams,$localModels,$nSess,$nSessLocal,$hasLocalAllTime){
 function Repaint($d,$cloudFams,$localModels,$stamp){
     Set-T $lblHero (Money $d.cost)
     Set-T $lblRawVal (Money $d.raw)
+    # keep the tray tooltip live so a hover glances at today's totals even
+    # while minimized, instead of freezing at whatever it showed on minimize.
+    # NotifyIcon.Text throws past 63 chars on some .NET versions - clip defensively
+    # so a hover-info repaint can never itself become the reason the widget errors.
+    $trayHint = 'Claude Usage — ' + (Money $d.cost) + ' today, ' + (Fmt-Tok $d.tok) + ' tokens'
+    if($trayHint.Length -gt 63){ $trayHint = $trayHint.Substring(0,60) + '...' }
+    try { $trayIcon.Text = $trayHint } catch {}
     $bm = $d.by
     for($k=0;$k -lt $cloudFams.Count;$k++){
         $f=$cloudFams[$k]
@@ -1500,5 +1554,10 @@ $form.Add_Shown({
     $timer.Start()
 })
 
-[void]$form.ShowDialog()
+# Application.Run (not ShowDialog) is required for minimize-to-tray: calling
+# Form.Hide() on a form shown via ShowDialog() ends the dialog loop immediately
+# (as if it had been closed), which would exit the whole app the moment the
+# tray button is clicked. Application.Run keeps pumping messages across
+# Hide()/Show() and only returns once the form is actually Closed.
+[System.Windows.Forms.Application]::Run($form)
 if($script:singleInstance){ try { $script:singleInstance.ReleaseMutex() } catch {} }

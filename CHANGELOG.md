@@ -2,6 +2,25 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.16.0 — 2026-07-07
+
+- **Minimize to system tray.** A new button in the top-right corner (next to
+  History/Refresh/Close) hides the widget and parks it in the system tray
+  instead of closing it. Hover the tray icon for a live glance at today's
+  spend and token count; left-click it to bring the widget straight back to
+  the desktop. Right-click gives you Restore/Exit. Also reachable from the
+  right-click menu ("Minimize to tray").
+- **Fixed a real crash this uncovered**: the widget's main loop used
+  `$form.ShowDialog()`, and calling `.Hide()` on a form shown that way ends
+  the dialog loop immediately — the whole app would have silently exited the
+  instant you clicked minimize. Switched the main loop to
+  `[System.Windows.Forms.Application]::Run($form)`, the standard pattern for
+  apps that need to hide and later re-show their window.
+- The widget now also remembers its exact screen position across a
+  minimize/restore cycle, working around a Windows quirk where a hidden/
+  re-shown borderless always-on-top window can otherwise land somewhere
+  slightly different than where you left it.
+
 ## v1.15.3 — 2026-07-07
 
 - **The Tokens/Spend/Local Usage/Model detail pages now have real charts**
