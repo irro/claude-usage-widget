@@ -2,6 +2,14 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.16.2 — 2026-07-08
+
+- **Trimmed the bottom section from 5 lines to 3.** Removed the all-time
+  "cached / per token" cost line and the "output · turns · sessions" line —
+  per feedback, they weren't wanted. What's left: "All Time Usage:",
+  "Local All-Time:" (only once you've used a local model), and "Updated
+  Xs ago", with tighter spacing to match.
+
 ## v1.16.1 — 2026-07-08
 
 - **Day view now has prev/next arrows** (top-right, next to "Back to calendar")

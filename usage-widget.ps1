@@ -8,7 +8,7 @@
 #   * "if billed per token"        - raw sticker cost, no cache discount
 #   * a daily-tokens gauge         - today's tokens vs a tunable daily budget
 #   * one row per model family used (Opus/Sonnet/Haiku/Fable) - cost + output
-#   * a footer  - total output, turns, distinct sessions, and freshness
+#   * a footer  - freshness ("updated Xs ago")
 #   * recent chats - up to 10 of your most-recent chat sessions (named exactly
 #     as in the Claude app), each with a live "context used" bar showing how
 #     full that chat's context window is - so you can see every chat at once
@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.16.1'   # bump on each release; shown next to the title in the widget
+$Version  = '1.16.2'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -354,16 +354,11 @@ $div2.BackColor = $cTrack
 $div2.Location = New-Object System.Drawing.Point($padL,180)
 $form.Controls.Add($div2)
 
-# output / turns / sessions: 3 columns spanning the full row width (left /
-# center / right), with a small dot marker carved out between each pair so
-# the split is visible even when the values are short
+# small dot marker used between two values on the same line (session-row
+# tooltips, the All-Time ticker's separators) so a split reads even when
+# the values themselves are short
 $dotChar = [string][char]0x00B7
-$lblFoot1a = New-Lbl $padL 188 84 15 $cDim 8 $false ; $lblFoot1a.Text = 'starting...'   # output, left
-$lblFoot1Sep1 = New-Lbl 96 188 16 15 $cDim 8 $false ; $lblFoot1Sep1.TextAlign = 'MiddleCenter' ; $lblFoot1Sep1.Text = $dotChar
-$lblFoot1b = New-Lbl 112 188 76 15 $cDim 8 $false ; $lblFoot1b.TextAlign = 'MiddleCenter'   # turns, center
-$lblFoot1Sep2 = New-Lbl 188 188 16 15 $cDim 8 $false ; $lblFoot1Sep2.TextAlign = 'MiddleCenter' ; $lblFoot1Sep2.Text = $dotChar
-$lblFoot1c = New-Lbl 204 188 84 15 $cDim 8 $false ; $lblFoot1c.TextAlign = 'MiddleRight'    # sessions, right
-$lblFoot2 = New-Lbl $padL 203 ($W-2*$padL) 14 $cDim 8 $false ; $lblFoot2.Text = '' ; $lblFoot2.TextAlign = 'MiddleRight'  # updated Xs ago, right
+$lblFoot2 = New-Lbl $padL 188 ($W-2*$padL) 14 $cDim 8 $false ; $lblFoot2.Text = '' ; $lblFoot2.TextAlign = 'MiddleRight'  # updated Xs ago (or "no usage yet"), right
 
 # --- recent-chats context section (divider + header + N chat rows) ---------
 # One tooltip serves every chat row (full name + exact token detail on hover).
@@ -479,18 +474,15 @@ $divT.Location = New-Object System.Drawing.Point($padL,300)
 $divT.Visible = $false
 $form.Controls.Add($divT)
 # row 1: "All Time Usage:" left, the token count right-justified to the true
-# right edge. row 2: cached-cost left, per-token-cost right - same idea, all
-# the row's horizontal space used instead of one bunched-up left-aligned string.
+# right edge - all the row's horizontal space used instead of one bunched-up
+# left-aligned string.
 $lblTick1a = New-Lbl $padL 308 110 14 $cText 8 $false ; $lblTick1a.Visible=$false ; $lblTick1a.Text='All Time Usage:'
 $lblTick1b = New-Lbl 122 308 166 14 $cText 8 $false ; $lblTick1b.TextAlign='MiddleRight' ; $lblTick1b.Visible=$false
-$lblTick2a = New-Lbl $padL 322 112 14 $cDim  8 $false ; $lblTick2a.Visible=$false
-$lblTick2Sep = New-Lbl 124 322 16 14 $cDim 8 $false ; $lblTick2Sep.TextAlign='MiddleCenter' ; $lblTick2Sep.Text=$dotChar ; $lblTick2Sep.Visible=$false
-$lblTick2b = New-Lbl 140 322 148 14 $cDim  8 $false ; $lblTick2b.TextAlign='MiddleRight' ; $lblTick2b.Visible=$false
-# row 3 (only shown once any Local/Ollama usage has ever been recorded): the
+# row 2 (only shown once any Local/Ollama usage has ever been recorded): the
 # Local all-time token total, right-justified the same way as row 1's Cloud
 # figure - never blended into it (different tokenizer, always $0 cost).
-$lblTickLa = New-Lbl $padL 336 110 14 $cBlue 8 $false ; $lblTickLa.Visible=$false ; $lblTickLa.Text='Local All-Time:'
-$lblTickLb = New-Lbl 122 336 166 14 $cBlue 8 $false ; $lblTickLb.TextAlign='MiddleRight' ; $lblTickLb.Visible=$false
+$lblTickLa = New-Lbl $padL 328 110 14 $cBlue 8 $false ; $lblTickLa.Visible=$false ; $lblTickLa.Text='Local All-Time:'
+$lblTickLb = New-Lbl 122 328 166 14 $cBlue 8 $false ; $lblTickLb.TextAlign='MiddleRight' ; $lblTickLb.Visible=$false
 
 # --- right-click menu -----------------------------------------------------
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
@@ -539,7 +531,7 @@ $dragHandler = {
 }
 function Wire-Drag($c){ $c.ContextMenuStrip = $menu; $c.Add_MouseDown($dragHandler) }
 # everything is a drag handle EXCEPT the refresh / close buttons (they click)
-$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot1a,$lblFoot1Sep1,$lblFoot1b,$lblFoot1Sep2,$lblFoot1c,$lblFoot2,$div3,$divT,$lblTick1a,$lblTick1b,$lblTick2a,$lblTick2Sep,$lblTick2b,$lblTickLa,$lblTickLb)
+$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot2,$div3,$divT,$lblTick1a,$lblTick1b,$lblTickLa,$lblTickLb)
 $dragCtrls += $lblCloudHdr,$lblLocalModelsHdr
 $dragCtrls += $rowName + $rowCost + $rowOut
 $dragCtrls += $lmName + $lmOut
@@ -1138,38 +1130,29 @@ function Relayout($cloudFams,$localModels,$nSess,$nSessLocal,$hasLocalAllTime){
         for($k=0;$k -lt $MaxLocalSessionsCap;$k++){ $lName[$k].Visible=$false; $lTrack[$k].Visible=$false; $lPct[$k].Visible=$false; $lSep[$k].Visible=$false; $lTok[$k].Visible=$false }
     }
 
-    # bottom block: divider -> All Time Usage (2 lines) -> turns/sessions (left)
-    # -> updated (right, the very bottom line)
+    # bottom block: divider -> All Time Usage -> Local All-Time (if any) ->
+    # updated (right, the very bottom line). Jacob's feedback 2026-07-08:
+    # dropped the cached/per-token line and the output/turns/sessions line
+    # entirely - just the headline total (+ Local's, when there is one) and
+    # a freshness stamp.
     $div3.Top = $bottom + 2; $div3.Visible=$true
     $b0 = $div3.Top + 8
-    # "All Time Usage:" headline gets more breathing room below it (6px), then
-    # the cost/turns/updated detail lines read as one tight block (2px each) -
-    # Jacob's feedback 2026-07-06: rows 1-2 had too little space, rows 2-3 had
-    # too much; row 3-4 was already right.
     $lblTick1a.Top = $b0;      $lblTick1a.Visible=$true     # All Time Usage: (left)
     $lblTick1b.Top = $b0;      $lblTick1b.Visible=$true     # X tokens (right)
-    $lblTick2a.Top = $b0 + 20; $lblTick2a.Visible=$true     # $X cached (left)
-    $lblTick2Sep.Top = $b0 + 20; $lblTick2Sep.Visible=$true # · marker
-    $lblTick2b.Top = $b0 + 20; $lblTick2b.Visible=$true     # $Y per token (right)
     # Local All-Time row only exists once local usage has ever been recorded -
     # everything below shifts down 16px (matching the existing row rhythm) when
     # it's shown, and sits exactly where it always did when it's not.
     if($hasLocalAllTime){
-        $lblTickLa.Top = $b0 + 36; $lblTickLa.Visible=$true
-        $lblTickLb.Top = $b0 + 36; $lblTickLb.Visible=$true
-        $footTop = $b0 + 52
+        $lblTickLa.Top = $b0 + 20; $lblTickLa.Visible=$true
+        $lblTickLb.Top = $b0 + 20; $lblTickLb.Visible=$true
+        $footTop = $b0 + 36
     } else {
         $lblTickLa.Visible=$false; $lblTickLb.Visible=$false
-        $footTop = $b0 + 36
+        $footTop = $b0 + 20
     }
-    $lblFoot1a.Top = $footTop; $lblFoot1a.Visible=$true     # output (left)
-    $lblFoot1Sep1.Top = $footTop; $lblFoot1Sep1.Visible=$true  # · marker
-    $lblFoot1b.Top = $footTop; $lblFoot1b.Visible=$true     # turns (center)
-    $lblFoot1Sep2.Top = $footTop; $lblFoot1Sep2.Visible=$true  # · marker
-    $lblFoot1c.Top = $footTop; $lblFoot1c.Visible=$true     # sessions (right)
-    $lblFoot2.Top = $footTop + 17;  $lblFoot2.Visible=$true # Updated Xs ago (right)
+    $lblFoot2.Top = $footTop;  $lblFoot2.Visible=$true      # Updated Xs ago (right)
     $divT.Visible=$false                                    # (old ticker divider, unused now)
-    $bottom = $footTop + 17 + 22
+    $bottom = $footTop + 22
 
     $newH = $bottom
     if($form.Height -ne $newH){
@@ -1202,11 +1185,6 @@ function Repaint($d,$cloudFams,$localModels,$stamp){
         Set-T $lmOut[$k] (Fmt-Tok $lm.tok)         # total tokens this exact local model used today
         $tip.SetToolTip($lmName[$k], $lm.model + "`n" + (Fmt-Tok $lm.tok) + ' tokens today  ' + $dotChar + '  ' + (Fmt-Ago $lm.last))
     }
-    $arrow = [string][char]0x2193
-    $sx = if($d.sessions -eq 1){'session'}else{'sessions'}
-    Set-T $lblFoot1a ($arrow + ' ' + (Fmt-Tok $d.out) + ' output')
-    Set-T $lblFoot1b ($d.turns.ToString() + ' turns')
-    Set-T $lblFoot1c ($d.sessions.ToString() + ' ' + $sx)
     Set-T $lblFoot2 (Fmt-Ago $stamp)
 }
 # Paint the per-chat context rows: name (as in the app), a fill bar coloured by
@@ -1258,8 +1236,6 @@ function Get-AllTime {
 function Repaint-Ticker {
     $a=Get-AllTime
     Set-T $lblTick1b ((Fmt-Tok $a.tokCloud) + ' tokens')
-    Set-T $lblTick2a ((Money $a.cost) + ' cached')
-    Set-T $lblTick2b ((Money $a.raw) + ' per token')
     if($a.tokLocal -gt 0){ Set-T $lblTickLb ((Fmt-Tok $a.tokLocal) + ' tokens') }
 }
 function Update-Widget {
@@ -1282,9 +1258,7 @@ function Update-Widget {
         Repaint $d $cloudFams $localModels $r.stamp
     } else {
         Set-T $lblHero '$0.00'; Set-T $lblRawVal '$0.00'
-        Set-T $lblFoot1a 'no Claude usage yet today'
-        Set-T $lblFoot1b ''; Set-T $lblFoot1c ''
-        Set-T $lblFoot2 ''
+        Set-T $lblFoot2 'no Claude usage yet today'
     }
     if($nSess -gt 0){
         # header doubles as a collapse toggle: chevron + (count when collapsed).
