@@ -25,12 +25,22 @@
   header .tag{color:var(--dim);font-size:13.5px}
   header .gen{margin-left:auto;color:var(--dim);font-size:12px}
 
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:22px 0 26px}
-  .card{background:linear-gradient(180deg,var(--panel),#12171f);border:1px solid var(--line);border-radius:14px;padding:14px 16px;position:relative;overflow:hidden}
+  /* auto-fill (not auto-fit) so a wrapped 7th/8th card stays card-width and left-
+     aligned instead of stretching full width; min-height keeps rows even when one
+     card's sub is longer than another's */
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(162px,1fr));gap:12px;margin:22px 0 26px}
+  .card{background:linear-gradient(180deg,var(--panel),#12171f);border:1px solid var(--line);border-radius:14px;padding:14px 16px;position:relative;overflow:hidden;min-height:96px}
   .card::after{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:var(--accent,var(--cyan));opacity:.7}
-  .card .lbl{color:var(--dim);font-size:11.5px;text-transform:uppercase;letter-spacing:.6px}
-  .card .val{font-size:23px;font-weight:700;margin-top:5px;line-height:1.1}
-  .card .sub{color:var(--dim);font-size:11.5px;margin-top:3px}
+  .card .lbl{color:var(--dim);font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:6px}
+  .card .val{font-size:23px;font-weight:700;margin-top:6px;line-height:1.1}
+  .card .sub{color:var(--dim);font-size:12px;margin-top:4px;line-height:1.35}
+
+  /* inline-SVG icon family: 24x24 viewBox, stroke-based, currentColor, so every
+     icon inherits its context's colour and reads as one set. .ic = 16px block
+     (cards/section headers), .ic-sm = 14px inline (rows/buttons) */
+  .ic{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+  .ic-sm{width:14px;height:14px;stroke-width:1.75;vertical-align:-2px}
+  .dvsec .ic{color:var(--dim);margin-right:7px;vertical-align:-4px}
   .card.cost .val{color:var(--cyan)} .card.cost{--accent:var(--cyan)}
   .card.raw .val{color:var(--amber)} .card.raw{--accent:var(--amber)}
   .card.peak .val{color:var(--purple)} .card.peak{--accent:var(--purple)}
@@ -45,19 +55,26 @@
 
   .bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
   .nav{display:flex;align-items:center;gap:6px}
-  .nav button{background:var(--panel2);color:var(--text);border:1px solid var(--line);width:30px;height:30px;border-radius:9px;cursor:pointer;font-size:15px;line-height:1;transition:.15s}
+  .nav button{background:var(--panel2);color:var(--text);border:1px solid var(--line);width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:15px;line-height:1;transition:.15s;display:inline-flex;align-items:center;justify-content:center}
   .nav button:hover{border-color:var(--cyan);color:var(--cyan)}
   .nav button:disabled{opacity:.35;cursor:default}
   .nav .month{min-width:165px;text-align:center;font-weight:700;font-size:16px}
   .nav .mtot{color:var(--dim);font-size:12.5px}
   .seg{margin-left:auto;display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
-  .seg button{background:transparent;border:0;color:var(--dim);padding:5px 12px;border-radius:7px;cursor:pointer;font-size:12.5px;font-weight:600}
+  .seg button{background:transparent;border:0;color:var(--dim);padding:5px 12px;min-height:32px;border-radius:7px;cursor:pointer;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
   .seg button.on{background:var(--panel2);color:var(--cyan)}
+  /* keyboard focus ring for every interactive surface (real controls + the
+     div/button drill-downs that get tabindex+role in JS) */
+  :focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:6px}
+  button:focus:not(:focus-visible){outline:none}
 
   .cal{background:linear-gradient(180deg,var(--panel),#12171f);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
   .calhint{color:var(--dim);font-size:12px;margin:-4px 0 12px}
-  .notice-banner{display:flex;align-items:flex-start;gap:9px;background:rgba(227,179,65,.08);border-left:3px solid var(--amber);border-radius:0 8px 8px 0;padding:9px 12px;margin:0 0 14px;color:var(--amber);font-size:12.5px;line-height:1.4}
-  .notice-banner .nicon{flex:none;font-size:14px}
+  /* keep the amber icon + left border as the "caution" cue, but set the body
+     text in readable --text (amber paragraphs were the lowest-contrast text here) */
+  .notice-banner{display:flex;align-items:flex-start;gap:10px;background:rgba(227,179,65,.08);border-left:3px solid var(--amber);border-radius:0 8px 8px 0;padding:11px 13px;margin:0 0 14px;color:var(--text);font-size:13px;line-height:1.5}
+  .notice-banner .nicon{flex:none;color:var(--amber);margin-top:1px}
+  .notice-banner b{color:var(--text);font-weight:700}
 
   /* settings panel (top of page) */
   .settings-panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0 0 20px}
@@ -73,9 +90,9 @@
   .settings-status{font-size:12px;margin-left:2px}
 
   /* usage-windows table */
-  .wtable{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:4px;min-width:640px}
-  .wth,.wtr{display:grid;grid-template-columns:1.1fr .9fr .8fr 1fr 1fr .9fr .9fr;gap:8px;padding:8px 12px;align-items:center;font-size:12.5px}
-  .wth{background:var(--panel2);color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line)}
+  .wtable{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:4px;min-width:720px}
+  .wth,.wtr{display:grid;grid-template-columns:1.1fr .9fr .8fr 1fr 1fr .9fr .9fr;gap:12px;padding:8px 12px;align-items:center;font-size:12.5px}
+  .wth{background:var(--panel2);color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--line)}
   .wtr{border-bottom:1px solid var(--line)}
   .wtr:last-child{border-bottom:0}
   .wtr.odd{background:var(--panel)} .wtr.even{background:#12171f}
@@ -95,9 +112,13 @@
   .cell .dn{font-size:12px;font-weight:600;opacity:.9}
   .cell .cvwrap{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:1px;width:100%}
   .cell .cv{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-  .cell .cv2{font-size:10px;font-weight:600;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  /* brighter than --dim so the secondary metric is legible on the dark heat
+     levels (lvl0-2); levels 3-5 recolour it to dark ink via the rule below */
+  .cell .cv2{font-size:10.5px;font-weight:600;color:#c9d1d9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
   .cell.today{outline:2px solid var(--cyan);outline-offset:1px}
-  .cell.lvl4 .dn,.cell.lvl4 .cv,.cell.lvl4 .cv2,.cell.lvl5 .dn,.cell.lvl5 .cv,.cell.lvl5 .cv2{color:#08252a}
+  /* dark ink from lvl3 up (not just lvl4/5): white/dim text on the mid-cyan --h3
+     was ~1-3:1 and unreadable - #08252a on --h3 is ~4.6:1 */
+  .cell.lvl3 .dn,.cell.lvl3 .cv,.cell.lvl3 .cv2,.cell.lvl4 .dn,.cell.lvl4 .cv,.cell.lvl4 .cv2,.cell.lvl5 .dn,.cell.lvl5 .cv,.cell.lvl5 .cv2{color:#08252a}
   .cell.lvl0 .cv{color:var(--dim)}
   .legend{display:flex;align-items:center;gap:7px;justify-content:flex-end;margin-top:14px;color:var(--dim);font-size:12px}
   .legend i{width:15px;height:15px;border-radius:4px;display:inline-block}
@@ -156,14 +177,18 @@
   .scard.total{background:var(--panel);border-style:dashed;font-weight:700}
 
   /* all-chats zebra list (collapsible) */
-  /* All Chats collapsible header + sort dropdown */
-  .acol{background:none;border:0;color:var(--text);font-weight:700;font-size:16px;letter-spacing:-.2px;cursor:pointer;padding:0;display:flex;align-items:center;gap:9px}
+  /* All Chats collapsible header: a FULL-WIDTH, 44px-tall button so the click
+     target is reliable (a text-only strip is what made "expand doesn't work") */
+  .acol{background:none;border:1px solid transparent;color:var(--text);font-weight:700;font-size:16px;letter-spacing:-.2px;cursor:pointer;padding:9px 10px;min-height:44px;flex:1;display:flex;align-items:center;gap:9px;border-radius:10px;text-align:left}
+  .acol:hover{background:var(--panel2);border-color:var(--line)}
   .acol .tag{font-weight:400}
-  .acchev{color:var(--dim);font-size:11px;transition:transform .15s;display:inline-block}
-  #allchats-wrap.collapsed .acchev{transform:rotate(-90deg)}
+  /* one right-pointing chevron SVG serves every expand control; CSS rotates it.
+     All Chats: expanded = down (rotate 90), collapsed = right (rotate 0) */
+  .acchev{color:var(--dim);transition:transform .15s;display:inline-flex;flex:none;transform:rotate(90deg)}
+  #allchats-wrap.collapsed .acchev{transform:rotate(0deg)}
   #allchats-wrap.collapsed #acbody{display:none}
   #allchats-wrap.collapsed #acsort{display:none}
-  .acselect{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer;outline:none}
+  .acselect{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:6px 11px;min-height:36px;font-size:12.5px;font-weight:600;cursor:pointer;outline:none}
   .acselect:hover{border-color:var(--cyan)}
   .acselect:focus{border-color:var(--cyan)}
   .zlist{border:1px solid var(--line);border-radius:12px;overflow:hidden}
@@ -173,19 +198,26 @@
   .zrow.odd{background:var(--panel)}
   .zrow.even{background:#12171f}
   .zhead{display:grid;grid-template-columns:20px 1fr auto auto;align-items:center;gap:14px;padding:11px 14px;cursor:pointer;transition:background .12s}
-  /* project group rows (All Chats, grouped by cwd) get a 5th column for the Archive/Restore button */
-  .zrow.proj > .zhead{grid-template-columns:20px 1fr auto auto auto}
-  .projActionBtn{padding:4px 11px;font-size:11.5px}
-  .zrow.proj .zlist{border:0;border-radius:0}
-  .zrow.proj .zlist .zrow{border-radius:0}
+  /* project group rows (All Chats, grouped by cwd): 5th column for Archive/Restore,
+     with a wider gap before it so the action separates from the cost figure */
+  .zrow.proj > .zhead{grid-template-columns:20px 1fr auto auto auto;gap:16px}
+  .zrow.proj > .zhead .zname{font-size:15px}
+  .projActionBtn{padding:6px 12px;min-height:32px;font-size:11.5px;opacity:.62;transition:opacity .12s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+  .zrow.proj > .zhead:hover .projActionBtn{opacity:1}
+  /* nested chat list: a left accent rule + smaller indent makes the two
+     hierarchy levels distinct instead of zebra-inside-zebra */
+  .zrow.proj .zbody{padding:2px 8px 14px 30px}
+  .zrow.proj .zbody > .zlist{border:0;border-left:2px solid var(--line);border-radius:0}
+  .zrow.proj .zbody > .zlist .zrow{border-radius:0}
   .zhead:hover{background:var(--panel2)}
-  .zchev{color:var(--dim);font-size:11px;transition:transform .15s;display:inline-block}
+  .zchev{color:var(--dim);transition:transform .15s;display:inline-flex;flex:none}
   /* scoped to a DIRECT .zhead child so a project row's open state never bleeds
      into its nested chat rows' chevrons (All Chats project groups nest chat
      rows inside their .zbody, one .zrow inside another) */
   .zrow.open > .zhead .zchev{transform:rotate(90deg);color:var(--cyan)}
+  .zicon{color:var(--dim);flex:none}
   .zname{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .zsub{color:var(--dim);font-size:11.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .zsub{color:var(--dim);font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ztok{font-weight:700;font-size:14px;text-align:right;white-space:nowrap}
   .zcost{color:var(--cyan);font-weight:700;font-size:13px;text-align:right;white-space:nowrap;min-width:70px}
   .zbody{display:none;padding:2px 14px 16px 46px}
@@ -196,13 +228,15 @@
   .zstat .zk{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px}
   .zstat .zv{font-weight:700;font-size:15px;margin-top:3px}
   /* per-model breakdown table (inside an expanded chat) */
-  .mtable{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:4px}
-  .mth,.mtr{display:grid;grid-template-columns:1.5fr 1fr 1fr .8fr 1fr;gap:10px;padding:8px 12px;align-items:center}
-  .mth{background:var(--panel2);color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line)}
+  /* overflow-x:auto so the per-model table scrolls (rather than clipping) when it
+     sits deep inside a nested project/chat body on a narrow window */
+  .mtable{border:1px solid var(--line);border-radius:10px;overflow-x:auto;margin-top:4px}
+  .mth,.mtr{display:grid;grid-template-columns:1.5fr 1fr 1fr .8fr 1fr;gap:10px;padding:8px 12px;align-items:center;min-width:460px}
+  .mth{background:var(--panel2);color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--line)}
   .mth span:not(:first-child),.mtr .mnum{text-align:right}
   .mtr{position:relative;border-bottom:1px solid var(--line);font-size:12.5px}
   .mtr:last-child{border-bottom:0}
-  .mtr .share{position:absolute;left:0;top:0;bottom:0;background:currentColor;opacity:.12;z-index:0;border-radius:0 6px 6px 0}
+  .mtr .share{position:absolute;left:0;top:0;bottom:0;background:currentColor;opacity:.07;z-index:0;border-radius:0 6px 6px 0}
   .mtr>span:not(.share){position:relative;z-index:1}
   .mtr .mmodel{font-weight:700}
   .mtr .mnum{font-weight:600;color:var(--text)}
@@ -214,7 +248,26 @@
   #tip .r .k{color:var(--dim)} #tip .r .v{font-weight:600}
   #tip .v.cy{color:var(--cyan)} #tip .v.am{color:var(--amber)}
   .foot{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;border-top:1px solid var(--line);padding-top:16px}
-  .empty-state{padding:60px 20px;text-align:center;color:var(--dim)}
+  .empty-state{padding:48px 20px;text-align:center;color:var(--dim);font-size:13px}
+  .empty-state .ic{width:30px;height:30px;stroke-width:1.4;display:block;margin:0 auto 10px;opacity:.5}
+  /* the current compute-week row, findable at a glance (like .cell.today) */
+  .zrow.curweek > .zhead{box-shadow:inset 3px 0 0 var(--cyan)}
+  .zrow.curweek > .zhead .zname{color:var(--cyan)}
+  /* rollup section subtitle under a short bold heading (splits long .dvsec tails) */
+  .dvsub{color:var(--dim);font-size:12px;margin:-6px 0 12px;line-height:1.45}
+
+  @media (max-width:600px){
+    body{padding:24px 12px 60px}
+    .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+    /* stack the All Chats header so the toggle is always a full-width target and
+       the sort control drops below it, never squeezing the button to a sliver */
+    #allchats-wrap .bar{flex-direction:column;align-items:stretch}
+    .acol{width:100%}
+    .acselect{width:100%}
+    /* let a cramped project header wrap rather than crushing the name/columns */
+    .zrow.proj > .zhead{grid-template-columns:20px 1fr auto;row-gap:8px}
+    .zrow.proj > .zhead .projActionBtn{grid-column:2/4;justify-self:start;opacity:1}
+  }
 </style>
 </head>
 <body>
@@ -224,19 +277,14 @@
     <header>
       <h1>Claude usage <span class="c">history</span></h1>
       <span class="tag">click any day for a full breakdown</span>
-      <button class="settings-btn ghost" id="openWindows" style="margin-left:10px">Usage Windows &rarr;</button>
       <span class="gen" id="gen"></span>
     </header>
     <div class="cards" id="cards"></div>
-    <div class="rollwrap" id="rollwrap">
-      <div class="rolllbl">Rolling usage <span class="tag">&mdash; your usage in these windows (as of this scan), not a plan limit</span></div>
-      <div class="cards" id="rollcards"></div>
-    </div>
     <div class="bar">
       <div class="nav">
-        <button id="prev" title="Previous month">&#8249;</button>
+        <button id="prev" title="Previous month" aria-label="Previous month">&#8249;</button>
         <div><div class="month" id="mlabel">—</div><div class="mtot" id="mtot"></div></div>
-        <button id="next" title="Next month">&#8250;</button>
+        <button id="next" title="Next month" aria-label="Next month">&#8250;</button>
       </div>
       <div class="seg" id="seg"><button data-m="cost" class="on">Cost</button><button data-m="tok">Tokens</button></div>
     </div>
@@ -252,7 +300,7 @@
 
     <div class="cal collapsed" id="allchats-wrap">
       <div class="bar" style="margin-bottom:10px">
-        <button class="acol" id="actoggle"><span class="acchev">&#9660;</span> All Chats <span class="tag" id="acount"></span></button>
+        <button class="acol" id="actoggle" aria-label="Toggle All Chats"><span class="acchev"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7"/></svg></span><svg class="ic ic-sm zicon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 8h10M7 12h7"/><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 18l-2 3v-3"/></svg> All Chats <span class="tag" id="acount"></span></button>
         <select class="acselect" id="acsort" aria-label="Sort chats">
           <option value="recent">Most recent</option>
           <option value="name">Name (A&ndash;Z)</option>
@@ -272,7 +320,8 @@
     </div>
 
     <div class="cal">
-      <div class="dvsec">Known limitations &mdash; what this tool can't track</div>
+      <div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.8v.1"/></svg>Known limitations</div>
+      <div class="dvsub">What this tool can't track.</div>
       <ul class="limlist">
         <li><b>Claude Design.</b> Anthropic doesn't release token counts for it &mdash; there's nothing to read, on or off your machine.</li>
         <li><b>claude.ai chat &amp; co-work (the web app).</b> That runs entirely on Anthropic's servers; nothing is ever written to your machine for it.</li>
@@ -281,8 +330,17 @@
       <div class="calhint" style="margin:10px 0 0">Only Claude Code / Claude CLI usage is tracked (local transcripts under <code>%USERPROFILE%\.claude\projects\</code>) &mdash; including a local model like Ollama if you ever point Claude Code at one (shown as "Local", always $0).</div>
     </div>
 
+    <div class="cal" id="windowsSummary" style="display:none">
+      <div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="13" height="10" rx="2"/><rect x="8" y="10" width="13" height="10" rx="2"/></svg>Usage windows</div>
+      <div class="dvsub">Your own observed usage in each rolling window &mdash; not a plan quota. Local/Ollama isn't mixed in.</div>
+      <div class="cards" id="rollcards"></div>
+      <div class="dvsub" style="margin:16px 0 8px">All-time highs, for comparison</div>
+      <div class="cards" id="patternCardsMain"></div>
+      <div style="margin-top:12px"><button class="settings-btn ghost" id="openWindows">Full per-day history &rarr;</button></div>
+    </div>
+
     <div class="settings-panel">
-      <div class="settings-title">Widget settings</div>
+      <div class="settings-title" style="display:flex;align-items:center;gap:7px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="color:var(--dim)"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M4.2 7l2.6 1.5M17.2 15.5l2.6 1.5M4.2 17l2.6-1.5M17.2 8.5l2.6-1.5"/></svg>Widget settings</div>
       <div class="settings-sub">Changes apply immediately to the running widget &mdash; no restart needed.</div>
       <div class="settings-row">
         <label for="setMaxSessions">Recent cloud chats shown on the widget</label>
@@ -304,26 +362,28 @@
       </div>
     </div>
     <div class="cards" id="dvcards"></div>
-    <div class="cal"><div class="dvsec">By model</div><div class="plist" id="dvmodels"></div></div>
-    <div class="cal"><div class="dvsec">Activity by hour</div><div class="hours" id="dvhours"></div></div>
-    <div class="cal"><div class="dvsec">Sessions <span class="tag" id="dvsesscount"></span></div><div class="slist" id="dvsessions"></div></div>
+    <div class="cal"><div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20V4"/><path d="M8 20v-8h4v8M14 20V8h4v12"/><path d="M4 20h16"/></svg>By model</div><div class="plist" id="dvmodels"></div></div>
+    <div class="cal"><div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>Activity by hour</div><div class="hours" id="dvhours"></div></div>
+    <div class="cal"><div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 15a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M8 9.5h8M8 12.5h5"/></svg>Sessions <span class="tag" id="dvsesscount"></span></div><div class="slist" id="dvsessions"></div></div>
   </div>
 
   <div id="windowsview" style="display:none">
     <div class="dvhead"><button id="backFromWindows">&#8249; Back to calendar</button><div class="dvtitle">Usage windows</div></div>
-    <div class="notice-banner"><span class="nicon">&#9888;</span><span>Anthropic doesn't publish exactly how many tokens a 5-hour / weekly / Fable window gives you, and that could change without notice. This tracks <b>your own observed usage</b> in each window over time so you can spot a pattern &mdash; it is not a plan quota. Reasoning-effort, fast-mode, and Claude Design usage aren't included: none of that is recorded anywhere this tool can read. <b>Day tokens</b> and <b>Trailing 7d tokens</b> below are Claude/Cloud only (Local/Ollama usage is never mixed in, since it's a different tokenizer); <b>Peak 5h tokens</b> is combined across everything, since hourly detail isn't split by model.</span></div>
+    <div class="notice-banner"><span class="nicon"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5 1.7 20.5h20.6L12 3.5z"/><path d="M12 9.5v5M12 17.6v.1"/></svg></span><span>Anthropic doesn't publish exactly how many tokens a 5-hour / weekly / Fable window gives you, and that could change without notice. This tracks <b>your own observed usage</b> in each window over time so you can spot a pattern &mdash; it is not a plan quota. Reasoning-effort, fast-mode, and Claude Design usage aren't included: none of that is recorded anywhere this tool can read. <b>Day tokens</b> and <b>Trailing 7d tokens</b> below are Claude/Cloud only (Local/Ollama usage is never mixed in, since it's a different tokenizer); <b>Peak 5h tokens</b> is combined across everything, since hourly detail isn't split by model.</span></div>
     <div class="cal">
-      <div class="dvsec">Patterns <span class="tag">&mdash; all-time highs, computed over your full recorded history, for comparison only</span></div>
+      <div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2c1.2 3.4 4.5 4.6 4.5 8.5A4.5 4.5 0 0 1 7.5 11c0-1.6.7-2.7 1.5-3.6C10 9 11 8 12 6c.4 1 1 1.6 1 1.6"/><path d="M12 22a5 5 0 0 1-5-5"/></svg>Patterns</div>
+      <div class="dvsub">All-time highs over your full recorded history, for comparison only.</div>
       <div class="cards" id="patternCards"></div>
     </div>
     <div class="cal">
-      <div class="dvsec">Model mix, all-time</div>
+      <div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20V4"/><path d="M8 20v-8h4v8M14 20V8h4v12"/><path d="M4 20h16"/></svg>Model mix, all-time</div>
       <div class="plist" id="wModelBars"></div>
     </div>
     <div class="cal" style="overflow-x:auto">
-      <div class="dvsec">Per day &mdash; day total, busiest 5-consecutive-hour window that day (peak, an approximation of the real rolling window), and the trailing 7-day sum</div>
+      <div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Per day</div>
+      <div class="dvsub">Day total, the busiest 5-consecutive-hour window that day (peak &mdash; an approximation of the real rolling window), and the trailing 7-day sum.</div>
       <div class="wtable">
-        <div class="wth"><span>Date</span><span class="wnum">Day tokens</span><span class="wnum">Day cost</span><span class="wnum">Peak 5h tokens</span><span class="wnum">Trailing 7d tokens</span><span class="wnum">Trailing 7d cost</span><span>Top model</span></div>
+        <div class="wth"><span>Date</span><span class="wnum">Day tokens</span><span class="wnum">Day cost</span><span class="wnum">Peak 5h</span><span class="wnum">7d tokens</span><span class="wnum">7d cost</span><span>Top model</span></div>
         <div id="wtable"></div>
       </div>
     </div>
@@ -333,7 +393,7 @@
     <div class="dvhead"><button id="backFromTokens">&#8249; Back to calendar</button><div class="dvtitle">Tokens</div></div>
     <div class="cards" id="tokCards"></div>
     <div class="cal">
-      <div class="dvsec">Tokens per day</div>
+      <div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="M2 13l10 5 10-5"/></svg>Tokens per day</div>
       <div id="tokLegend"></div>
       <div class="chart" id="tokTrend"></div>
     </div>
@@ -350,11 +410,11 @@
     <div class="dvhead"><button id="backFromSpend">&#8249; Back to calendar</button><div class="dvtitle">Spend</div></div>
     <div class="cards" id="spendCards"></div>
     <div class="cal">
-      <div class="dvsec">Spend per day</div>
+      <div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><ellipse cx="12" cy="6.5" rx="7" ry="3.2"/><path d="M5 6.5v5c0 1.77 3.13 3.2 7 3.2s7-1.43 7-3.2v-5"/><path d="M5 11.5v5c0 1.77 3.13 3.2 7 3.2s7-1.43 7-3.2v-5"/></svg>Spend per day</div>
       <div class="chart" id="spendTrend"></div>
     </div>
     <div class="cal" style="overflow-x:auto">
-      <div class="dvsec">Busiest days, by spend</div>
+      <div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2c1.2 3.4 4.5 4.6 4.5 8.5A4.5 4.5 0 0 1 7.5 11c0-1.6.7-2.7 1.5-3.6C10 9 11 8 12 6c.4 1 1 1.6 1 1.6"/><path d="M12 22a5 5 0 0 1-5-5"/></svg>Busiest days, by spend</div>
       <div class="wtable" id="spendTableWrap">
         <div class="wth" style="grid-template-columns:1.2fr 1fr 1fr 1fr"><span>Date</span><span class="wnum">Spend</span><span class="wnum">If per token</span><span class="wnum">Tokens</span></div>
         <div id="spendTable"></div>
@@ -364,18 +424,18 @@
 
   <div id="localview" style="display:none">
     <div class="dvhead"><button id="backFromLocal">&#8249; Back to calendar</button><div class="dvtitle">Local usage</div></div>
-    <div class="notice-banner"><span class="nicon">&#9888;</span><span>Local (e.g. Ollama) usage is never priced and uses a different tokenizer than Claude's, so it's tracked entirely separately here &mdash; never blended into any Cloud figure.</span></div>
+    <div class="notice-banner"><span class="nicon"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5 1.7 20.5h20.6L12 3.5z"/><path d="M12 9.5v5M12 17.6v.1"/></svg></span><span>Local (e.g. Ollama) usage is never priced and uses a different tokenizer than Claude's, so it's tracked entirely separately here &mdash; never blended into any Cloud figure.</span></div>
     <div class="cards" id="localCards"></div>
     <div class="cal" id="localTrendWrap">
-      <div class="dvsec">Local tokens per day</div>
+      <div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 2.5v3.5M15 2.5v3.5M9 18v3.5M15 18v3.5M2.5 9H6M2.5 15H6M18 9h3.5M18 15h3.5"/></svg>Local tokens per day</div>
       <div class="chart" id="localTrend"></div>
     </div>
     <div class="cal">
-      <div class="dvsec">Local models used, all-time</div>
+      <div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 2.5v3.5M15 2.5v3.5M9 18v3.5M15 18v3.5M2.5 9H6M2.5 15H6M18 9h3.5M18 15h3.5"/></svg>Local models used, all-time</div>
       <div class="plist" id="localModelsList"></div>
     </div>
     <div class="cal">
-      <div class="dvsec">Local chat sessions <span class="tag" id="localSessCount"></span></div>
+      <div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 15a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M8 9.5h8M8 12.5h5"/></svg>Local chat sessions <span class="tag" id="localSessCount"></span></div>
       <div class="slist" id="localSessions"></div>
     </div>
   </div>
@@ -398,9 +458,12 @@
 
   <div id="weeklyview" style="display:none">
     <div class="dvhead"><button id="backFromWeekly">&#8249; Back to calendar</button><div class="dvtitle">Weekly usage</div></div>
-    <div class="notice-banner"><span class="nicon">&#9888;</span><span>Compute weeks reset every Tuesday at 1:00 PM, mirroring Claude's own weekly limit reset &mdash; not calendar (Sun&ndash;Sat) weeks. The boundary Tuesday is split to the hour where the underlying data allows it; older days that predate this feature (or were pruned before a rescan) fall back to whole-day attribution.</span></div>
+    <div class="notice-banner"><span class="nicon"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5 1.7 20.5h20.6L12 3.5z"/><path d="M12 9.5v5M12 17.6v.1"/></svg></span><span>Compute weeks reset every Tuesday at 1:00 PM, mirroring Claude's own weekly limit reset &mdash; not calendar (Sun&ndash;Sat) weeks. The boundary Tuesday is split to the hour where the underlying data allows it; older days that predate this feature (or were pruned before a rescan) fall back to whole-day attribution.</span></div>
     <div class="cards" id="weeklyCards"></div>
-    <div id="weeklyList"></div>
+    <div class="cal"><div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><rect x="6" y="13.5" width="12" height="3" rx="1" fill="currentColor" stroke="none" opacity=".55"/></svg>By week</div><div class="dvsub">Compute weeks, reset Tuesday 1:00 PM &mdash; the boundary Tuesday is split to the hour.</div><div id="weeklyList"></div></div>
+    <div class="cal" id="monthlySec"><div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>By month</div><div class="dvsub">Calendar months, whole-day attribution &mdash; so totals won't tie out to the week rows on a boundary Tuesday.</div><div id="monthlyList"></div></div>
+    <div class="cal" id="annualSec"><div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>By year</div><div id="annualList"></div></div>
+    <div class="cal"><div class="dvsec"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="M2 13l10 5 10-5"/></svg>All time</div><div id="allTimeList"></div></div>
   </div>
 
   <div class="foot">Estimates at API list prices — a sense of weight, not a bill. Cache-aware unless noted. Self-contained, offline, transcript-driven.</div>
@@ -428,6 +491,43 @@ const niceDate = dt => MON[dt.getMonth()].slice(0,3)+" "+dt.getDate()+", "+dt.ge
 const longDate = dt => DOW[dt.getDay()]+", "+MON[dt.getMonth()]+" "+dt.getDate()+", "+dt.getFullYear();
 const FAM=['Opus','Sonnet','Haiku','Fable','Local','Other'];
 const FAMCOL={Opus:'var(--cyan)',Sonnet:'var(--purple)',Haiku:'var(--green)',Fable:'var(--amber)',Local:'var(--blue)',Other:'var(--dim)'};
+
+// ---- inline-SVG icon family --------------------------------------------------
+// One coherent set: 24x24 viewBox, stroke-based, currentColor (so each icon
+// inherits its context's colour). ic(name, cls) returns the markup; the shared
+// chevron is rotated by CSS, never redrawn per direction.
+const ICON_PATHS = {
+  coins:   '<ellipse cx="12" cy="6.5" rx="7" ry="3.2"/><path d="M5 6.5v5c0 1.77 3.13 3.2 7 3.2s7-1.43 7-3.2v-5"/><path d="M5 11.5v5c0 1.77 3.13 3.2 7 3.2s7-1.43 7-3.2v-5"/>',
+  tag:     '<path d="M20.6 13.4 13 21a2 2 0 0 1-2.83 0l-6.6-6.6A2 2 0 0 1 3 12.98V5a2 2 0 0 1 2-2h7.98a2 2 0 0 1 1.41.59l6.6 6.6a2 2 0 0 1 0 2.82z"/><circle cx="8" cy="8" r="1.4"/>',
+  flame:   '<path d="M12 2c1.2 3.4 4.5 4.6 4.5 8.5A4.5 4.5 0 0 1 7.5 11c0-1.6.7-2.7 1.5-3.6C10 9 11 8 12 6c.4 1 1 1.6 1 1.6"/><path d="M12 22a5 5 0 0 1-5-5"/>',
+  avg:     '<path d="M5 20v-7M10 20v-10M15 20v-5M20 20v-8"/><path d="M3 15h18" stroke-dasharray="2.5 2.5"/>',
+  layers:  '<path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="M2 13l10 5 10-5"/>',
+  weekblk: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><rect x="6" y="13.5" width="12" height="3" rx="1" fill="currentColor" stroke="none" opacity=".55"/>',
+  chip:    '<rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 2.5v3.5M15 2.5v3.5M9 18v3.5M15 18v3.5M2.5 9H6M2.5 15H6M18 9h3.5M18 15h3.5"/>',
+  clock:   '<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/>',
+  cal:     '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  dollar:  '<circle cx="12" cy="12" r="9"/><path d="M14.6 8.8A2.7 2.7 0 0 0 12 7.3c-1.6 0-2.7.9-2.7 2.1 0 2.9 5.4 1.4 5.4 4.3 0 1.3-1.2 2.2-2.7 2.2a2.9 2.9 0 0 1-2.7-1.6M12 5.8v1.5M12 16.7v1.5"/>',
+  token:   '<path d="M12 3l7.5 4.3v8.6L12 20.2 4.5 15.9V7.3z"/><path d="M12 12v8M12 12 4.7 7.6M12 12l7.3-4.4" opacity=".6"/>',
+  chevron: '<path d="M9 5l7 7-7 7"/>',
+  arrowL:  '<path d="M11 5l-7 7 7 7M4 12h16"/>',
+  alert:   '<path d="M12 3.5 1.7 20.5h20.6L12 3.5z"/><path d="M12 9.5v5M12 17.6v.1"/>',
+  info:    '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.8v.1"/>',
+  bars:    '<path d="M4 20V4"/><path d="M8 20v-8h4v8M14 20V8h4v12"/><path d="M4 20h16"/>',
+  bubble:  '<path d="M20 15a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M8 9.5h8M8 12.5h5"/>',
+  gear:    '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M4.2 7l2.6 1.5M17.2 15.5l2.6 1.5M4.2 17l2.6-1.5M17.2 8.5l2.6-1.5"/>',
+  chats:   '<path d="M7 8h10M7 12h7"/><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 18l-2 3v-3"/>',
+  folder:  '<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  doc:     '<path d="M6 3h8l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v4h4M8 12h8M8 16h5"/>',
+  archive: '<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M12 11v6M9 14l3 3 3-3"/>',
+  unarch:  '<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M12 17v-6M9 14l3-3 3 3"/>',
+  windows: '<rect x="3" y="4" width="13" height="10" rx="2"/><rect x="8" y="10" width="13" height="10" rx="2"/>',
+  emptybox:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z" stroke-dasharray="3 3"/><path d="M3 8l9 5 9-5M12 13v8" opacity=".7"/>',
+  hour:    '<path d="M4 20V4"/><path d="M4 20h16"/><path d="M7 20v-4M10 20v-9M13 20v-6M16 20v-11M19 20v-7"/>',
+};
+function ic(name, cls){
+  const p = ICON_PATHS[name]; if(!p) return '';
+  return `<svg class="ic${cls?(' '+cls):''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${p}</svg>`;
+}
 
 // ---- shared trend-chart builder (Tokens/Spend/Local/Model detail pages) ----
 // Rounds a max value up to a "clean" gridline top (1/2/5/10 x a power of ten)
@@ -537,29 +637,78 @@ function renderCards(){
   const tokCloud = tot.tok - tot.tokLocal;
   let peak={d:null,cost:0}; days.forEach(d=>{ if(DATA[d].cost>peak.cost) peak={d,cost:DATA[d].cost}; });
   const avg = has ? tot.cost/days.length : 0;
+  // this compute-week's tokens, so the Weekly card carries a real headline number
+  // (consistent with the Weekly page) instead of the placeholder-looking "By model"
+  let curWeekTok = 0;
+  try { const wk = computeWeeks().find(w=>w.start.getTime()===tuesdayAt1pm(new Date()).getTime()); curWeekTok = wk?wk.tok:0; } catch(e){}
   const cards=[
-    {cls:'cost',lbl:'All-time spend',val:fmtMoney(tot.cost),sub:'cache-aware estimate',view:'spend'},
-    {cls:'raw',lbl:'If billed per token',val:fmtMoney(tot.raw),sub:'no cache discount',view:'spend'},
-    {cls:'peak',lbl:'Busiest day',val:peak.d?fmtMoney(peak.cost):'—',sub:peak.d?niceDate(parseDay(peak.d)):'',view:'spend'},
-    {cls:'avg',lbl:'Avg / active day',val:fmtMoney(avg),sub:days.length+' active days',view:'spend'},
-    {cls:'tok',lbl:'Total tokens',val:fmtTok(tokCloud),sub:fmtTok(tot.out)+' generated · '+tot.turns.toLocaleString()+' turns · Claude/Cloud only',view:'tokens'},
-    {cls:'avg',lbl:'Weekly',val:'By model',sub:'compute weeks · resets Tue 1:00 PM',view:'weekly'},
+    {cls:'cost',icon:'coins',lbl:'All-time spend',val:fmtMoney(tot.cost),sub:'cache-aware estimate',view:'spend'},
+    {cls:'raw',icon:'tag',lbl:'If billed per token',val:fmtMoney(tot.raw),sub:'no cache discount',view:'spend'},
+    {cls:'peak',icon:'flame',lbl:'Busiest day',val:peak.d?fmtMoney(peak.cost):'—',sub:peak.d?niceDate(parseDay(peak.d)):'',view:'spend'},
+    {cls:'avg',icon:'avg',lbl:'Avg / active day',val:fmtMoney(avg),sub:days.length+' active days',view:'spend'},
+    {cls:'tok',icon:'layers',lbl:'Total tokens',val:fmtTok(tokCloud),sub:fmtTok(tot.out)+' generated',view:'tokens'},
+    {cls:'avg',icon:'weekblk',lbl:'Weekly',val:fmtTok(curWeekTok),sub:'this week · resets Tue 1 PM',view:'weekly'},
   ];
   // Local (Ollama etc.) is never priced and uses a different tokenizer - kept as its
   // own card, never blended into the Cloud figures above. Only shown once you've used it.
-  if(tot.tokLocal > 0) cards.push({cls:'local',lbl:'Local (Ollama etc.)',val:fmtTok(tot.tokLocal),sub:'tokens · always $0 · separate tokenizer',view:'local'});
-  document.getElementById('cards').innerHTML = cards.map(c=>`<div class="card ${c.cls}" data-view="${c.view}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
+  if(tot.tokLocal > 0) cards.push({cls:'local',icon:'chip',lbl:'Local (Ollama etc.)',val:fmtTok(tot.tokLocal),sub:'tokens · always $0',view:'local'});
+  document.getElementById('cards').innerHTML = cards.map(c=>`<div class="card ${c.cls}" data-view="${c.view}" tabindex="0" role="button" aria-label="${esc(c.lbl)}"><div class="lbl">${ic(c.icon)}${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
 }
 
-// ---- rolling usage windows ----
+// ---- usage-windows SUMMARY (rolling cards + all-time patterns), shown in its
+// own section at the bottom of the main view. The deep per-day table still lives
+// on the full #windowsview page, reached via the drill-in button. ----
 function renderRolling(){
-  const wrap=document.getElementById('rollwrap'); if(!wrap) return;
+  const rc=document.getElementById('rollcards'); if(!rc) return false;
   const R=ROLLING||{}, h5=R.h5||{tok:0,cost:0}, d7=R.d7||{tok:0,cost:0}, f7=R.f7||{tok:0,cost:0};
-  if((h5.tok||0)<=0 && (d7.tok||0)<=0){ wrap.style.display='none'; return; }
-  const mk=(lbl,w,cls)=>`<div class="card ${cls}"><div class="lbl">${lbl}</div><div class="val">${fmtMoney(w.cost)}</div><div class="sub">${fmtTok(w.tok)||'0'} tokens</div></div>`;
-  const cards=[ mk('Last 5 hours',h5,'cost'), mk('Last 7 days',d7,'avg') ];
-  if((f7.tok||0)>0) cards.push(mk('Fable &middot; 7 days',f7,'raw'));
-  document.getElementById('rollcards').innerHTML = cards.join('');
+  if((h5.tok||0)<=0 && (d7.tok||0)<=0){ rc.innerHTML=''; return false; }
+  const mk=(lbl,w,cls,icon)=>`<div class="card ${cls}"><div class="lbl">${ic(icon)}${lbl}</div><div class="val">${fmtMoney(w.cost)}</div><div class="sub">${fmtTok(w.tok)||'0'} tokens</div></div>`;
+  const cards=[ mk('Last 5 hours',h5,'cost','clock'), mk('Last 7 days',d7,'avg','cal') ];
+  if((f7.tok||0)>0) cards.push(mk('Fable &middot; 7 days',f7,'raw','token'));
+  rc.innerHTML = cards.join('');
+  return true;
+}
+// per-day window rows (day tokens, peak-5h, trailing-7d) - shared by the summary
+// patterns and the full #windowsview table so both stay in sync.
+function computeWindowRows(){
+  return days.map(d=>{
+    const x = DATA[d], hrs = x.hours||[];
+    let peak5 = 0;
+    if(hrs.length===24){ for(let h=0; h<=19; h++){ let sum=0; for(let k=0;k<5;k++) sum += hrs[h+k]||0; if(sum>peak5) peak5=sum; } }
+    const dayTok = (x.tok||0) - (x.tokLocal||0);
+    const end = parseDay(d); const start = new Date(end); start.setDate(start.getDate()-6);
+    let t7tok=0, t7cost=0;
+    days.forEach(d2=>{ const dt=parseDay(d2); if(dt>=start && dt<=end){ t7tok += (DATA[d2].tok||0) - (DATA[d2].tokLocal||0); t7cost += DATA[d2].cost||0; } });
+    const bm=x.byModel||{}; let topFam=null, topVal=-1;
+    Object.keys(bm).forEach(f=>{ const v=bm[f].tok||0; if(v>topVal){ topVal=v; topFam=f; } });
+    return { d, tok:dayTok, cost:x.cost||0, peak5, t7tok, t7cost, topFam };
+  });
+}
+function computeWindowPatterns(){
+  if(!has) return [];
+  const rows = computeWindowRows();
+  let maxDay={tok:0,d:null}, maxPeak5={tok:0,d:null}, maxT7={tok:0,d:null};
+  rows.forEach(r=>{
+    if(r.tok>maxDay.tok) maxDay={tok:r.tok,d:r.d};
+    if(r.peak5>maxPeak5.tok) maxPeak5={tok:r.peak5,d:r.d};
+    if(r.t7tok>maxT7.tok) maxT7={tok:r.t7tok,d:r.d};
+  });
+  const todayRow = rows.find(r=>r.d===keyOf(new Date()));
+  const cards=[
+    {cls:'tok',icon:'cal',lbl:'Highest day, ever',val:maxDay.d?fmtTok(maxDay.tok):'—',sub:maxDay.d?(niceDate(parseDay(maxDay.d))+' · Cloud tokens'):''},
+    {cls:'peak',icon:'clock',lbl:'Highest peak-5h, ever',val:maxPeak5.d?fmtTok(maxPeak5.tok):'—',sub:maxPeak5.d?niceDate(parseDay(maxPeak5.d)):''},
+    {cls:'avg',icon:'cal',lbl:'Highest trailing-7d, ever',val:maxT7.d?fmtTok(maxT7.tok):'—',sub:maxT7.d?('week ending '+niceDate(parseDay(maxT7.d))):''},
+  ];
+  if(todayRow && maxDay.tok>0){ const pct=Math.round(100*todayRow.tok/maxDay.tok); cards.push({cls:'cost',icon:'flame',lbl:'Today vs. all-time high',val:pct+'%',sub:fmtTok(todayRow.tok)+' of '+fmtTok(maxDay.tok)+' today'}); }
+  return cards;
+}
+function patternCardHtml(c){ return `<div class="card ${c.cls}"><div class="lbl">${c.icon?ic(c.icon):''}${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`; }
+function renderWindowsSummary(){
+  const hasRolling = renderRolling();
+  const pats = computeWindowPatterns();
+  const pc = document.getElementById('patternCardsMain'); if(pc) pc.innerHTML = pats.map(patternCardHtml).join('');
+  const sec=document.getElementById('windowsSummary');
+  if(sec) sec.style.display = (hasRolling || pats.length) ? 'block' : 'none';
 }
 
 // ---- all chats (zebra, collapsible), grouped by project (cwd) ----
@@ -595,8 +744,8 @@ function sessionRowHtml(s, i){
   const range = s.first===s.last ? niceDate(parseDay(s.last)) : (niceDate(parseDay(s.first))+' – '+niceDate(parseDay(s.last)));
   const sub = `${s.days} day${s.days!==1?'s':''} active · #${esc(s.id)}`;
   return `<div class="zrow ${i%2?'even':'odd'}" data-sid="${esc(s.id)}">
-    <div class="zhead"><span class="zchev">&#9654;</span>
-      <div style="min-width:0"><div class="zname">${esc(s.name)}</div><div class="zsub">${sub}</div></div>
+    <div class="zhead" tabindex="0" role="button"><span class="zchev">${ic('chevron','ic-sm')}</span>
+      <div style="min-width:0;display:flex;align-items:center;gap:8px">${ic('doc','ic-sm zicon')}<div style="min-width:0"><div class="zname">${esc(s.name)}</div><div class="zsub">${sub}</div></div></div>
       <div class="ztok">${fmtTok(s.tok)}<div class="zsub" style="text-align:right">tokens</div></div>
       <div class="zcost">${fmtMoney(s.cost)}</div></div>
     <div class="zbody">
@@ -634,16 +783,21 @@ function sortGroups(groups){
   });
   return arr;
 }
+// the basename (last path segment) of a project folder - the ONLY part that
+// distinguishes projects, which the full path (identical common prefix) buried.
+function projectName(cwd){ return (cwd||'').split(/[\\/]/).filter(Boolean).pop() || cwd || '(no project)'; }
 function projectGroupHtml(g, i, archived){
   const sessSorted = g.sessions.slice().sort((a,b)=> a.last<b.last?1:a.last>b.last?-1:(b.tok-a.tok));
   const rows = sessSorted.map((s,j)=>sessionRowHtml(s,j)).join('');
+  const short = projectName(g.cwd);
+  const fullPath = (g.cwd && g.cwd!==short) ? g.cwd : '';
   const actionBtn = archived
-    ? `<button class="settings-btn ghost projActionBtn" data-act="restore" data-cwd="${esc(g.cwd)}">Restore</button>`
-    : `<button class="settings-btn ghost projActionBtn" data-act="archive" data-cwd="${esc(g.cwd)}">Archive</button>`;
+    ? `<button class="settings-btn ghost projActionBtn" data-act="restore" data-cwd="${esc(g.cwd)}" title="Restore this project to the active list">${ic('unarch','ic-sm')}Restore</button>`
+    : `<button class="settings-btn ghost projActionBtn" data-act="archive" data-cwd="${esc(g.cwd)}" title="Archive this project (it returns automatically when you work in it again)">${ic('archive','ic-sm')}Archive</button>`;
   return `<div class="zrow proj ${i%2?'even':'odd'}">
-    <div class="zhead">
-      <span class="zchev">&#9654;</span>
-      <div style="min-width:0"><div class="zname">${esc(g.cwd)}</div><div class="zsub">${g.sessions.length} chat${g.sessions.length!==1?'s':''} · last active ${niceDate(parseDay(g.last))}</div></div>
+    <div class="zhead" tabindex="0" role="button">
+      <span class="zchev">${ic('chevron','ic-sm')}</span>
+      <div style="min-width:0;display:flex;align-items:center;gap:8px">${ic('folder','ic-sm zicon')}<div style="min-width:0"><div class="zname" title="${esc(g.cwd)}">${esc(short)}</div><div class="zsub">${fullPath?esc(fullPath)+' · ':''}${g.sessions.length} chat${g.sessions.length!==1?'s':''} · last active ${niceDate(parseDay(g.last))}</div></div></div>
       <div class="ztok">${fmtTok(g.tok)}<div class="zsub" style="text-align:right">tokens</div></div>
       <div class="zcost">${fmtMoney(g.cost)}</div>
       ${actionBtn}
@@ -712,7 +866,7 @@ function renderMonth(){
       // dimmer, so both are always readable instead of just one at a time.
       const primary = metric==='cost'?fmtMoney(x.cost):fmtTok(x.tok);
       const secondary = metric==='cost'?(fmtTok(x.tok)+' tok'):fmtMoney(x.cost);
-      cells.push(`<div class="cell has lvl${lvl}${k===todayKey?' today':''}" style="background:var(${heat[lvl]})" data-k="${k}"><div class="dn">${d}</div><div class="cvwrap"><div class="cv">${primary}</div><div class="cv2">${secondary}</div></div></div>`);
+      cells.push(`<div class="cell has lvl${lvl}${k===todayKey?' today':''}" style="background:var(${heat[lvl]})" data-k="${k}" tabindex="0" role="button" aria-label="${k}"><div class="dn">${d}</div><div class="cvwrap"><div class="cv">${primary}</div><div class="cv2">${secondary}</div></div></div>`);
     } else {
       cells.push(`<div class="cell lvl0${k===todayKey?' today':''}"><div class="dn">${d}</div></div>`);
     }
@@ -807,55 +961,10 @@ function renderWindows(){
   document.getElementById('wModelBars').innerHTML = bars(allModel, FAM, amax, n=>FAMCOL[n]||'var(--cyan)')
     || '<div class="empty-state" style="padding:14px">No per-model detail available.</div>';
 
-  const rows = days.map(d=>{
-    const x = DATA[d];
-    const hrs = x.hours||[];
-    // Peak-5h stays COMBINED (all sources) - hourly buckets aren't split by model,
-    // so there's no way to isolate Local from this figure specifically.
-    let peak5 = 0;
-    if(hrs.length===24){
-      for(let h=0; h<=19; h++){
-        let sum=0; for(let k=0;k<5;k++) sum += hrs[h+k]||0;
-        if(sum>peak5) peak5=sum;
-      }
-    }
-    // Day tokens & the trailing-7d sum ARE cloud-only (day-level detail does
-    // distinguish Local via byModel, so it's subtracted out here) - never mixed
-    // with Local's different, non-comparable tokenizer.
-    const dayTok = (x.tok||0) - (x.tokLocal||0);
-    const end = parseDay(d);
-    const start = new Date(end); start.setDate(start.getDate()-6);
-    let t7tok=0, t7cost=0;
-    days.forEach(d2=>{
-      const dt=parseDay(d2);
-      if(dt>=start && dt<=end){ t7tok += (DATA[d2].tok||0) - (DATA[d2].tokLocal||0); t7cost += DATA[d2].cost||0; }
-    });
-    const bm=x.byModel||{};
-    let topFam=null, topVal=-1;
-    Object.keys(bm).forEach(f=>{ const v=bm[f].tok||0; if(v>topVal){ topVal=v; topFam=f; } });
-    return { d, tok:dayTok, cost:x.cost||0, peak5, t7tok, t7cost, topFam };
-  });
-
-  // Patterns: all-time-high reference points, over the FULL history above (not
-  // a recent slice) - a "today vs. your own high-water mark" comparison, not a
-  // plan quota (Anthropic doesn't publish real window sizes - see banner above).
-  let maxDay={tok:0,d:null}, maxPeak5={tok:0,d:null}, maxT7={tok:0,d:null};
-  rows.forEach(r=>{
-    if(r.tok>maxDay.tok) maxDay={tok:r.tok,d:r.d};
-    if(r.peak5>maxPeak5.tok) maxPeak5={tok:r.peak5,d:r.d};
-    if(r.t7tok>maxT7.tok) maxT7={tok:r.t7tok,d:r.d};
-  });
-  const todayRow = rows.find(r=>r.d===keyOf(new Date()));
-  const patternCards=[
-    {cls:'tok',lbl:'Highest day, ever',val:maxDay.d?fmtTok(maxDay.tok):'—',sub:maxDay.d?(niceDate(parseDay(maxDay.d))+' · Cloud tokens'):''},
-    {cls:'peak',lbl:'Highest peak-5h, ever',val:maxPeak5.d?fmtTok(maxPeak5.tok):'—',sub:maxPeak5.d?niceDate(parseDay(maxPeak5.d)):''},
-    {cls:'avg',lbl:'Highest trailing-7d, ever',val:maxT7.d?fmtTok(maxT7.tok):'—',sub:maxT7.d?('week ending '+niceDate(parseDay(maxT7.d))):''},
-  ];
-  if(todayRow && maxDay.tok>0){
-    const pct=Math.round(100*todayRow.tok/maxDay.tok);
-    patternCards.push({cls:'cost',lbl:'Today vs. all-time high',val:pct+'%',sub:fmtTok(todayRow.tok)+' of '+fmtTok(maxDay.tok)+' today'});
-  }
-  document.getElementById('patternCards').innerHTML = patternCards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
+  const rows = computeWindowRows();
+  // Patterns: all-time-high reference points (shared with the bottom-of-page
+  // summary), a "today vs. your own high-water mark" comparison - not a plan quota.
+  document.getElementById('patternCards').innerHTML = computeWindowPatterns().map(patternCardHtml).join('');
 
   const rowsRev = rows.slice().reverse();
   document.getElementById('wtable').innerHTML = rowsRev.map((r,i)=>{
@@ -1114,46 +1223,94 @@ function fmtWeekRange(w){
   const b = sameMonth ? (''+endShown.getDate()) : (MON[endShown.getMonth()].slice(0,3)+' '+endShown.getDate());
   return a+' – '+b+', '+endShown.getFullYear();
 }
+// ---- shared rollup rendering (weeks / months / years / all-time) ------------
+// One per-model table + one collapsible row builder, so every rollup section
+// renders identically. bucket = {tok, cost, models:{fam:{tok,cost,turns}}}.
+function modelTableHtml(models){
+  const fams = Object.keys(models).filter(f=>(models[f].tok||0)>0).sort((a,b)=>models[b].tok-models[a].tok);
+  if(!fams.length) return '<div class="zsub">no usage in this period</div>';
+  const mmax = Math.max(1, ...fams.map(f=>models[f].tok));
+  const mrows = fams.map(fam=>{
+    const m=models[fam], col=FAMCOL[fam]||'var(--cyan)', width=Math.max(2,Math.round(100*m.tok/mmax));
+    return `<div class="mtr" data-fam="${esc(fam)}" style="color:${col};cursor:pointer;grid-template-columns:1.5fr 1fr 1fr .8fr;min-width:360px"><span class="share" style="width:${width}%"></span>`+
+      `<span class="mmodel"><span class="chip ${esc(fam)}">${esc(fam)}</span></span>`+
+      `<span class="mnum">${fmtTok(m.tok)}</span>`+
+      `<span class="mnum" style="color:var(--cyan)">${fmtMoney(m.cost)}</span>`+
+      `<span class="mnum" style="color:var(--dim)">${Math.round(m.turns).toLocaleString()}</span></div>`;
+  }).join('');
+  return `<div class="mtable"><div class="mth" style="grid-template-columns:1.5fr 1fr 1fr .8fr;min-width:360px"><span>Model</span><span>Tokens</span><span>Cost</span><span>Turns</span></div>${mrows}</div>`;
+}
+function rollupRowHtml(title, sub, bucket, i, extraCls){
+  return `<div class="zrow ${extraCls||''} ${i%2?'even':'odd'}">
+    <div class="zhead" tabindex="0" role="button"><span class="zchev">${ic('chevron','ic-sm')}</span>
+      <div style="min-width:0"><div class="zname">${title}</div><div class="zsub">${sub}</div></div>
+      <div class="ztok">${fmtTok(bucket.tok)}<div class="zsub" style="text-align:right">tokens</div></div>
+      <div class="zcost">${fmtMoney(bucket.cost)}</div></div>
+    <div class="zbody">${modelTableHtml(bucket.models)}</div>
+  </div>`;
+}
+// generic whole-day aggregator: group days by keyFn(dayKey) -> buckets with
+// per-model {tok,cost,turns}; newest bucket first. (Weeks use their own splitter
+// in computeWeeks() for the Tuesday-13:00 boundary; months/years/all-time use
+// plain calendar boundaries + whole-day attribution.)
+function bucketByKey(keyFn){
+  const map={};
+  days.forEach(dk=>{ const x=DATA[dk]; if(!x) return; const key=keyFn(dk);
+    if(!map[key]) map[key]={key, models:{}, tok:0, cost:0, firstDay:dk, lastDay:dk};
+    const b=map[key]; if(dk<b.firstDay)b.firstDay=dk; if(dk>b.lastDay)b.lastDay=dk;
+    const bm=x.byModel||{};
+    Object.keys(bm).forEach(fam=>{ if(!b.models[fam])b.models[fam]={tok:0,cost:0,turns:0}; b.models[fam].tok+=bm[fam].tok||0; b.models[fam].cost+=bm[fam].cost||0; b.models[fam].turns+=bm[fam].turns||0; b.tok+=bm[fam].tok||0; b.cost+=bm[fam].cost||0; });
+  });
+  return Object.values(map).sort((a,b)=>a.key<b.key?1:a.key>b.key?-1:0);
+}
+const computeMonths = ()=>bucketByKey(k=>k.slice(0,7));
+const computeYears  = ()=>bucketByKey(k=>k.slice(0,4));
+const computeAllTime= ()=>{ const b=bucketByKey(()=>'all'); return b.length?[b[0]]:[]; };
+const bucketRange = b => niceDate(parseDay(b.firstDay)) + (b.firstDay===b.lastDay?'':(' – '+niceDate(parseDay(b.lastDay))));
+function renderBucketList(id, buckets, labelFn, subFn){
+  const el=document.getElementById(id); if(!el) return;
+  el.innerHTML = buckets.length
+    ? '<div class="zlist">'+buckets.map((b,i)=>rollupRowHtml(labelFn(b), subFn?subFn(b):'', b, i)).join('')+'</div>'
+    : '<div class="empty-state" style="padding:20px">No data.</div>';
+}
+function wireRollupList(id){
+  const el=document.getElementById(id); if(!el || el._wired) return; el._wired=true;
+  el.addEventListener('click', e=>{
+    const m=e.target.closest('.mtr[data-fam]'); if(m){ showModel(m.dataset.fam); return; }
+    const h=e.target.closest('.zhead'); if(h) h.parentNode.classList.toggle('open');
+  });
+}
 function renderWeeklyPage(){
   const weeks = computeWeeks();
   const nowWeekStart = tuesdayAt1pm(new Date());
   const curWk = weeks.find(w=>w.start.getTime()===nowWeekStart.getTime());
   const cards=[
-    {cls:'tok',lbl:'This compute week',val:curWk?fmtTok(curWk.tok):'0',sub:curWk?fmtMoney(curWk.cost):'$0.00'},
-    {cls:'avg',lbl:'Weeks tracked',val:''+weeks.length,sub:'resets Tue 1:00 PM'},
+    {cls:'tok',icon:'weekblk',lbl:'This compute week',val:curWk?fmtTok(curWk.tok):'0',sub:curWk?fmtMoney(curWk.cost):'$0.00'},
+    {cls:'avg',icon:'cal',lbl:'Weeks tracked',val:''+weeks.length,sub:'resets Tue 1 PM'},
   ];
-  document.getElementById('weeklyCards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
-  if(!weeks.length){ document.getElementById('weeklyList').innerHTML='<div class="empty-state">No recorded usage yet.</div>'; return; }
-  document.getElementById('weeklyList').innerHTML = '<div class="zlist">' + weeks.map((w,i)=>{
-    const models = Object.keys(w.models).filter(f=>(w.models[f].tok||0)>0).sort((a,b)=>w.models[b].tok-w.models[a].tok);
-    const mmax = Math.max(1, ...models.map(f=>w.models[f].tok));
-    const mrows = models.map(fam=>{
-      const m=w.models[fam], col=FAMCOL[fam]||'var(--cyan)', width=Math.max(2,Math.round(100*m.tok/mmax));
-      return `<div class="mtr" data-fam="${esc(fam)}" style="color:${col};cursor:pointer;grid-template-columns:1.5fr 1fr 1fr .8fr"><span class="share" style="width:${width}%"></span>`+
-        `<span class="mmodel"><span class="chip ${esc(fam)}">${esc(fam)}</span></span>`+
-        `<span class="mnum">${fmtTok(m.tok)}</span>`+
-        `<span class="mnum" style="color:var(--cyan)">${fmtMoney(m.cost)}</span>`+
-        `<span class="mnum" style="color:var(--dim)">${Math.round(m.turns).toLocaleString()}</span></div>`;
-    }).join('');
-    const mtable = models.length
-      ? `<div class="mtable"><div class="mth" style="grid-template-columns:1.5fr 1fr 1fr .8fr"><span>Model</span><span>Tokens</span><span>Cost</span><span>Turns</span></div>${mrows}</div>`
-      : '<div class="zsub">no usage this week</div>';
-    const isCur = w.start.getTime()===nowWeekStart.getTime();
-    return `<div class="zrow ${i%2?'even':'odd'}">
-      <div class="zhead"><span class="zchev">&#9654;</span>
-        <div style="min-width:0"><div class="zname">${fmtWeekRange(w)}</div><div class="zsub">${isCur?'current week &middot; ':''}resets Tue 1:00 PM</div></div>
-        <div class="ztok">${fmtTok(w.tok)}<div class="zsub" style="text-align:right">tokens</div></div>
-        <div class="zcost">${fmtMoney(w.cost)}</div></div>
-      <div class="zbody">${mtable}</div>
-    </div>`;
-  }).join('') + '</div>';
+  document.getElementById('weeklyCards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${ic(c.icon)}${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
+  // By week (Tuesday-13:00 compute weeks, with the current week highlighted)
+  const wl=document.getElementById('weeklyList');
+  if(!weeks.length){ wl.innerHTML='<div class="empty-state">'+ic('emptybox')+'No recorded usage yet.</div>'; }
+  else {
+    wl.innerHTML = '<div class="zlist">' + weeks.map((w,i)=>{
+      const isCur = w.start.getTime()===nowWeekStart.getTime();
+      return rollupRowHtml(fmtWeekRange(w), (isCur?'current week &middot; ':'')+'resets Tue 1:00 PM', {tok:w.tok,cost:w.cost,models:w.models}, i, isCur?'curweek':'');
+    }).join('') + '</div>';
+  }
+  // By month / By year / All time (calendar boundaries, whole-day attribution)
+  const months=computeMonths(), years=computeYears(), allT=computeAllTime();
+  const mLabel = b => { const [y,m]=b.key.split('-'); return MON[+m-1]+' '+y; };
+  renderBucketList('monthlyList', months, mLabel, bucketRange);
+  renderBucketList('annualList', years, b=>b.key, bucketRange);
+  renderBucketList('allTimeList', allT, ()=>'All recorded history', bucketRange);
+  // "where it makes sense": only show monthly with >1 month, annual with >1 year
+  document.getElementById('monthlySec').style.display = months.length>1 ? 'block':'none';
+  document.getElementById('annualSec').style.display  = years.length>1  ? 'block':'none';
+  ['weeklyList','monthlyList','annualList','allTimeList'].forEach(wireRollupList);
 }
 function showWeekly(push=true){ hideAllViews(); document.getElementById('weeklyview').style.display='block'; renderWeeklyPage(); window.scrollTo(0,0); if(push) history.pushState({view:'weekly'},'','#weekly'); }
 document.getElementById('backFromWeekly').addEventListener('click', ()=>showCalendar());
-document.getElementById('weeklyList').addEventListener('click', e=>{
-  const m=e.target.closest('.mtr[data-fam]'); if(m){ showModel(m.dataset.fam); return; }
-  const h=e.target.closest('.zhead'); if(h) h.parentNode.classList.toggle('open');
-});
 
 // jump from a day's session card to that chat's all-time row in All Chats
 function showSession(id){
@@ -1289,14 +1446,37 @@ document.getElementById('allchats-wrap').addEventListener('click', e=>{
 document.getElementById('acsort').addEventListener('change', e=>{ acSort=e.target.value; renderAllChats(); });
 document.getElementById('actoggle').addEventListener('click', ()=>{ document.getElementById('allchats-wrap').classList.toggle('collapsed'); });
 
+// keyboard operability: Enter/Space on the div/button drill-down surfaces fires
+// the same click path the mouse uses (the delegated click listeners handle it).
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Enter' && e.key!==' ') return;
+  const t=e.target; if(!(t instanceof HTMLElement)) return;
+  if(t.matches('.zhead, .cell.has, .card[data-view]')){ e.preventDefault(); t.click(); }
+});
+
+// swap the Unicode nav glyphs (‹ › ▼) for the shared chevron/arrow SVGs so the
+// whole UI's iconography comes from one stroke-based family
+(function installNavIcons(){
+  const chev = ic('chevron','ic-sm');
+  [['prev',180],['next',0],['dayPrev',180],['dayNext',0]].forEach(([id,rot])=>{
+    const el=document.getElementById(id); if(el) el.innerHTML = `<span style="display:inline-flex;transform:rotate(${rot}deg)">${chev}</span>`;
+  });
+  document.querySelectorAll('button[id^="back"]').forEach(b=>{
+    const txt=(b.textContent||'').replace(/^[‹\s]+/,'').trim();
+    b.innerHTML = ic('arrowL','ic-sm') + ' ' + txt;
+  });
+  const sc=document.querySelector('#seg button[data-m="cost"]'); if(sc) sc.innerHTML = ic('dollar','ic-sm')+' Cost';
+  const st=document.querySelector('#seg button[data-m="tok"]'); if(st) st.innerHTML = ic('token','ic-sm')+' Tokens';
+})();
+
 if(!has){
-  document.querySelector('.cal').innerHTML='<div class="empty-state">No recorded usage yet. Use Claude Code and reopen history.</div>';
+  document.querySelector('.cal').innerHTML='<div class="empty-state">'+ic('emptybox')+'No recorded usage yet. Use Claude Code and reopen history.</div>';
   document.querySelector('.bar').style.display='none';
 } else {
   renderCards(); cur=firstWithData(); cur=new Date(cur.getFullYear(),cur.getMonth(),1); renderMonth();
   const h=(location.hash||'').slice(1); if(DATA[h]) showDay(h);
 }
-renderRolling();
+renderWindowsSummary();
 renderAllChats();
 </script>
 </body>

@@ -2,6 +2,40 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.18.0 — 2026-07-09
+
+**Widget**
+- **Bottom section reordered to three always-shown all-time lines:** Local,
+  Cloud, then Combined (Local + Cloud), followed by "Updated Xs ago". The
+  Combined line intentionally sums Local and Cloud even though they use
+  different tokenizers.
+- **Haiku (and all four Claude Cloud families) now always show**, at $0.00 / 0
+  on days you haven't used them — no more vanishing on a light day.
+- **A family-colour dot** now leads each model row (Opus cyan, Sonnet purple,
+  Haiku green, Fable amber), matching the calendar's model colours.
+
+**Calendar — readability & the "All Chats won't expand" fix**
+- **Fixed the All Chats expand.** The header was only a thin text strip, so a
+  real click could land just outside it. It's now a full-width, 44px button
+  with a hover state — a reliable target at any window size.
+- **All Chats projects now show their folder name** (e.g. "Maestro",
+  "RailWorld") instead of the full path, which was identical for every project
+  and clipped exactly where they differed. Full path is on hover.
+- **Heat-map numbers are readable on every colour level** now (the mid and
+  bright cells were near-illegible); brighter secondary text throughout.
+- **Broader visual refresh:** even card rows (no more lone stretched card),
+  the Weekly card shows a real number, clearer type hierarchy, roomier tables,
+  readable notice banners, keyboard focus states, and a mobile layout.
+
+**Calendar — new & moved**
+- **Weekly page now rolls up by week → month → year → all-time**, each with a
+  per-model breakdown. (Month/year use calendar boundaries, so they won't tie
+  out to the Tuesday-13:00 week rows on a boundary day.)
+- **Usage Windows moved to its own summary section at the bottom** of the page
+  (rolling windows + all-time highs), with a link to the full per-day table.
+- **Inline SVG icons throughout** — cards, section headers, banners, the
+  project/chat hierarchy, Archive/Restore, nav, and more — as one coherent set.
+
 ## v1.17.0 — 2026-07-09
 
 - **Top icon row redesigned.** Reordered to History → Refresh → Minimize →

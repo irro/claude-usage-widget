@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.17.0'   # bump on each release; shown next to the title in the widget
+$Version  = '1.18.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -327,14 +327,27 @@ $lblCloudHdr = New-Lbl $padL $rowsTop ($W-2*$padL) 14 $cDim 8 $true
 $lblCloudHdr.Text = 'Claude Cloud:'
 $lblCloudHdr.Visible = $false
 
-$rowName=@(); $rowCost=@(); $rowOut=@()
+# each cloud row gets a small filled family-colour dot at its left edge (Opus
+# cyan / Sonnet purple / Haiku green / Fable amber) - the same colour coding the
+# calendar's model chips use, so the two surfaces read as one product. The dot
+# is a Panel with a circular Region; its colour is set per-family in Relayout.
+$rowDot=@(); $rowName=@(); $rowCost=@(); $rowOut=@()
+$dotSz = 8
 for($k=0;$k -lt $MaxCloudFamilyRows;$k++){
     $y = $rowsTop + 18 + $k*$rowH
-    $rn = New-Lbl $padL $y 52 17 $cText 9.5 $true
+    $dot = New-Object System.Windows.Forms.Panel
+    $dot.Size = New-Object System.Drawing.Size($dotSz,$dotSz)
+    $dot.Location = New-Object System.Drawing.Point($padL, ($y+5))
+    $gp = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $gp.AddEllipse(0,0,$dotSz,$dotSz)
+    $dot.Region = New-Object System.Drawing.Region($gp)
+    $dot.BackColor = $cBg; $dot.Visible=$false
+    $form.Controls.Add($dot)
+    $rn = New-Lbl ($padL+13) $y 52 17 $cText 9.5 $true
     $rc = New-Lbl $sTrackX $y 96 17 $cText 9.5 $false
     $ro = New-Lbl 200 ($y+1) ($W-$padL-200) 15 $cDim 8.5 $false ; $ro.TextAlign = 'MiddleRight'   # right edge = true panel edge
     $rn.Visible=$false; $rc.Visible=$false; $ro.Visible=$false
-    $rowName += ,$rn ; $rowCost += ,$rc ; $rowOut += ,$ro
+    $rowDot += ,$dot ; $rowName += ,$rn ; $rowCost += ,$rc ; $rowOut += ,$ro
 }
 
 $lblLocalModelsHdr = New-Lbl $padL $rowsTop ($W-2*$padL) 14 $cDim 8 $true
@@ -477,16 +490,18 @@ $divT.BackColor = $cTrack
 $divT.Location = New-Object System.Drawing.Point($padL,300)
 $divT.Visible = $false
 $form.Controls.Add($divT)
-# row 1: "All Time Usage:" left, the token count right-justified to the true
-# right edge - all the row's horizontal space used instead of one bunched-up
-# left-aligned string.
-$lblTick1a = New-Lbl $padL 308 110 14 $cText 8 $false ; $lblTick1a.Visible=$false ; $lblTick1a.Text='All Time Usage:'
-$lblTick1b = New-Lbl 122 308 166 14 $cText 8 $false ; $lblTick1b.TextAlign='MiddleRight' ; $lblTick1b.Visible=$false
-# row 2 (only shown once any Local/Ollama usage has ever been recorded): the
-# Local all-time token total, right-justified the same way as row 1's Cloud
-# figure - never blended into it (different tokenizer, always $0 cost).
-$lblTickLa = New-Lbl $padL 328 110 14 $cBlue 8 $false ; $lblTickLa.Visible=$false ; $lblTickLa.Text='Local All-Time:'
-$lblTickLb = New-Lbl 122 328 166 14 $cBlue 8 $false ; $lblTickLb.TextAlign='MiddleRight' ; $lblTickLb.Visible=$false
+# bottom all-time block, three always-shown lines (per Jacob 2026-07-09), each
+# with its label left and the token count right-justified to the true right edge:
+#   Local All-Time   (blue - Local/Ollama, different tokenizer, always $0 cost)
+#   Cloud All-Time   (Claude/Cloud)
+#   Combined All-Time (Local + Cloud; intentionally sums two different tokenizers
+#                      per request - the rest of the app keeps them separate)
+$lblTickLa = New-Lbl $padL 308 120 14 $cBlue 8 $false ; $lblTickLa.Visible=$false ; $lblTickLa.Text='Local All-Time:'
+$lblTickLb = New-Lbl 132 308 156 14 $cBlue 8 $false ; $lblTickLb.TextAlign='MiddleRight' ; $lblTickLb.Visible=$false
+$lblTick1a = New-Lbl $padL 328 120 14 $cText 8 $false ; $lblTick1a.Visible=$false ; $lblTick1a.Text='Cloud All-Time:'
+$lblTick1b = New-Lbl 132 328 156 14 $cText 8 $false ; $lblTick1b.TextAlign='MiddleRight' ; $lblTick1b.Visible=$false
+$lblTickCa = New-Lbl $padL 348 120 14 $cText 8 $false ; $lblTickCa.Visible=$false ; $lblTickCa.Text='Combined All-Time:'
+$lblTickCb = New-Lbl 132 348 156 14 $cText 8 $false ; $lblTickCb.TextAlign='MiddleRight' ; $lblTickCb.Visible=$false
 
 # --- right-click menu -----------------------------------------------------
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
@@ -535,9 +550,9 @@ $dragHandler = {
 }
 function Wire-Drag($c){ $c.ContextMenuStrip = $menu; $c.Add_MouseDown($dragHandler) }
 # everything is a drag handle EXCEPT the refresh / close buttons (they click)
-$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot2,$div3,$divT,$lblTick1a,$lblTick1b,$lblTickLa,$lblTickLb)
+$dragCtrls = @($form,$lblTitle,$lblVer,$lblHeroTag,$lblHero,$lblRawTag,$lblRawVal,$div1,$div2,$lblFoot2,$div3,$divT,$lblTick1a,$lblTick1b,$lblTickLa,$lblTickLb,$lblTickCa,$lblTickCb)
 $dragCtrls += $lblCloudHdr,$lblLocalModelsHdr
-$dragCtrls += $rowName + $rowCost + $rowOut
+$dragCtrls += $rowDot + $rowName + $rowCost + $rowOut
 $dragCtrls += $lmName + $lmOut
 $dragCtrls += $sName + $sTrack + $sFill + $sPct + $sSep + $sTok
 $dragCtrls += $lName + $lTrack + $lFill + $lPct + $lSep + $lTok
@@ -1010,7 +1025,11 @@ function Fmt-Ago($mtimeUtc){
 # excluded here - it gets its own per-exact-model breakdown below, not a
 # single aggregate family row).
 function Active-CloudFamilies($bm){
-    $r=@(); foreach($f in $FamOrder){ if($f -ne 'Local' -and $bm.ContainsKey($f)){ $r += $f } }
+    # Always show the four Claude Cloud families (Opus/Sonnet/Haiku/Fable) as
+    # fixed rows - even at $0 today - so e.g. Haiku is always visible rather than
+    # vanishing on days it wasn't used. 'Local' is excluded here (it gets its own
+    # per-exact-model breakdown below). $bm is no longer needed to decide the set.
+    $r=@(); foreach($f in $FamOrder){ if($f -ne 'Local'){ $r += $f } }
     ,$r
 }
 # The last N distinct local models used today, most-recently-used first
@@ -1037,17 +1056,20 @@ function Relayout($cloudFams,$localModels,$nSess,$nSessLocal,$hasLocalAllTime){
         for($k=0;$k -lt $MaxCloudFamilyRows;$k++){
             if($k -lt $nCloud){
                 $y = $rowsTop + 18 + $k*$rowH
+                $col = $FamColor[$cloudFams[$k]]
+                $rowDot[$k].Top=$y+5; $rowDot[$k].BackColor=$col; $rowDot[$k].Visible=$true
                 $rowName[$k].Top=$y; $rowCost[$k].Top=$y; $rowOut[$k].Top=$y+1
-                $rowName[$k].ForeColor = $FamColor[$cloudFams[$k]]
+                $rowName[$k].ForeColor = $col
                 $rowName[$k].Visible=$true; $rowCost[$k].Visible=$true; $rowOut[$k].Visible=$true
             } else {
+                $rowDot[$k].Visible=$false
                 $rowName[$k].Visible=$false; $rowCost[$k].Visible=$false; $rowOut[$k].Visible=$false
             }
         }
         $afterCloud = $rowsTop + 18 + $nCloud*$rowH
     } else {
         $lblCloudHdr.Visible=$false
-        for($k=0;$k -lt $MaxCloudFamilyRows;$k++){ $rowName[$k].Visible=$false; $rowCost[$k].Visible=$false; $rowOut[$k].Visible=$false }
+        for($k=0;$k -lt $MaxCloudFamilyRows;$k++){ $rowDot[$k].Visible=$false; $rowName[$k].Visible=$false; $rowCost[$k].Visible=$false; $rowOut[$k].Visible=$false }
         $afterCloud = $rowsTop
     }
 
@@ -1134,26 +1156,15 @@ function Relayout($cloudFams,$localModels,$nSess,$nSessLocal,$hasLocalAllTime){
         for($k=0;$k -lt $MaxLocalSessionsCap;$k++){ $lName[$k].Visible=$false; $lTrack[$k].Visible=$false; $lPct[$k].Visible=$false; $lSep[$k].Visible=$false; $lTok[$k].Visible=$false }
     }
 
-    # bottom block: divider -> All Time Usage -> Local All-Time (if any) ->
-    # updated (right, the very bottom line). Jacob's feedback 2026-07-08:
-    # dropped the cached/per-token line and the output/turns/sessions line
-    # entirely - just the headline total (+ Local's, when there is one) and
-    # a freshness stamp.
+    # bottom block: divider -> Local All-Time -> Cloud All-Time -> Combined
+    # All-Time -> updated (right, the very bottom line). Three fixed all-time
+    # rows (Jacob 2026-07-09), always shown, so height is constant here.
     $div3.Top = $bottom + 2; $div3.Visible=$true
     $b0 = $div3.Top + 8
-    $lblTick1a.Top = $b0;      $lblTick1a.Visible=$true     # All Time Usage: (left)
-    $lblTick1b.Top = $b0;      $lblTick1b.Visible=$true     # X tokens (right)
-    # Local All-Time row only exists once local usage has ever been recorded -
-    # everything below shifts down 16px (matching the existing row rhythm) when
-    # it's shown, and sits exactly where it always did when it's not.
-    if($hasLocalAllTime){
-        $lblTickLa.Top = $b0 + 20; $lblTickLa.Visible=$true
-        $lblTickLb.Top = $b0 + 20; $lblTickLb.Visible=$true
-        $footTop = $b0 + 36
-    } else {
-        $lblTickLa.Visible=$false; $lblTickLb.Visible=$false
-        $footTop = $b0 + 20
-    }
+    $lblTickLa.Top = $b0;      $lblTickLb.Top = $b0;      $lblTickLa.Visible=$true; $lblTickLb.Visible=$true   # Local All-Time
+    $lblTick1a.Top = $b0 + 20; $lblTick1b.Top = $b0 + 20; $lblTick1a.Visible=$true; $lblTick1b.Visible=$true   # Cloud All-Time
+    $lblTickCa.Top = $b0 + 40; $lblTickCb.Top = $b0 + 40; $lblTickCa.Visible=$true; $lblTickCb.Visible=$true   # Combined All-Time
+    $footTop = $b0 + 58
     $lblFoot2.Top = $footTop;  $lblFoot2.Visible=$true      # Updated Xs ago (right)
     $divT.Visible=$false                                    # (old ticker divider, unused now)
     $bottom = $footTop + 22
@@ -1179,9 +1190,10 @@ function Repaint($d,$cloudFams,$localModels,$stamp){
     $bm = $d.by
     for($k=0;$k -lt $cloudFams.Count;$k++){
         $f=$cloudFams[$k]
+        $mc = if($bm.ContainsKey($f)){ $bm[$f] } else { @{cost=0.0; tok=0} }   # family unused today -> paint zeros, don't throw
         Set-T $rowName[$k] $f
-        Set-T $rowCost[$k] (Money $bm[$f].cost)
-        Set-T $rowOut[$k]  (Fmt-Tok $bm[$f].tok)   # total tokens this model used today
+        Set-T $rowCost[$k] (Money $mc.cost)
+        Set-T $rowOut[$k]  (Fmt-Tok $mc.tok)   # total tokens this model used today
     }
     for($k=0;$k -lt $localModels.Count;$k++){
         $lm = $localModels[$k]
@@ -1234,13 +1246,14 @@ function Get-AllTime {
     $script:allTime=@{ tok=$tok; tokLocal=$tokLocal; tokCloud=$tokCloud; cost=$cost; raw=$raw }; $script:allTimeAt=$now
     return $script:allTime
 }
-# Paint the bottom "All Time Usage:" lines (Claude/Cloud tokens + both cost
-# estimates - Local/Ollama usage is tracked separately, never mixed in here)
-# plus the Local All-Time row, once any local usage has ever been recorded.
+# Paint the bottom all-time lines: Local, Cloud, and Combined token totals.
+# Local/Ollama uses a different tokenizer and is normally kept separate; the
+# Combined line intentionally sums the two per Jacob's request (2026-07-09).
 function Repaint-Ticker {
     $a=Get-AllTime
+    Set-T $lblTickLb ((Fmt-Tok $a.tokLocal) + ' tokens')
     Set-T $lblTick1b ((Fmt-Tok $a.tokCloud) + ' tokens')
-    if($a.tokLocal -gt 0){ Set-T $lblTickLb ((Fmt-Tok $a.tokLocal) + ' tokens') }
+    Set-T $lblTickCb ((Fmt-Tok ($a.tokCloud + $a.tokLocal)) + ' tokens')
 }
 function Update-Widget {
     $r = Aggregate-Today
@@ -1252,16 +1265,20 @@ function Update-Widget {
     $allTime = Get-AllTime
     $hasLocalAllTime = ($allTime.tokLocal -gt 0)
 
-    $cloudFams = if($hasDaily){ Active-CloudFamilies $d.by } else { @() }
+    # Cloud families are now a FIXED set of four (Opus/Sonnet/Haiku/Fable), shown
+    # even at $0 today, so Haiku is always visible - not gated on today's usage.
+    $cloudFams = Active-CloudFamilies $d.by
     $localModels = if($hasDaily){ Get-RecentLocalModels $d.byLocalModel $MaxLocalModelRows } else { @() }
     $localModelKey = (($localModels | ForEach-Object { $_.model }) -join ',')
-    $key = ($cloudFams -join ',') + '|' + $localModelKey + '|' + $nSess + '|' + $nSessLocal + '|' + [int]$script:sessCollapsed + '|' + [int]$script:sessCollapsedLocal + '|' + [int]$hasLocalAllTime
+    $key = ($cloudFams -join ',') + '|' + $localModelKey + '|' + $nSess + '|' + $nSessLocal + '|' + [int]$script:sessCollapsed + '|' + [int]$script:sessCollapsedLocal
     if($key -ne $script:layoutKey){ Relayout $cloudFams $localModels $nSess $nSessLocal $hasLocalAllTime; $script:layoutKey=$key }
 
     if($hasDaily){
         Repaint $d $cloudFams $localModels $r.stamp
     } else {
         Set-T $lblHero '$0.00'; Set-T $lblRawVal '$0.00'
+        # no usage yet today, but the four cloud family rows are still shown - paint them at zero
+        for($k=0;$k -lt $cloudFams.Count;$k++){ Set-T $rowName[$k] $cloudFams[$k]; Set-T $rowCost[$k] '$0.00'; Set-T $rowOut[$k] '0' }
         Set-T $lblFoot2 'no Claude usage yet today'
     }
     if($nSess -gt 0){
