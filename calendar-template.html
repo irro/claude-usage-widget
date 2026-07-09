@@ -173,15 +173,25 @@
   .zrow.odd{background:var(--panel)}
   .zrow.even{background:#12171f}
   .zhead{display:grid;grid-template-columns:20px 1fr auto auto;align-items:center;gap:14px;padding:11px 14px;cursor:pointer;transition:background .12s}
+  /* project group rows (All Chats, grouped by cwd) get a 5th column for the Archive/Restore button */
+  .zrow.proj > .zhead{grid-template-columns:20px 1fr auto auto auto}
+  .projActionBtn{padding:4px 11px;font-size:11.5px}
+  .zrow.proj .zlist{border:0;border-radius:0}
+  .zrow.proj .zlist .zrow{border-radius:0}
   .zhead:hover{background:var(--panel2)}
   .zchev{color:var(--dim);font-size:11px;transition:transform .15s;display:inline-block}
-  .zrow.open .zchev{transform:rotate(90deg);color:var(--cyan)}
+  /* scoped to a DIRECT .zhead child so a project row's open state never bleeds
+     into its nested chat rows' chevrons (All Chats project groups nest chat
+     rows inside their .zbody, one .zrow inside another) */
+  .zrow.open > .zhead .zchev{transform:rotate(90deg);color:var(--cyan)}
   .zname{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .zsub{color:var(--dim);font-size:11.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ztok{font-weight:700;font-size:14px;text-align:right;white-space:nowrap}
   .zcost{color:var(--cyan);font-weight:700;font-size:13px;text-align:right;white-space:nowrap;min-width:70px}
   .zbody{display:none;padding:2px 14px 16px 46px}
-  .zrow.open .zbody{display:block}
+  /* direct-child combinator for the same reason as .zchev above - only the row's
+     OWN body shows when it's open, not a nested row's body one level down */
+  .zrow.open > .zbody{display:block}
   .zgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px;margin:8px 0 14px}
   .zstat .zk{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px}
   .zstat .zv{font-weight:700;font-size:15px;margin-top:3px}
@@ -217,19 +227,6 @@
       <button class="settings-btn ghost" id="openWindows" style="margin-left:10px">Usage Windows &rarr;</button>
       <span class="gen" id="gen"></span>
     </header>
-    <div class="settings-panel">
-      <div class="settings-title">Widget settings</div>
-      <div class="settings-sub">Changes apply immediately to the running widget &mdash; no restart needed.</div>
-      <div class="settings-row">
-        <label for="setMaxSessions">Recent cloud chats shown on the widget</label>
-        <input type="number" id="setMaxSessions" min="1" max="50" step="1" placeholder="10">
-        <label for="setMaxLocalSessions" style="margin-left:8px">Recent local chats shown</label>
-        <input type="number" id="setMaxLocalSessions" min="1" max="50" step="1" placeholder="5">
-        <button class="settings-btn" id="setSave">Save</button>
-        <button class="settings-btn ghost" id="setUpdate">Update</button>
-        <span class="settings-status" id="setStatus"></span>
-      </div>
-    </div>
     <div class="cards" id="cards"></div>
     <div class="rollwrap" id="rollwrap">
       <div class="rolllbl">Rolling usage <span class="tag">&mdash; your usage in these windows (as of this scan), not a plan limit</span></div>
@@ -253,7 +250,7 @@
         <span>More</span></div>
     </div>
 
-    <div class="cal" id="allchats-wrap">
+    <div class="cal collapsed" id="allchats-wrap">
       <div class="bar" style="margin-bottom:10px">
         <button class="acol" id="actoggle"><span class="acchev">&#9660;</span> All Chats <span class="tag" id="acount"></span></button>
         <select class="acselect" id="acsort" aria-label="Sort chats">
@@ -264,8 +261,13 @@
         </select>
       </div>
       <div id="acbody">
-        <div class="calhint" style="margin:0 0 12px">Every chat we still have logs for. Click a row to expand its token detail.</div>
-        <div class="zlist" id="allchats"></div>
+        <div class="calhint" style="margin:0 0 12px">Grouped by project. Click a project to see its chats, archive one that's done &mdash; it comes back here automatically the moment you work in it again.</div>
+        <div id="allchats"></div>
+        <div id="archivedProjectsWrap" style="display:none;margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
+          <div class="acol" style="font-size:14px;cursor:default"><span style="color:var(--dim)">Archived projects</span> <span class="tag" id="archivedCount"></span></div>
+          <div class="calhint" style="margin:6px 0 12px">Archived, with no new activity since. Working in one again brings it back to the list above automatically.</div>
+          <div id="archivedProjects"></div>
+        </div>
       </div>
     </div>
 
@@ -277,6 +279,20 @@
         <li><b>Reasoning effort &amp; fast mode.</b> Not recorded in the local transcript format Claude Code writes, so there's no field to read.</li>
       </ul>
       <div class="calhint" style="margin:10px 0 0">Only Claude Code / Claude CLI usage is tracked (local transcripts under <code>%USERPROFILE%\.claude\projects\</code>) &mdash; including a local model like Ollama if you ever point Claude Code at one (shown as "Local", always $0).</div>
+    </div>
+
+    <div class="settings-panel">
+      <div class="settings-title">Widget settings</div>
+      <div class="settings-sub">Changes apply immediately to the running widget &mdash; no restart needed.</div>
+      <div class="settings-row">
+        <label for="setMaxSessions">Recent cloud chats shown on the widget</label>
+        <input type="number" id="setMaxSessions" min="1" max="50" step="1" placeholder="10">
+        <label for="setMaxLocalSessions" style="margin-left:8px">Recent local chats shown</label>
+        <input type="number" id="setMaxLocalSessions" min="1" max="50" step="1" placeholder="5">
+        <button class="settings-btn" id="setSave">Save</button>
+        <button class="settings-btn ghost" id="setUpdate">Update</button>
+        <span class="settings-status" id="setStatus"></span>
+      </div>
     </div>
   </div>
 
@@ -378,6 +394,13 @@
         <div id="modelTable"></div>
       </div>
     </div>
+  </div>
+
+  <div id="weeklyview" style="display:none">
+    <div class="dvhead"><button id="backFromWeekly">&#8249; Back to calendar</button><div class="dvtitle">Weekly usage</div></div>
+    <div class="notice-banner"><span class="nicon">&#9888;</span><span>Compute weeks reset every Tuesday at 1:00 PM, mirroring Claude's own weekly limit reset &mdash; not calendar (Sun&ndash;Sat) weeks. The boundary Tuesday is split to the hour where the underlying data allows it; older days that predate this feature (or were pruned before a rescan) fall back to whole-day attribution.</span></div>
+    <div class="cards" id="weeklyCards"></div>
+    <div id="weeklyList"></div>
   </div>
 
   <div class="foot">Estimates at API list prices — a sense of weight, not a bill. Cache-aware unless noted. Self-contained, offline, transcript-driven.</div>
@@ -520,6 +543,7 @@ function renderCards(){
     {cls:'peak',lbl:'Busiest day',val:peak.d?fmtMoney(peak.cost):'—',sub:peak.d?niceDate(parseDay(peak.d)):'',view:'spend'},
     {cls:'avg',lbl:'Avg / active day',val:fmtMoney(avg),sub:days.length+' active days',view:'spend'},
     {cls:'tok',lbl:'Total tokens',val:fmtTok(tokCloud),sub:fmtTok(tot.out)+' generated · '+tot.turns.toLocaleString()+' turns · Claude/Cloud only',view:'tokens'},
+    {cls:'avg',lbl:'Weekly',val:'By model',sub:'compute weeks · resets Tue 1:00 PM',view:'weekly'},
   ];
   // Local (Ollama etc.) is never priced and uses a different tokenizer - kept as its
   // own card, never blended into the Cloud figures above. Only shown once you've used it.
@@ -538,55 +562,129 @@ function renderRolling(){
   document.getElementById('rollcards').innerHTML = cards.join('');
 }
 
-// ---- all chats (zebra, collapsible) ----
+// ---- all chats (zebra, collapsible), grouped by project (cwd) ----
+// Each project can be archived to declutter this list once you're done with
+// it; archiving is remembered in localStorage (same mechanism the Mindmeld
+// page's archive already uses - this page always regenerates to the same
+// fixed file path, so it survives every regeneration). A project auto-returns
+// to the active list the moment it shows activity newer than when it was
+// archived - no manual un-archive needed for that case (Restore is still
+// there for "I changed my mind").
 let acSort = "recent";
-function renderAllChats(){
-  const wrap=document.getElementById('allchats-wrap'); if(!wrap) return;
-  const arr=(ALL_SESSIONS||[]).slice();
-  if(!arr.length){ wrap.style.display='none'; return; }
-  document.getElementById('acount').textContent = '· '+arr.length;
+const ARCHIVE_KEY = 'usageWidgetArchivedProjects';
+function loadArchivedProjects(){ try { return JSON.parse(localStorage.getItem(ARCHIVE_KEY))||{}; } catch(e){ return {}; } }
+function saveArchivedProjects(m){ try { localStorage.setItem(ARCHIVE_KEY, JSON.stringify(m)); } catch(e){} }
+function archiveProject(cwd){ const m=loadArchivedProjects(); m[cwd]=new Date().toISOString(); saveArchivedProjects(m); renderAllChats(); }
+function restoreProject(cwd){ const m=loadArchivedProjects(); delete m[cwd]; saveArchivedProjects(m); renderAllChats(); }
+
+function sessionRowHtml(s, i){
+  const models=[].concat(s.byModel||[]).filter(m=>(m.tok||0)>0);
+  const mmax=Math.max(1,...models.map(m=>m.tok||0));
+  const mrows=models.map(m=>{
+    const col=FAMCOL[m.model]||'var(--cyan)', w=Math.max(2,Math.round(100*(m.tok||0)/mmax));
+    return `<div class="mtr" data-fam="${esc(m.model)}" style="color:${col};cursor:pointer"><span class="share" style="width:${w}%"></span>`+
+      `<span class="mmodel"><span class="chip ${esc(m.model)}">${esc(m.model)}</span></span>`+
+      `<span class="mnum">${fmtTok(m.tok)}</span>`+
+      `<span class="mnum" style="color:var(--cyan)">${fmtMoney(m.cost)}</span>`+
+      `<span class="mnum" style="color:var(--dim)">${(m.turns||0).toLocaleString()}</span>`+
+      `<span class="mnum" style="color:var(--dim)">${fmtTok(m.out)||'0'}</span></div>`;
+  }).join('');
+  const mtable = models.length
+    ? `<div class="mtable"><div class="mth"><span>Model</span><span>Tokens</span><span>Cost</span><span>Turns</span><span>Output</span></div>${mrows}</div>`
+    : '<div class="zsub">no per-model detail (transcript pruned)</div>';
+  const range = s.first===s.last ? niceDate(parseDay(s.last)) : (niceDate(parseDay(s.first))+' – '+niceDate(parseDay(s.last)));
+  const sub = `${s.days} day${s.days!==1?'s':''} active · #${esc(s.id)}`;
+  return `<div class="zrow ${i%2?'even':'odd'}" data-sid="${esc(s.id)}">
+    <div class="zhead"><span class="zchev">&#9654;</span>
+      <div style="min-width:0"><div class="zname">${esc(s.name)}</div><div class="zsub">${sub}</div></div>
+      <div class="ztok">${fmtTok(s.tok)}<div class="zsub" style="text-align:right">tokens</div></div>
+      <div class="zcost">${fmtMoney(s.cost)}</div></div>
+    <div class="zbody">
+      <div class="zgrid">
+        <div class="zstat"><div class="zk">Tokens</div><div class="zv">${fmtTok(s.tok)}</div></div>
+        <div class="zstat"><div class="zk">Spent (cached)</div><div class="zv" style="color:var(--cyan)">${fmtMoney(s.cost)}</div></div>
+        <div class="zstat"><div class="zk">If per token</div><div class="zv" style="color:var(--amber)">${fmtMoney(s.raw)}</div></div>
+        <div class="zstat"><div class="zk">Turns</div><div class="zv">${s.turns.toLocaleString()}</div></div>
+        <div class="zstat"><div class="zk">Generated</div><div class="zv">${fmtTok(s.out)}</div></div>
+        <div class="zstat"><div class="zk">Active</div><div class="zv" style="font-size:12.5px">${range}</div></div>
+      </div>
+      <div class="dvsec" style="font-size:13px;margin:2px 0 9px">Tokens by model</div>
+      ${mtable}
+    </div>
+  </div>`;
+}
+function groupByProject(arr){
+  const groups={};
+  arr.forEach(s=>{
+    const key = s.cwd || '(no project)';
+    if(!groups[key]) groups[key]={cwd:key, sessions:[], tok:0, cost:0, last:'0000-00-00'};
+    const g=groups[key];
+    g.sessions.push(s); g.tok+=s.tok||0; g.cost+=s.cost||0;
+    if(s.last>g.last) g.last=s.last;
+  });
+  return Object.values(groups);
+}
+function sortGroups(groups){
+  const arr=groups.slice();
   arr.sort((a,b)=>{
-    if(acSort==='name')     return (a.name||'').localeCompare(b.name||'', undefined, {sensitivity:'base'});
+    if(acSort==='name')     return a.cwd.localeCompare(b.cwd, undefined, {sensitivity:'base'});
     if(acSort==='tok-asc')  return (a.tok||0)-(b.tok||0);
     if(acSort==='tok-desc') return (b.tok||0)-(a.tok||0);
     return a.last<b.last?1:a.last>b.last?-1:(b.tok-a.tok);   // recent: newest last-active first
   });
-  document.getElementById('allchats').innerHTML = arr.map((s,i)=>{
-    const models=[].concat(s.byModel||[]).filter(m=>(m.tok||0)>0);
-    const mmax=Math.max(1,...models.map(m=>m.tok||0));
-    const mrows=models.map(m=>{
-      const col=FAMCOL[m.model]||'var(--cyan)', w=Math.max(2,Math.round(100*(m.tok||0)/mmax));
-      return `<div class="mtr" data-fam="${esc(m.model)}" style="color:${col};cursor:pointer"><span class="share" style="width:${w}%"></span>`+
-        `<span class="mmodel"><span class="chip ${esc(m.model)}">${esc(m.model)}</span></span>`+
-        `<span class="mnum">${fmtTok(m.tok)}</span>`+
-        `<span class="mnum" style="color:var(--cyan)">${fmtMoney(m.cost)}</span>`+
-        `<span class="mnum" style="color:var(--dim)">${(m.turns||0).toLocaleString()}</span>`+
-        `<span class="mnum" style="color:var(--dim)">${fmtTok(m.out)||'0'}</span></div>`;
-    }).join('');
-    const mtable = models.length
-      ? `<div class="mtable"><div class="mth"><span>Model</span><span>Tokens</span><span>Cost</span><span>Turns</span><span>Output</span></div>${mrows}</div>`
-      : '<div class="zsub">no per-model detail (transcript pruned)</div>';
-    const range = s.first===s.last ? niceDate(parseDay(s.last)) : (niceDate(parseDay(s.first))+' – '+niceDate(parseDay(s.last)));
-    const sub = `${s.cwd?esc(s.cwd)+' · ':''}${s.days} day${s.days!==1?'s':''} active · #${esc(s.id)}`;
-    return `<div class="zrow ${i%2?'even':'odd'}" data-sid="${esc(s.id)}">
-      <div class="zhead"><span class="zchev">&#9654;</span>
-        <div style="min-width:0"><div class="zname">${esc(s.name)}</div><div class="zsub">${sub}</div></div>
-        <div class="ztok">${fmtTok(s.tok)}<div class="zsub" style="text-align:right">tokens</div></div>
-        <div class="zcost">${fmtMoney(s.cost)}</div></div>
-      <div class="zbody">
-        <div class="zgrid">
-          <div class="zstat"><div class="zk">Tokens</div><div class="zv">${fmtTok(s.tok)}</div></div>
-          <div class="zstat"><div class="zk">Spent (cached)</div><div class="zv" style="color:var(--cyan)">${fmtMoney(s.cost)}</div></div>
-          <div class="zstat"><div class="zk">If per token</div><div class="zv" style="color:var(--amber)">${fmtMoney(s.raw)}</div></div>
-          <div class="zstat"><div class="zk">Turns</div><div class="zv">${s.turns.toLocaleString()}</div></div>
-          <div class="zstat"><div class="zk">Generated</div><div class="zv">${fmtTok(s.out)}</div></div>
-          <div class="zstat"><div class="zk">Active</div><div class="zv" style="font-size:12.5px">${range}</div></div>
-        </div>
-        <div class="dvsec" style="font-size:13px;margin:2px 0 9px">Tokens by model</div>
-        ${mtable}
-      </div>
-    </div>`;
-  }).join('');
+  return arr;
+}
+function projectGroupHtml(g, i, archived){
+  const sessSorted = g.sessions.slice().sort((a,b)=> a.last<b.last?1:a.last>b.last?-1:(b.tok-a.tok));
+  const rows = sessSorted.map((s,j)=>sessionRowHtml(s,j)).join('');
+  const actionBtn = archived
+    ? `<button class="settings-btn ghost projActionBtn" data-act="restore" data-cwd="${esc(g.cwd)}">Restore</button>`
+    : `<button class="settings-btn ghost projActionBtn" data-act="archive" data-cwd="${esc(g.cwd)}">Archive</button>`;
+  return `<div class="zrow proj ${i%2?'even':'odd'}">
+    <div class="zhead">
+      <span class="zchev">&#9654;</span>
+      <div style="min-width:0"><div class="zname">${esc(g.cwd)}</div><div class="zsub">${g.sessions.length} chat${g.sessions.length!==1?'s':''} · last active ${niceDate(parseDay(g.last))}</div></div>
+      <div class="ztok">${fmtTok(g.tok)}<div class="zsub" style="text-align:right">tokens</div></div>
+      <div class="zcost">${fmtMoney(g.cost)}</div>
+      ${actionBtn}
+    </div>
+    <div class="zbody"><div class="zlist" style="margin-top:2px">${rows}</div></div>
+  </div>`;
+}
+function renderAllChats(){
+  const wrap=document.getElementById('allchats-wrap'); if(!wrap) return;
+  const arr=(ALL_SESSIONS||[]).slice();
+  if(!arr.length){ wrap.style.display='none'; return; }
+
+  const groups = groupByProject(arr);
+  const archMap = loadArchivedProjects();
+  let mapChanged = false;
+  const active=[], archived=[];
+  groups.forEach(g=>{
+    const archivedAt = archMap[g.cwd];
+    if(archivedAt && g.last <= archivedAt.slice(0,10)){
+      archived.push(g);
+    } else {
+      if(archivedAt){ delete archMap[g.cwd]; mapChanged=true; }   // auto-return: new activity since archiving
+      active.push(g);
+    }
+  });
+  if(mapChanged) saveArchivedProjects(archMap);
+
+  document.getElementById('acount').textContent = '· '+arr.length+(archived.length?(' · '+archived.length+' project'+(archived.length!==1?'s':'')+' archived'):'');
+  const activeSorted = sortGroups(active);
+  document.getElementById('allchats').innerHTML = activeSorted.length
+    ? `<div class="zlist">${activeSorted.map((g,i)=>projectGroupHtml(g,i,false)).join('')}</div>`
+    : '<div class="empty-state">All projects archived — see Archived projects below.</div>';
+
+  const archWrap = document.getElementById('archivedProjectsWrap');
+  if(archived.length){
+    archWrap.style.display='';
+    document.getElementById('archivedCount').textContent = '· '+archived.length;
+    document.getElementById('archivedProjects').innerHTML = `<div class="zlist">${sortGroups(archived).map((g,i)=>projectGroupHtml(g,i,true)).join('')}</div>`;
+  } else {
+    archWrap.style.display='none';
+  }
 }
 
 // ---- calendar ----
@@ -679,7 +777,7 @@ function showDay(k, push=true){
 // from one detail page to another (e.g. a model chip clicked while already
 // on the Tokens page) never leaves two views visible at once.
 function hideAllViews(){
-  ['mainview','dayview','windowsview','tokensview','spendview','localview','modelview'].forEach(id=>{
+  ['mainview','dayview','windowsview','tokensview','spendview','localview','modelview','weeklyview'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.style.display='none';
   });
   activeChartPage = null;   // the 4 chart pages' show* fns set this back right after
@@ -908,7 +1006,7 @@ document.getElementById('localSessions').addEventListener('click', e=>{ const c=
 document.getElementById('cards').addEventListener('click', e=>{
   const c=e.target.closest('.card[data-view]'); if(!c) return;
   const v=c.dataset.view;
-  if(v==='tokens') showTokens(); else if(v==='spend') showSpend(); else if(v==='local') showLocal();
+  if(v==='tokens') showTokens(); else if(v==='spend') showSpend(); else if(v==='local') showLocal(); else if(v==='weekly') showWeekly();
 });
 
 // ---- Model detail page: one family's day-by-day trend + all-time totals,
@@ -955,6 +1053,108 @@ document.getElementById('modelTable').addEventListener('click', e=>{ const r=e.t
 document.getElementById('dvmodels').addEventListener('click', e=>{ const r=e.target.closest('.prow[data-fam]'); if(r) showModel(r.dataset.fam); });
 document.getElementById('wModelBars').addEventListener('click', e=>{ const r=e.target.closest('.prow[data-fam]'); if(r) showModel(r.dataset.fam); });
 
+// ---- Weekly usage: "compute weeks" resetting Tuesday 1:00 PM local time,
+// mirroring Claude's own weekly limit reset, with a per-model breakdown for
+// each week. Per-model totals are day-level everywhere except the day a
+// week's boundary falls on (always a Tuesday, since the reset isn't at
+// midnight) - that one day's per-model hourly split (tueByModelHours, emitted
+// PowerShell-side only for Tuesdays) is used to divide it correctly; a
+// Tuesday with no such split (older/pruned data) falls back to whole-day
+// attribution to whichever week its midnight falls in. ----
+function tuesdayAt1pm(dt){
+  const d = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  const diff = (d.getDay() - 2 + 7) % 7;   // 2 = Tuesday
+  d.setDate(d.getDate() - diff);
+  d.setHours(13,0,0,0);
+  return d;
+}
+function computeWeeks(){
+  if(!has) return [];
+  const lastDay = parseDay(days[days.length-1]);
+  const weeks = [];
+  let weekStart = tuesdayAt1pm(parseDay(days[0]));
+  while(weekStart <= lastDay){
+    const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate()+7);
+    const models = {}; let tok=0, cost=0;
+    const addModel = (fam, mtok, mcost, mturns) => {
+      if(!models[fam]) models[fam]={tok:0,cost:0,turns:0};
+      models[fam].tok+=mtok; models[fam].cost+=mcost; models[fam].turns+=mturns;
+      tok+=mtok; cost+=mcost;
+    };
+    days.forEach(dk=>{
+      const dayMid = parseDay(dk), x = DATA[dk]; if(!x) return;
+      const bm = x.byModel||{}, tueSplit = x.tueByModelHours;
+      if(dayMid.getDay()===2 && tueSplit && Object.keys(tueSplit).length){
+        const boundary = new Date(dayMid); boundary.setHours(13,0,0,0);
+        const startsThis = boundary.getTime()===weekStart.getTime();
+        const endsThis = boundary.getTime()===weekEnd.getTime();
+        if(!startsThis && !endsThis) return;
+        Object.keys(tueSplit).forEach(fam=>{
+          const hrs=tueSplit[fam]; let sum=0;
+          if(startsThis){ for(let h=13;h<24;h++) sum+=hrs[h]||0; }
+          else { for(let h=0;h<13;h++) sum+=hrs[h]||0; }
+          if(sum<=0) return;
+          const dayModelTok=(bm[fam]&&bm[fam].tok)||0;
+          const share = dayModelTok>0 ? Math.min(1,sum/dayModelTok) : 0;
+          addModel(fam, sum, (bm[fam]&&bm[fam].cost||0)*share, Math.round((bm[fam]&&bm[fam].turns||0)*share));
+        });
+      } else if(dayMid>=weekStart && dayMid<weekEnd){
+        Object.keys(bm).forEach(fam=> addModel(fam, bm[fam].tok||0, bm[fam].cost||0, bm[fam].turns||0));
+      }
+    });
+    weeks.push({start:new Date(weekStart), end:new Date(weekEnd), models, tok, cost});
+    weekStart = weekEnd;
+  }
+  return weeks.reverse();
+}
+function fmtWeekRange(w){
+  const endShown = new Date(w.end); endShown.setDate(endShown.getDate()-1);   // display as inclusive last day
+  const sameMonth = w.start.getMonth()===endShown.getMonth();
+  const a = MON[w.start.getMonth()].slice(0,3)+' '+w.start.getDate();
+  const b = sameMonth ? (''+endShown.getDate()) : (MON[endShown.getMonth()].slice(0,3)+' '+endShown.getDate());
+  return a+' – '+b+', '+endShown.getFullYear();
+}
+function renderWeeklyPage(){
+  const weeks = computeWeeks();
+  const nowWeekStart = tuesdayAt1pm(new Date());
+  const curWk = weeks.find(w=>w.start.getTime()===nowWeekStart.getTime());
+  const cards=[
+    {cls:'tok',lbl:'This compute week',val:curWk?fmtTok(curWk.tok):'0',sub:curWk?fmtMoney(curWk.cost):'$0.00'},
+    {cls:'avg',lbl:'Weeks tracked',val:''+weeks.length,sub:'resets Tue 1:00 PM'},
+  ];
+  document.getElementById('weeklyCards').innerHTML = cards.map(c=>`<div class="card ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div><div class="sub">${c.sub}</div></div>`).join('');
+  if(!weeks.length){ document.getElementById('weeklyList').innerHTML='<div class="empty-state">No recorded usage yet.</div>'; return; }
+  document.getElementById('weeklyList').innerHTML = '<div class="zlist">' + weeks.map((w,i)=>{
+    const models = Object.keys(w.models).filter(f=>(w.models[f].tok||0)>0).sort((a,b)=>w.models[b].tok-w.models[a].tok);
+    const mmax = Math.max(1, ...models.map(f=>w.models[f].tok));
+    const mrows = models.map(fam=>{
+      const m=w.models[fam], col=FAMCOL[fam]||'var(--cyan)', width=Math.max(2,Math.round(100*m.tok/mmax));
+      return `<div class="mtr" data-fam="${esc(fam)}" style="color:${col};cursor:pointer;grid-template-columns:1.5fr 1fr 1fr .8fr"><span class="share" style="width:${width}%"></span>`+
+        `<span class="mmodel"><span class="chip ${esc(fam)}">${esc(fam)}</span></span>`+
+        `<span class="mnum">${fmtTok(m.tok)}</span>`+
+        `<span class="mnum" style="color:var(--cyan)">${fmtMoney(m.cost)}</span>`+
+        `<span class="mnum" style="color:var(--dim)">${Math.round(m.turns).toLocaleString()}</span></div>`;
+    }).join('');
+    const mtable = models.length
+      ? `<div class="mtable"><div class="mth" style="grid-template-columns:1.5fr 1fr 1fr .8fr"><span>Model</span><span>Tokens</span><span>Cost</span><span>Turns</span></div>${mrows}</div>`
+      : '<div class="zsub">no usage this week</div>';
+    const isCur = w.start.getTime()===nowWeekStart.getTime();
+    return `<div class="zrow ${i%2?'even':'odd'}">
+      <div class="zhead"><span class="zchev">&#9654;</span>
+        <div style="min-width:0"><div class="zname">${fmtWeekRange(w)}</div><div class="zsub">${isCur?'current week &middot; ':''}resets Tue 1:00 PM</div></div>
+        <div class="ztok">${fmtTok(w.tok)}<div class="zsub" style="text-align:right">tokens</div></div>
+        <div class="zcost">${fmtMoney(w.cost)}</div></div>
+      <div class="zbody">${mtable}</div>
+    </div>`;
+  }).join('') + '</div>';
+}
+function showWeekly(push=true){ hideAllViews(); document.getElementById('weeklyview').style.display='block'; renderWeeklyPage(); window.scrollTo(0,0); if(push) history.pushState({view:'weekly'},'','#weekly'); }
+document.getElementById('backFromWeekly').addEventListener('click', ()=>showCalendar());
+document.getElementById('weeklyList').addEventListener('click', e=>{
+  const m=e.target.closest('.mtr[data-fam]'); if(m){ showModel(m.dataset.fam); return; }
+  const h=e.target.closest('.zhead'); if(h) h.parentNode.classList.toggle('open');
+});
+
 // jump from a day's session card to that chat's all-time row in All Chats
 function showSession(id){
   showCalendar();
@@ -962,6 +1162,7 @@ function showSession(id){
   wrap.classList.remove('collapsed');
   const row=wrap.querySelector(`.zrow[data-sid="${CSS.escape(id)}"]`);
   if(!row) return;
+  const projRow=row.closest('.zrow.proj'); if(projRow) projRow.classList.add('open');   // a chat row sits inside its project's zbody, which needs .open too to even be visible
   row.classList.add('open');
   row.scrollIntoView({behavior:'smooth', block:'center'});
   row.classList.add('flash');
@@ -1017,6 +1218,7 @@ window.addEventListener('popstate', e=>{
   else if(st && st.view === 'spend') showSpend(false);
   else if(st && st.view === 'local') showLocal(false);
   else if(st && st.view === 'model' && st.fam) showModel(st.fam, false);
+  else if(st && st.view === 'weekly') showWeekly(false);
   else showCalendar(false);
 });
 // trend charts measure their container's pixel width at render time (so SVG
@@ -1075,8 +1277,12 @@ document.getElementById('setSave').addEventListener('click', saveSettings);
 document.getElementById('setUpdate').addEventListener('click', loadSettings);
 loadSettings();
 
-// all-chats: expand/collapse a row, and Recent/Heaviest sort
-document.getElementById('allchats').addEventListener('click', e=>{
+// all-chats: expand/collapse a project or chat row, Archive/Restore a project,
+// and Recent/Heaviest sort. One delegate covers both the active list and the
+// Archived projects list below it.
+document.getElementById('allchats-wrap').addEventListener('click', e=>{
+  const btn=e.target.closest('.projActionBtn');
+  if(btn){ const cwd=btn.dataset.cwd; if(btn.dataset.act==='archive') archiveProject(cwd); else restoreProject(cwd); return; }
   const m=e.target.closest('.mtr[data-fam]'); if(m){ showModel(m.dataset.fam); return; }
   const h=e.target.closest('.zhead'); if(h) h.parentNode.classList.toggle('open');
 });

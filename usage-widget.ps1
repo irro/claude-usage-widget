@@ -40,7 +40,7 @@ $CalTpl   = Join-Path $PSScriptRoot 'calendar-template.html'
 # widget + calendar session lists but still count in every total; never deleted.
 $ArchivePath = Join-Path $env:USERPROFILE '.claude\usage-widget-archived.json'
 $LegacyHiddenPath = Join-Path $env:USERPROFILE '.claude\usage-widget-hidden.json'  # v1.4 name, still honoured
-$Version  = '1.16.2'   # bump on each release; shown next to the title in the widget
+$Version  = '1.17.0'   # bump on each release; shown next to the title in the widget
 
 # --- pricing (USD per 1M tokens, current-generation list prices) ----------
 # Each turn is priced by its own model. Cache rates are derived from the input
@@ -117,8 +117,8 @@ $script:data      = $null   # latest today aggregate (for the on-close save)
 $script:lastPersist = $null # last time today's total was written to the history store
 $script:sessCache = @{}     # path -> cached tail read {mtime,ctx,model,tstamp,title}
 $script:archived  = @{}     # session-id -> 1 for archived chats (out of lists, still in totals)
-$script:sessCollapsed = $false  # recent-chats list collapsed? (persisted in the pos file)
-$script:sessCollapsedLocal = $false  # same, for the Local recent-chats list (persisted in the pos file)
+$script:sessCollapsed = $true  # recent-chats list collapsed? (persisted in the pos file)
+$script:sessCollapsedLocal = $true  # same, for the Local recent-chats list (persisted in the pos file)
 $script:allTime    = $null  # cached all-time totals @{tok;cost;raw}
 $script:allTimeAt  = $null  # last all-time recompute time
 $script:settingsListener = $null  # the 127.0.0.1 HttpListener (Start-SettingsServer)
@@ -225,33 +225,37 @@ function Set-T($l,$t){ if($l.Text -ne $t){ $l.Text = $t } }
 $lblTitle = New-Lbl $padL 9 92 18 $cCyan 9.5 $true ; $lblTitle.Text = 'Claude Usage'
 $lblVer   = New-Lbl 95 12 70 14 $cDim 8 $false ; $lblVer.Text = 'v' + $Version
 
-# minimize-to-tray button - hides the widget and parks it in the system tray
-$btnTray = New-Lbl ($W-94) 7 20 18 $cDim 10 $false
-try { $btnTray.Font = New-Object System.Drawing.Font('Segoe MDL2 Assets',10) } catch {}
-$btnTray.Text = [string][char]0xE921                  # minimize glyph (Segoe MDL2 Assets)
-$btnTray.TextAlign = 'MiddleCenter'
-$btnTray.Add_Click({ Minimize-ToTray })
-$btnTray.Add_MouseEnter({ $btnTray.ForeColor = $cCyan })
-$btnTray.Add_MouseLeave({ $btnTray.ForeColor = $cDim })
-
-# history (calendar) button - opens a beautiful per-day usage calendar
-$btnHist = New-Lbl ($W-70) 7 20 18 $cDim 10 $false
+# top-right icon row (left to right): History, Refresh, Minimize, Close -
+# all four share the same icon font/size/box so the row reads as one set,
+# with Minimize grouped right next to Close (the familiar OS pairing).
+$btnHist = New-Lbl ($W-100) 7 20 18 $cDim 10 $false
 try { $btnHist.Font = New-Object System.Drawing.Font('Segoe MDL2 Assets',10) } catch {}
-$btnHist.Text = [string][char]0xE787                 # calendar glyph (Segoe MDL2 Assets)
+$btnHist.Text = [string][char]0xE787                  # calendar glyph (Segoe MDL2 Assets)
 $btnHist.TextAlign = 'MiddleCenter'
 $btnHist.Add_Click({ Open-History })
 $btnHist.Add_MouseEnter({ $btnHist.ForeColor = $cCyan })
 $btnHist.Add_MouseLeave({ $btnHist.ForeColor = $cDim })
 
-$btnRefresh = New-Lbl ($W-46) 7 18 18 $cDim 10 $false
-$btnRefresh.Text = [string][char]0x21BB              # round arrow
+$btnRefresh = New-Lbl ($W-76) 7 20 18 $cDim 10 $false
+try { $btnRefresh.Font = New-Object System.Drawing.Font('Segoe MDL2 Assets',10) } catch {}
+$btnRefresh.Text = [string][char]0xE72C                # refresh glyph (Segoe MDL2 Assets)
 $btnRefresh.TextAlign = 'MiddleCenter'
 $btnRefresh.Add_Click({ $script:curDay=$null; Update-Widget })
 $btnRefresh.Add_MouseEnter({ $btnRefresh.ForeColor = $cCyan })
 $btnRefresh.Add_MouseLeave({ $btnRefresh.ForeColor = $cDim })
 
-$btnX = New-Lbl ($W-26) 7 18 18 $cDim 11 $false
-$btnX.Text = [string][char]0x00D7
+# minimize-to-tray button - hides the widget and parks it in the system tray
+$btnTray = New-Lbl ($W-52) 7 20 18 $cDim 10 $false
+try { $btnTray.Font = New-Object System.Drawing.Font('Segoe MDL2 Assets',10) } catch {}
+$btnTray.Text = [string][char]0xE921                   # minimize glyph (Segoe MDL2 Assets)
+$btnTray.TextAlign = 'MiddleCenter'
+$btnTray.Add_Click({ Minimize-ToTray })
+$btnTray.Add_MouseEnter({ $btnTray.ForeColor = $cCyan })
+$btnTray.Add_MouseLeave({ $btnTray.ForeColor = $cDim })
+
+$btnX = New-Lbl ($W-28) 7 20 18 $cDim 10 $false
+try { $btnX.Font = New-Object System.Drawing.Font('Segoe MDL2 Assets',10) } catch {}
+$btnX.Text = [string][char]0xE8BB                      # close glyph (Segoe MDL2 Assets)
 $btnX.TextAlign = 'MiddleCenter'
 $btnX.Add_Click({ $form.Close() })
 $btnX.Add_MouseEnter({ $btnX.ForeColor = $cRed })
@@ -1358,9 +1362,17 @@ function Scan-AllHistory {
                 $pr=Get-Price $o.message.model; $bi=$pr.In/1e6; $bo=$pr.Out/1e6
                 $tc=$i*$bi+$ou*$bo+$cr*($bi*0.1)+$e5*($bi*1.25)+$e1*($bi*2.0); $tr=($i+$cr+$cc)*$bi+$ou*$bo; $tkn=$i+$ou+$cr+$cc
                 $fam=Family $o.message.model
-                if(-not $byDay.ContainsKey($day)){ $byDay[$day]=@{cost=0.0;raw=0.0;tok=0.0;out=0.0;turns=0;byModel=@{};hours=(New-Object 'double[]' 24);sessions=@{}} }
+                if(-not $byDay.ContainsKey($day)){ $byDay[$day]=@{cost=0.0;raw=0.0;tok=0.0;out=0.0;turns=0;byModel=@{};hours=(New-Object 'double[]' 24);tueByModelHours=@{};sessions=@{}} }
                 $d=$byDay[$day]; $d.cost+=$tc; $d.raw+=$tr; $d.tok+=$tkn; $d.out+=$ou; $d.turns++
                 if($hh -ge 0 -and $hh -lt 24){ $d.hours[$hh]+=$tkn }
+                # per-model hourly split, Tuesdays only - the one day of the week a
+                # compute-week boundary (resets Tue 13:00, mirroring Claude's own weekly
+                # reset) can fall in the middle of, so it's the only day that ever needs
+                # splitting per model; every other day's whole-day byModel total is enough.
+                if($dt.DayOfWeek -eq [DayOfWeek]::Tuesday -and $hh -ge 0 -and $hh -lt 24){
+                    if(-not $d.tueByModelHours.ContainsKey($fam)){ $d.tueByModelHours[$fam]=(New-Object 'double[]' 24) }
+                    $d.tueByModelHours[$fam][$hh]+=$tkn
+                }
                 if(-not $d.byModel.ContainsKey($fam)){ $d.byModel[$fam]=@{cost=0.0;raw=0.0;out=0.0;tok=0.0;turns=0} }
                 $fm=$d.byModel[$fam]; $fm.cost+=$tc; $fm.raw+=$tr; $fm.out+=$ou; $fm.tok+=$tkn; $fm.turns++
                 if(-not $d.sessions.ContainsKey($sid)){ $d.sessions[$sid]=@{cost=0.0;raw=0.0;tok=0.0;out=0.0;turns=0;byModel=@{};start=$hm;end=$hm} }
@@ -1446,13 +1458,18 @@ function Open-History {
         foreach($day in ($hist.Keys | Sort-Object)){
             $t=$hist[$day]
             $tlv = if($t.tokLocal){ $t.tokLocal } else { 0 }
-            $entry=[ordered]@{ cost=[math]::Round($t.cost,2); raw=[math]::Round($t.raw,2); tok=[math]::Round($t.tok); tokLocal=[math]::Round($tlv); out=[math]::Round($t.out); turns=$t.turns; byModel=[ordered]@{}; hours=@(); sessions=@() }
+            $entry=[ordered]@{ cost=[math]::Round($t.cost,2); raw=[math]::Round($t.raw,2); tok=[math]::Round($t.tok); tokLocal=[math]::Round($tlv); out=[math]::Round($t.out); turns=$t.turns; byModel=[ordered]@{}; hours=@(); tueByModelHours=[ordered]@{}; sessions=@() }
             $rich=$scan.byDay[$day]
             if($rich){
                 foreach($fam in ($rich.byModel.Keys | Sort-Object { $rich.byModel[$_].tok } -Descending)){
                     $x=$rich.byModel[$fam]; $entry.byModel[$fam]=[ordered]@{ cost=[math]::Round($x.cost,2); raw=[math]::Round($x.raw,2); out=[math]::Round($x.out); tok=[math]::Round($x.tok); turns=$x.turns }
                 }
                 $entry.hours=@($rich.hours | ForEach-Object { [math]::Round($_) })
+                if($rich.tueByModelHours -and $rich.tueByModelHours.Count -gt 0){
+                    foreach($fam in $rich.tueByModelHours.Keys){
+                        $entry.tueByModelHours[$fam]=@($rich.tueByModelHours[$fam] | ForEach-Object { [math]::Round($_) })
+                    }
+                }
                 $sess=@()
                 foreach($sid in ($rich.sessions.Keys | Sort-Object { $rich.sessions[$_].tok } -Descending)){
                     if($script:archived -and $script:archived.ContainsKey($sid)){ continue }   # archived: keep in totals, drop from the list

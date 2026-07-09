@@ -2,6 +2,29 @@
 
 All notable changes to the Claude Usage Widget.
 
+## v1.17.0 — 2026-07-09
+
+- **Top icon row redesigned.** Reordered to History → Refresh → Minimize →
+  Close, so Minimize sits right next to Close (the familiar OS pairing).
+  All four now share the same icon font, size, and hover behavior, so the
+  row reads as one set instead of two mismatched styles.
+- **Weekly usage — compute weeks, per model.** A new "Weekly" card breaks
+  usage down into compute weeks that reset every Tuesday at 1:00 PM local
+  time, mirroring Claude's own weekly limit reset (not calendar Sun–Sat
+  weeks). Each week lists a per-model token/cost/turns breakdown; the one
+  boundary Tuesday each week touches is split to the hour using new
+  per-model hourly tracking, so nothing is double-counted or dropped at
+  the edges.
+- **Widget settings panel moved to the bottom of the calendar page**, out
+  of the way of the day-to-day view.
+- **All Chats and Recent Chats now start collapsed** by default (the
+  widget's own Cloud/Local lists, and the calendar's All Chats section).
+- **All Chats is now grouped by project**, with an Archive action per
+  project. Archiving a project tucks it into a separate "Archived
+  projects" section — and it automatically comes back to the active list
+  the moment you work in that project again, no manual un-archiving
+  needed (a Restore button is still there if you want it back sooner).
+
 ## v1.16.2 — 2026-07-08
 
 - **Trimmed the bottom section from 5 lines to 3.** Removed the all-time
